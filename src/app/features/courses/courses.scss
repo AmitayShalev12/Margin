@@ -1,0 +1,147 @@
+.kb {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.kb-section + .kb-section {
+  border-block-start: 1px solid #eef1ec;
+}
+
+.kb-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: start;
+  min-height: 3.5rem;
+  padding: var(--s-4);
+  background: none;
+  border: 0;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--k-soft);
+  }
+
+  svg {
+    flex: 0 0 auto;
+    color: var(--c-line-strong);
+    // Collapsed, the chevron points at the content — rightwards in RTL.
+    transform: rotate(90deg);
+    transition: transform var(--dur) var(--ease);
+  }
+
+  svg.open {
+    transform: rotate(0deg);
+  }
+}
+
+.hue-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--k-ink);
+  flex: 0 0 auto;
+}
+
+.kb-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-title {
+  display: block;
+  font-weight: 600;
+}
+
+.kb-meta {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.kb-body {
+  padding: 0 var(--s-4) var(--s-4);
+}
+
+.kb-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.kb-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--k-soft);
+  border: 1px solid var(--k-soft);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+
+  &.muted {
+    background: transparent;
+    border-color: #eef1ec;
+  }
+}
+
+.kb-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-main {
+  display: block;
+  font-size: 14px;
+}
+
+.kb-note {
+  display: block;
+  margin-block-start: 3px;
+  font-size: 12px;
+  color: var(--c-ink-4);
+}
+
+.kb-tag {
+  font-size: 12px;
+  color: var(--k-ink);
+  background: var(--c-surface);
+  border-radius: var(--r-full);
+  padding: 1px 10px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.muted .kb-tag {
+  color: var(--c-ink-4);
+  background: var(--c-surface-sunk);
+}
+
+.kb-none {
+  color: var(--c-ink-3);
+  font-size: 14px;
+}
+
+// Adding material is a secondary action — dashed, not a filled button.
+.kb-add {
+  margin-block-start: var(--s-3);
+  min-height: 2.5rem;
+  padding-inline: 14px;
+  border: 1px dashed var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-accent);
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-accent-soft);
+    border-color: var(--c-accent-line);
+  }
+}

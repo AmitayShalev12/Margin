@@ -1,0 +1,279 @@
+<div class="page review-page">
+  <div class="wrap">
+    <a class="back" routerLink="/submissions">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m9 6 6 6-6 6" />
+      </svg>
+      <span>לרשימת העבודות</span>
+    </a>
+
+    <header class="head">
+      <h1>{{ student() }}</h1>
+      <span class="context">{{ context() }}</span>
+      <span class="spacer"></span>
+      @if (hasComments()) {
+        <span class="counter">{{ counterText() }}</span>
+      }
+    </header>
+
+    @if (hasComments()) {
+      <div class="legend">
+        @for (l of legend; track l.label) {
+          <span class="legend-chip" [class]="l.class">
+            <span class="swatch" aria-hidden="true"></span>{{ l.label }}
+          </span>
+        }
+      </div>
+    }
+
+    <div class="layout">
+      <!-- The document itself. Comments live on the text, not beside a copy of it. -->
+      <article class="document">
+        @for (b of viewBlocks(); track b.id) {
+          @if (b.isHeading) {
+            @if (b.isTitle) {
+              <h2 class="doc-title">{{ b.text }}</h2>
+            } @else {
+              <h3 class="doc-section">{{ b.text }}</h3>
+            }
+          } @else {
+            <p class="doc-para">
+              @for (run of b.runs; track $index) {
+                @if (run.annotationId) {
+                  <span
+                    class="mark"
+                    [class]="run.kindClass + ' ' + run.stateClass"
+                    role="button"
+                    tabindex="0"
+                    (click)="tapRun(run.annotationId)"
+                    (keydown.enter)="tapRun(run.annotationId)"
+                    (keydown.space)="tapRun(run.annotationId)"
+                    >{{ run.text }}</span
+                  >
+                } @else if (run.ltr) {
+                  <span class="ltr">{{ run.text }}</span>
+                } @else {
+                  <span>{{ run.text }}</span>
+                }
+              }
+            </p>
+          }
+        }
+      </article>
+
+      <!-- Desktop: the margin. -->
+      @if (viewport.isDesktop() && hasComments()) {
+        <aside class="margin" aria-label="הערות">
+          @for (s of sections(); track s.id) {
+            <div class="group">
+              <button
+                type="button"
+                class="group-head"
+                [attr.aria-expanded]="s.open"
+                (click)="toggleSection(s.id)"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  [class.open]="s.open"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+                <span class="group-title">{{ s.title }}</span>
+                <span class="group-count">{{ s.countText }}</span>
+              </button>
+
+              @if (s.open) {
+                <div class="group-body">
+                  @for (c of s.comments; track c.id) {
+                    <div class="comment" [class]="c.kindClass" [class.is-resolved]="c.isResolved">
+                      <div class="comment-head">
+                        <span class="tag">{{ c.kindLabel }}</span>
+                        <span class="state">{{ c.stateLabel }}</span>
+                      </div>
+                      <div class="quote">״{{ c.quote }}״</div>
+
+                      @if (editingId() === c.id) {
+                        <textarea
+                          class="editor"
+                          rows="3"
+                          [value]="draft()"
+                          (input)="draft.set($any($event.target).value)"
+                          aria-label="עריכת ההערה"
+                        ></textarea>
+                        <div class="actions">
+                          <button type="button" class="act act-accept" (click)="saveEdit(c.id)">
+                            שמירה
+                          </button>
+                          <button type="button" class="act act-ghost" (click)="cancelEdit()">
+                            ביטול
+                          </button>
+                        </div>
+                      } @else {
+                        <div class="body">{{ c.body }}</div>
+                        @if (c.isPending) {
+                          <div class="actions">
+                            <button
+                              type="button"
+                              class="act act-accept"
+                              (click)="decide(c.id, 'accepted')"
+                            >
+                              מאשרת
+                            </button>
+                            <button type="button" class="act act-ghost" (click)="startEdit(c.id)">
+                              עריכה
+                            </button>
+                            <button
+                              type="button"
+                              class="act act-quiet"
+                              (click)="decide(c.id, 'dismissed')"
+                            >
+                              לא רלוונטי
+                            </button>
+                            <span class="spacer"></span>
+                            <button
+                              type="button"
+                              class="act act-done"
+                              (click)="decide(c.id, 'resolved')"
+                            >
+                              טופל
+                            </button>
+                          </div>
+                        }
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </aside>
+      }
+    </div>
+
+    <!-- Mobile: the same comments, grouped under the document. -->
+    @if (!viewport.isDesktop() && hasComments()) {
+      <div class="mobile-groups">
+        <div class="section-label">{{ counterText() }}</div>
+        @for (s of sections(); track s.id) {
+          <div class="m-group">
+            <button
+              type="button"
+              class="m-group-head"
+              [attr.aria-expanded]="s.open"
+              (click)="toggleSection(s.id)"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                [class.open]="s.open"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+              <span class="group-title">{{ s.title }}</span>
+              <span class="group-count">{{ s.countText }}</span>
+            </button>
+
+            @if (s.open) {
+              <ul class="m-list">
+                @for (c of s.comments; track c.id) {
+                  <li [class]="c.kindClass" [class.is-resolved]="c.isResolved">
+                    <button type="button" class="m-item" (click)="openSheet(c.id)">
+                      <span class="m-quote">״{{ c.quote }}״</span>
+                      <span class="m-short">{{ c.short }}</span>
+                      <span class="m-state">{{ c.stateLabel }}</span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (!hasComments()) {
+      <p class="no-comments hint">
+        אין עדיין הערות על העבודה הזו. כשהמערכת תנסח טיוטה ראשונה, היא תופיע כאן בשוליים.
+      </p>
+    }
+  </div>
+</div>
+
+<!-- One primary action, always reachable. -->
+<div class="action-bar">
+  <div class="action-inner">
+    <span class="send-hint">{{ sendHint() }}</span>
+    <button type="button" class="btn btn-primary" (click)="send()">
+      שליחת ההערות ל{{ firstName() }}
+    </button>
+  </div>
+</div>
+
+<!-- Mobile: a tapped highlight opens here. -->
+@if (sheetComment(); as c) {
+  <div class="sheet-backdrop" (click)="closeSheet()"></div>
+  <div class="sheet" role="dialog" aria-modal="true" [class]="c.kindClass">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="comment-head">
+      <span class="tag">{{ c.kindLabel }}</span>
+      <span class="state">{{ c.stateLabel }}</span>
+    </div>
+    <div class="quote">״{{ c.quote }}״</div>
+
+    @if (editingId() === c.id) {
+      <textarea
+        class="editor"
+        rows="4"
+        [value]="draft()"
+        (input)="draft.set($any($event.target).value)"
+        aria-label="עריכת ההערה"
+      ></textarea>
+      <div class="sheet-actions">
+        <button type="button" class="btn btn-primary" (click)="saveEdit(c.id)">שמירה</button>
+        <button type="button" class="btn btn-ghost" (click)="cancelEdit()">ביטול</button>
+      </div>
+    } @else {
+      <p class="sheet-body">{{ c.body }}</p>
+
+      @if (c.isPending) {
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-primary" (click)="decide(c.id, 'accepted')">
+            מאשרת
+          </button>
+          <button type="button" class="btn btn-ghost" (click)="startEdit(c.id)">עריכה</button>
+          <button type="button" class="btn btn-plain" (click)="decide(c.id, 'dismissed')">
+            לא רלוונטי
+          </button>
+        </div>
+        <button type="button" class="sheet-resolve" (click)="decide(c.id, 'resolved')">
+          סימון כטופל
+        </button>
+      }
+    }
+  </div>
+}

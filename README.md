@@ -18,13 +18,18 @@ The entire interface is Hebrew and right-to-left.
 | Phase | Scope                                                         | State   |
 | ----- | ------------------------------------------------------------- | ------- |
 | 1     | Project setup, data model, SQL schema, routed shell           | ✅ done |
-| 2     | Core screens (dashboard, submissions, review, courses, style) | next    |
-| 3     | Google Drive integration                                      | —       |
+| 2     | Core screens (dashboard, submissions, review, courses, style) | ✅ done |
+| 3     | Google Drive integration                                      | next    |
 | 4     | AI feedback engine, learning loop, grading forms, email       | —       |
 | 5     | Reliability / authenticity module                             | —       |
 
-Phase 1 deliberately ships **empty routed pages**. What is real is the data
-model, the schema, the RTL shell and the design system.
+The five core screens run on seeded records in
+`src/app/core/mock/seed-data.ts` — real model types, real `SubmissionStatus`
+values, real character-offset anchors. Phase 3 swaps the source of those
+records for Google Drive and Supabase; the screens keep their shape.
+
+Grading forms and student email are still placeholders — they belong to
+Phase 4.
 
 ---
 
@@ -73,8 +78,11 @@ src/
   app/
     core/
       models/        TypeScript interfaces — one file per entity group
+      mock/          seeded records standing in for Supabase until Phase 3
+      presentation/  model records → what the screens actually show
       navigation.ts  the nav destinations, shared by rail and tab bar
       supabase/      the single Supabase client + auth signals
+      viewport.ts    the one breakpoint that JS has to know about
     features/        one folder per routed screen
     shared/ui/       small presentational components (icon, page header)
   environments/      Supabase URL + anon key
@@ -145,3 +153,36 @@ plain Hebrew instead of status codes.
 - **Mobile-first** — every breakpoint is `min-width`, so the 375px layout is
   the base. Navigation is a bottom tab bar with four destinations plus "עוד";
   the desktop rail only appears at 1024px, on the inline-start (right) edge.
+- **Category colour-coding** — each comment category owns a hue, declared once
+  in `src/styles/_categories.scss` as four custom properties (`--k-ink`,
+  `--k-wash`, `--k-soft`, `--k-fg`). A highlight in the document, its comment
+  card and its legend chip all read the same variables, so they cannot drift
+  apart. Submission statuses work the same way, grouped by who holds the work:
+  amber waits on the teacher, pine is in progress, blue is with the student,
+  grey is done.
+
+### The review screen
+
+The core screen, and the one worth reading the code for.
+
+Comments are anchored by character offset into a block's plain text, never
+baked into pre-marked HTML — `renderBlock()` slices the text at each anchor at
+render time. That is what lets a comment survive the student rewriting the
+paragraph around it, and it is why dismissing a comment removes the highlight
+from the document rather than leaving a dead span.
+
+Two more things happen at render time rather than in the data:
+
+- **Sections** are derived from the document's own level-2 headings
+  (`sectionsOf()`), because a real Drive document is the only structure Phase 3
+  can count on. Comments are grouped by section and collapsed, so a paper with
+  forty notes doesn't arrive as one flat list.
+- **Bidi isolation** is detected, not marked up: `splitLtrRuns()` finds runs
+  containing Latin letters and isolates them, so `(r = .42, p < .01)` keeps its
+  brackets the right way round inside Hebrew. Sentence-final punctuation is
+  trimmed back out of the isolate so it stays with the Hebrew sentence.
+
+Desktop renders comment bubbles in a margin column beside the document; mobile
+renders a grouped list below it and opens a tapped highlight in a bottom
+sheet. These are genuinely different markup, not one hidden by CSS — hence
+`core/viewport.ts`.

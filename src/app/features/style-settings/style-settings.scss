@@ -1,0 +1,81 @@
+.traits-card {
+  padding: 18px var(--s-4);
+  margin-block-end: var(--s-4);
+}
+
+.traits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+
+.bullet {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--k-ink);
+  margin-block-start: 9px;
+  flex: 0 0 auto;
+}
+
+.trait-text {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+}
+
+.recent-label {
+  margin: 0 2px var(--s-2);
+}
+
+.mini {
+  font-size: 12px;
+  color: var(--c-ink-4);
+  margin-block-end: var(--s-2);
+}
+
+.after-label {
+  margin-block-start: var(--s-3);
+}
+
+// The AI's wording, struck through — visibly superseded by hers.
+.before {
+  font-family: var(--font-doc);
+  font-size: var(--fs-base);
+  color: var(--c-ink-4);
+  text-decoration: line-through;
+  text-decoration-color: #dfe3dc;
+}
+
+.after {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+}
+
+.note {
+  display: inline-block;
+  margin-block-start: 10px;
+  font-size: 12px;
+  color: var(--c-ok);
+  background: var(--c-ok-soft);
+  border-radius: var(--r-full);
+  padding: 2px 10px;
+}
+
+.add {
+  margin-block-start: var(--s-5);
+
+  .hint {
+    margin: 10px 2px 0;
+  }
+}

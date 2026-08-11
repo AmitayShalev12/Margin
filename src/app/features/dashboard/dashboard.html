@@ -1,0 +1,45 @@
+<div class="page">
+  <app-page-header title="מה ממתין לי" [subtitle]="subtitle()" />
+
+  @if (waiting().length) {
+    <div class="stack">
+      @for (w of waiting(); track w.id) {
+        <a class="waiting" [class]="w.statusClass" [routerLink]="['/review', w.id]">
+          <span class="top">
+            <span class="student">{{ w.student }}</span>
+            <span class="when">{{ w.when }}</span>
+          </span>
+          <span class="line">{{ w.line }}</span>
+          <span class="course">{{ w.course }}</span>
+        </a>
+      }
+    </div>
+
+    <div class="more">
+      <a class="btn btn-plain" routerLink="/submissions">כל העבודות</a>
+    </div>
+  } @else {
+    <div class="empty">
+      <svg
+        width="34"
+        height="34"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#bcd6d1"
+        stroke-width="1.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M20 4c-7 1-11 4-13 8l-2 6" />
+        <path d="M9 15c4-1 7-4 8-8" />
+        <path d="M5 19h6" />
+      </svg>
+      <p class="empty-title">הכול מטופל.</p>
+      <p class="empty-sub">
+        אין עבודות שממתינות לך כרגע. כשתגיע עבודה חדשה מהדרייב, היא תופיע כאן.
+      </p>
+      <a class="btn btn-ghost" routerLink="/submissions">לעבודות שכבר נשלחו</a>
+    </div>
+  }
+</div>

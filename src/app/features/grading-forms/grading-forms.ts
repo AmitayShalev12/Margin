@@ -9,10 +9,10 @@ import { PlaceholderNote } from '../../shared/ui/placeholder-note/placeholder-no
   imports: [PageHeader, PlaceholderNote],
   template: `
     <div class="page">
-      <app-page-header title="טפסי הערכה" subtitle="ההערות שסגרת, מסודרות לפי הקטגוריות שלך." />
+      <app-page-header title="טפסי הערכה" subtitle="הטופס הפנימי שלך, והטופס שהתלמידה מקבלת." />
       <app-placeholder-note
         phase="שלב 4"
-        text="ההערות שנסגרו במהלך הבדיקה יתמלאו לתוך הטופס הפנימי שלך, לפי קטגוריות שנלמדו מהטפסים של השנים הקודמות. בסוף השנה ייגזר מכאן גם הטופס שהתלמידה מקבלת."
+        text="הקטגוריות נבנות מהקטגוריות שחזרו אצלך בשנים קודמות, וכל הערה שאישרת בבדיקה נכנסת לקטגוריה שלה מעצמה."
       />
     </div>
   `,

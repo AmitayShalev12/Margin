@@ -1,0 +1,103 @@
+// ---------------------------------------------------------------------------
+// Category and status colour-coding.
+//
+// Each class only *declares* custom properties; the components decide what to
+// paint with them. That keeps a comment card, an inline highlight and a legend
+// chip provably in the same hue without repeating hex values.
+//
+// Four roles per category:
+//   --k-ink   the saturated hue — spines, dots, legend swatches
+//   --k-wash  the tinted background — pending highlights, quote blocks, tags
+//   --k-soft  a lighter wash — highlights the teacher has already decided on
+//   --k-fg    text on a wash, dark enough to stay readable
+// ---------------------------------------------------------------------------
+
+.kind-language {
+  --k-ink: #2b6f6a;
+  --k-wash: #e5efed;
+  --k-soft: #f1f7f5;
+  --k-fg: #1a4f4b;
+}
+
+.kind-structure {
+  --k-ink: #42598f;
+  --k-wash: #e6eaf5;
+  --k-soft: #f2f4fa;
+  --k-fg: #2e3f6b;
+}
+
+.kind-sources {
+  --k-ink: #a8642b;
+  --k-wash: #f6eade;
+  --k-soft: #fbf4ec;
+  --k-fg: #7d4718;
+}
+
+.kind-content {
+  --k-ink: #7a4667;
+  --k-wash: #f2e7ef;
+  --k-soft: #f9f2f7;
+  --k-fg: #5b3049;
+}
+
+.kind-praise {
+  --k-ink: #4a7a55;
+  --k-wash: #e7f0e8;
+  --k-soft: #f2f7f3;
+  --k-fg: #33593c;
+}
+
+// The model allows two more kinds than the five the teacher sees day to day.
+// Both stay deliberately neutral so they never compete with the five above.
+.kind-formatting {
+  --k-ink: #5f6b70;
+  --k-wash: #e9eceb;
+  --k-soft: #f3f5f4;
+  --k-fg: #3b464a;
+}
+
+.kind-other {
+  --k-ink: #6b7579;
+  --k-wash: #ecefe9;
+  --k-soft: #f4f6f2;
+  --k-fg: #3b464a;
+}
+
+// A handled comment recedes: its spine and quote go grey while the category
+// tag keeps its hue, so the category is still legible at a glance but the
+// comment stops competing for attention. The components apply this — the
+// category variables above stay intact.
+
+// ---------------------------------------------------------------------------
+// Submission status. Grouped by who currently holds the work:
+//   amber — waiting on the teacher
+//   pine  — she is part-way through it
+//   blue  — with the student
+//   grey  — done
+// ---------------------------------------------------------------------------
+
+.st-new,
+.st-resubmitted {
+  --st-ink: #a8642b;
+  --st-fg: #7d4718;
+  --st-wash: #fbf4ec;
+}
+
+.st-in_review {
+  --st-ink: #2b6f6a;
+  --st-fg: #1a4f4b;
+  --st-wash: #f1f7f5;
+}
+
+.st-notes_sent,
+.st-student_revised {
+  --st-ink: #42598f;
+  --st-fg: #2e3f6b;
+  --st-wash: #f2f4fa;
+}
+
+.st-finalized {
+  --st-ink: #c8cec4;
+  --st-fg: #6b7579;
+  --st-wash: #f5f6f3;
+}

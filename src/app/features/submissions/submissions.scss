@@ -1,0 +1,168 @@
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-end: var(--s-3);
+}
+
+// The one control on this screen, and it is deliberately quiet: filters and
+// sync detail are secondary to the list itself.
+.disclose {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 2.25rem;
+  padding-inline: var(--s-3);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-md);
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink);
+  }
+
+  svg {
+    transition: transform var(--dur) var(--ease);
+  }
+
+  svg.flip {
+    transform: rotate(180deg);
+  }
+}
+
+.filters {
+  margin-block-end: var(--s-4);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.pick {
+  min-height: 2.25rem;
+  padding-inline: 14px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--c-line-strong);
+  background: transparent;
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--c-accent-soft);
+    border-color: var(--c-accent-line);
+    color: var(--c-accent-strong);
+  }
+}
+
+.sync {
+  margin-block-start: var(--s-4);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.sync-now {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--c-accent);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+// -- the list ---------------------------------------------------------------
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+
+  li + li {
+    border-block-start: 1px solid #eef1ec;
+  }
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 14px var(--s-4);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover {
+    background: #fbfcfa;
+  }
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.student {
+  font-family: var(--font-doc);
+  font-size: 17px;
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+
+// The Drive file name is Latin inside a Hebrew line — isolated so it cannot
+// drag the bidi flow around, and truncated because it is only ever a hint.
+.file {
+  font-size: 12px;
+  color: var(--c-ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-block-start: 5px;
+  font-size: 14px;
+  color: var(--st-fg);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--st-ink);
+  flex: 0 0 auto;
+}
+
+// In RTL, forward is to the left — the chevron has to be mirrored to keep
+// meaning "onwards" rather than "back".
+.go {
+  color: var(--c-line-strong);
+  flex: 0 0 auto;
+  transform: scaleX(-1);
+}
+
+.none {
+  padding: var(--s-6) var(--s-4);
+  color: var(--c-ink-3);
+  text-align: center;
+}

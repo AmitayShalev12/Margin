@@ -1,0 +1,81 @@
+<div class="page">
+  <app-page-header title="עבודות" subtitle="כל מה שהוגש, לפי תלמידה." />
+
+  <div class="toolbar">
+    <button
+      type="button"
+      class="disclose"
+      [attr.aria-expanded]="filtersOpen()"
+      (click)="toggleFilters()"
+    >
+      <span>{{ filtersOpen() ? 'סגירת סינון' : 'סינון וסנכרון' }}</span>
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        [class.flip]="filtersOpen()"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
+  </div>
+
+  @if (filtersOpen()) {
+    <div class="card filters">
+      <div class="section-label">הצגה</div>
+      <div class="chips">
+        @for (f of filters; track f.key) {
+          <button
+            type="button"
+            class="pick"
+            [class.is-active]="filter() === f.key"
+            (click)="filter.set(f.key)"
+          >
+            {{ f.label }}
+          </button>
+        }
+      </div>
+      <div class="sync">
+        {{ lastSynced() }} · <button type="button" class="sync-now">סנכרון עכשיו</button>
+      </div>
+    </div>
+  }
+
+  <ul class="list">
+    @for (row of rows(); track row.id) {
+      <li [class]="row.statusClass">
+        <a class="row" [routerLink]="['/review', row.id]">
+          <span class="main">
+            <span class="head">
+              <span class="student">{{ row.student }}</span>
+              <span class="file ltr">{{ row.file }}</span>
+            </span>
+            <span class="status"> <span class="dot" aria-hidden="true"></span>{{ row.line }} </span>
+          </span>
+          <svg
+            class="go"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </a>
+      </li>
+    } @empty {
+      <li class="none">אין עבודות בתצוגה הזו.</li>
+    }
+  </ul>
+</div>

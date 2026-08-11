@@ -9,10 +9,13 @@ import { PlaceholderNote } from '../../shared/ui/placeholder-note/placeholder-no
   imports: [PageHeader, PlaceholderNote],
   template: `
     <div class="page">
-      <app-page-header title="מיילים לתלמידות" subtitle="מה נשלח, ומה עדיין ממתין לאישור שלך." />
+      <app-page-header
+        title="מיילים לתלמידות"
+        subtitle="טיוטה אחת, כמה ניסוחים, ושליחה רק באישורך."
+      />
       <app-placeholder-note
         phase="שלב 4"
-        text="לכל סבב הערות ייווצר מייל מנוסח, עם שתיים-שלוש אפשרויות ניסוח לבחירה. שום דבר לא נשלח בלי שתאשרי."
+        text="המייל נכתב מתוך ההערות שאישרת, בסגנון שלך. שום דבר לא נשלח בלי שאישרת אותו."
       />
     </div>
   `,

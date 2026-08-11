@@ -1,0 +1,57 @@
+<div class="page">
+  <app-page-header [title]="course.name" [subtitle]="subtitle" />
+
+  <div class="kb">
+    @for (s of sections(); track s.id) {
+      <div class="kb-section" [class]="s.hue">
+        <button
+          type="button"
+          class="kb-head"
+          [attr.aria-expanded]="isOpen(s.id)"
+          (click)="toggle(s.id)"
+        >
+          <span class="hue-dot" aria-hidden="true"></span>
+          <span class="kb-label">
+            <span class="kb-title">{{ s.title }}</span>
+            <span class="kb-meta">{{ s.meta }}</span>
+          </span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            [class.open]="isOpen(s.id)"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+
+        @if (isOpen(s.id)) {
+          <div class="kb-body">
+            <ul class="kb-items">
+              @for (item of s.items; track item.id) {
+                <li class="kb-item" [class.muted]="item.muted">
+                  <span class="kb-text">
+                    <span class="kb-main">{{ item.text }}</span>
+                    @if (item.note) {
+                      <span class="kb-note">{{ item.note }}</span>
+                    }
+                  </span>
+                  <span class="kb-tag">{{ item.tag }}</span>
+                </li>
+              } @empty {
+                <li class="kb-item kb-none">עדיין אין כאן חומרים.</li>
+              }
+            </ul>
+            <button type="button" class="kb-add">{{ s.addLabel }}</button>
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

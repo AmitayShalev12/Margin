@@ -1,0 +1,538 @@
+@use '../../../styles/tokens' as *;
+
+// The review screen runs wider than the other pages: at desktop width it has
+// to hold the document and the margin side by side.
+.review-page {
+  max-width: none;
+  padding-block-end: calc(var(--s-12) + 4.5rem + var(--bottom-nav-h) + var(--safe-bottom));
+}
+
+.wrap {
+  max-width: 70rem;
+  margin-inline: auto;
+}
+
+.spacer {
+  flex: 1;
+}
+
+// -- header -----------------------------------------------------------------
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--s-2);
+  margin-block-end: var(--s-3);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink);
+  }
+
+  // Back in RTL points right, which is the glyph's natural direction.
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) 14px;
+  margin-block-end: 18px;
+
+  h1 {
+    font-size: var(--fs-xl);
+  }
+}
+
+.context,
+.counter {
+  font-size: 14px;
+  color: var(--c-ink-3);
+}
+
+.counter {
+  font-size: var(--fs-sm);
+}
+
+// -- legend -----------------------------------------------------------------
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-end: 14px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  border-radius: var(--r-full);
+  padding-block: 2px;
+  padding-inline: 10px 7px;
+  background: var(--k-wash);
+  color: var(--k-fg);
+}
+
+.swatch {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--k-ink);
+}
+
+// -- layout -----------------------------------------------------------------
+
+.layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+// -- the document -----------------------------------------------------------
+
+.document {
+  flex: 1;
+  min-width: 0;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-6) 22px;
+  box-shadow: var(--sh-1);
+}
+
+.doc-title {
+  margin: 0 0 18px;
+  font-family: var(--font-doc);
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.doc-section {
+  margin: var(--s-6) 0 var(--s-2);
+  font-family: var(--font-doc);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--c-ink-2);
+}
+
+.doc-para {
+  margin: 0 0 18px;
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: var(--lh-doc);
+}
+
+// An annotated span. Underlined rather than filled solid, so a paragraph
+// carrying six of them is still a paragraph and not a highlighter accident.
+.mark {
+  border-radius: 2px;
+  cursor: pointer;
+
+  &.is-pending {
+    background: var(--k-wash);
+    box-shadow: inset 0 -0.15em 0 var(--k-ink);
+  }
+
+  // Decided but not yet resolved: quieter, still findable.
+  &.is-decided {
+    background: var(--k-soft);
+    box-shadow: inset 0 -0.15em 0 var(--k-wash);
+  }
+
+  // Handled in this round: drops its category hue and recedes.
+  &.is-resolved {
+    background: var(--c-handled);
+    box-shadow: inset 0 -0.15em 0 var(--c-line-strong);
+  }
+}
+
+// -- the margin (desktop) ---------------------------------------------------
+
+.margin {
+  flex: 0 0 21rem;
+  width: 21rem;
+}
+
+.group {
+  margin-block-end: 10px;
+}
+
+.group-head,
+.m-group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  text-align: start;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: var(--c-ink-3);
+
+  svg {
+    flex: 0 0 auto;
+    // Collapsed points at the content; in RTL that is to the right.
+    transform: rotate(90deg);
+    transition: transform var(--dur) var(--ease);
+  }
+
+  svg.open {
+    transform: rotate(0deg);
+  }
+}
+
+.group-head {
+  padding: var(--s-2) 6px;
+  border-radius: var(--r-sm);
+
+  &:hover {
+    background: var(--c-surface-sunk);
+  }
+}
+
+.group-title {
+  flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-2);
+}
+
+.group-count {
+  font-size: 12px;
+  color: var(--c-ink-4);
+}
+
+.group-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-block-start: 4px;
+}
+
+// -- a comment --------------------------------------------------------------
+
+.comment {
+  background: var(--c-surface);
+  border: 1px solid var(--k-wash);
+  border-inline-start: 3px solid var(--k-ink);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+
+  &.is-resolved {
+    border-color: var(--c-line);
+    border-inline-start-color: var(--c-line-strong);
+    opacity: 0.62;
+  }
+}
+
+.comment-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-block-end: 6px;
+}
+
+// The category tag keeps its hue even once the comment is resolved — it is
+// the label, not the state.
+.tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--k-fg);
+  background: var(--k-wash);
+  border-radius: var(--r-full);
+  padding: 1px 10px;
+}
+
+.state {
+  font-size: 12px;
+  color: var(--c-ink-4);
+}
+
+.quote {
+  font-family: var(--font-doc);
+  font-size: var(--fs-sm);
+  color: var(--k-fg);
+  background: var(--k-wash);
+  border-radius: var(--r-sm);
+  padding: 5px var(--s-2);
+  margin-block-end: var(--s-2);
+}
+
+.is-resolved .quote {
+  color: var(--c-ink-3);
+  background: var(--c-paper);
+}
+
+.body {
+  font-size: 14px;
+  color: var(--c-ink-2);
+  line-height: 1.6;
+}
+
+.editor {
+  width: 100%;
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-sm);
+  padding: var(--s-2);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-start: 10px;
+}
+
+.act {
+  min-height: 2rem;
+  padding-inline: 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.act-accept {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+
+  &:hover {
+    background: #d3e6e1;
+  }
+}
+
+.act-ghost {
+  border: 1px solid var(--c-line-strong);
+
+  &:hover {
+    background: var(--c-surface-sunk);
+  }
+}
+
+.act-quiet {
+  color: var(--c-ink-3);
+
+  &:hover {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink);
+  }
+}
+
+.act-done {
+  color: var(--c-ok);
+
+  &:hover {
+    background: var(--c-ok-soft);
+  }
+}
+
+// -- mobile comment list ----------------------------------------------------
+
+.mobile-groups {
+  margin-block-start: var(--s-5);
+}
+
+.m-group {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  margin-block-end: var(--s-2);
+  overflow: hidden;
+}
+
+.m-group-head {
+  padding: 14px;
+  min-height: 3.25rem;
+  gap: 10px;
+
+  .group-title {
+    font-size: 14px;
+  }
+}
+
+.m-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 10px;
+
+  li + li .m-item {
+    border-block-start: 1px solid #eef1ec;
+  }
+}
+
+.m-item {
+  display: block;
+  width: 100%;
+  text-align: start;
+  background: none;
+  border: 0;
+  padding: 12px 0;
+  cursor: pointer;
+}
+
+.m-quote {
+  display: block;
+  font-family: var(--font-doc);
+  font-size: var(--fs-sm);
+  color: var(--k-fg);
+}
+
+.is-resolved .m-quote {
+  color: var(--c-ink-3);
+}
+
+.m-short {
+  display: block;
+  margin-block-start: 4px;
+  font-size: 14px;
+  color: var(--c-ink-2);
+}
+
+.m-state {
+  display: block;
+  margin-block-start: 4px;
+  font-size: 12px;
+  color: var(--k-fg);
+}
+
+.no-comments {
+  margin-block-start: var(--s-5);
+}
+
+// -- the one primary action -------------------------------------------------
+
+.action-bar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 25;
+  background: color-mix(in srgb, var(--c-paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+  border-block-start: 1px solid var(--c-line);
+  padding: 12px var(--s-4);
+  // Clears the mobile tab bar; on desktop there isn't one.
+  padding-block-end: calc(12px + var(--bottom-nav-h) + var(--safe-bottom));
+}
+
+.action-inner {
+  max-width: 70rem;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.send-hint {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+// -- mobile sheet -----------------------------------------------------------
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 26, 28, 0.28);
+  animation: fade-in 160ms ease;
+}
+
+.sheet {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 50;
+  background: var(--c-surface);
+  border-start-start-radius: var(--r-lg);
+  border-start-end-radius: var(--r-lg);
+  box-shadow: var(--sh-3);
+  padding: 10px var(--s-4) calc(var(--s-5) + var(--safe-bottom));
+  animation: sheet-up 220ms var(--ease);
+}
+
+.sheet-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--c-line-strong);
+  margin: 0 auto 14px;
+}
+
+.sheet-body {
+  margin: 0;
+  font-size: var(--fs-base);
+  line-height: 1.6;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-block-start: var(--s-4);
+
+  .btn-primary,
+  .btn-ghost {
+    flex: 1;
+  }
+}
+
+.sheet-resolve {
+  width: 100%;
+  min-height: 2.5rem;
+  margin-block-start: var(--s-2);
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-ok);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// -- desktop ----------------------------------------------------------------
+
+@media (min-width: $bp-lg) {
+  .review-page {
+    padding-block-end: calc(var(--s-12) + 4.5rem);
+  }
+
+  .action-bar {
+    padding-block-end: 12px;
+  }
+
+  .doc-title {
+    font-size: 22px;
+  }
+}
