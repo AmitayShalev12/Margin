@@ -1,4 +1,4 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 
 import * as seed from '../mock/seed-data';
 import {
@@ -11,21 +11,20 @@ import {
   SubmissionStatus,
   UUID,
 } from '../models';
+import { PersistedSnapshot, Repository } from './repository';
 
 /**
- * The app's in-memory store.
+ * The app's record store.
  *
- * It starts out holding the seeded demonstration records and takes real ones
- * from `SyncService` as they arrive from Drive. Field names and shapes are the
- * Supabase tables' exactly, so making this durable is a matter of writing the
- * same records through `SupabaseService` rather than reshaping anything.
+ * It starts out holding the seeded demonstration records, layers anything
+ * durable over them on boot, and writes every change straight back out. Field
+ * names and shapes are the Supabase tables' exactly, so the repository can
+ * upsert records as they are.
  *
- * Folder configuration is the one thing persisted to `localStorage` — losing
- * it on every reload would make the integration unusable while Supabase is
- * still holding placeholder credentials.
+ * Writes are fire-and-forget: the signal updates immediately so the screen
+ * never waits on the network, and a failure surfaces on `persistError`
+ * instead of being swallowed.
  */
-
-const FOLDER_STORAGE_KEY = 'margin.drive_folders';
 
 export type SyncPhase = 'idle' | 'syncing' | 'error';
 
@@ -49,25 +48,10 @@ const IDLE: SyncState = {
   unmatched: [],
 };
 
-function readFolders(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(FOLDER_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeFolders(map: Record<string, string>) {
-  try {
-    localStorage.setItem(FOLDER_STORAGE_KEY, JSON.stringify(map));
-  } catch {
-    // Storage unavailable; the folder just won't survive a reload.
-  }
-}
-
 @Injectable({ providedIn: 'root' })
 export class DataStore {
+  private readonly repository = inject(Repository);
+
   readonly students = seed.STUDENTS;
   readonly courseRules = seed.COURSE_RULES;
   readonly courseMaterials = seed.COURSE_MATERIALS;
@@ -76,16 +60,26 @@ export class DataStore {
   readonly styleTraits = seed.STYLE_TRAITS;
   readonly feedbackLogs = seed.FEEDBACK_LOGS;
 
-  private readonly folders = signal<Record<string, string>>(readFolders());
-
+  private readonly folders = signal<Record<UUID, string>>({});
   private readonly _course = signal<Course>(seed.COURSE);
   private readonly _assignment = signal<Assignment>(seed.ASSIGNMENT);
   private readonly _submissions = signal<Submission[]>(seed.SUBMISSIONS);
   private readonly _rounds = signal<SubmissionRound[]>(seed.ROUNDS);
   private readonly _annotations = signal<Annotation[]>(seed.ANNOTATIONS);
   private readonly _sync = signal<SyncState>(IDLE);
+  private readonly _hydrated = signal(false);
+  private readonly _persistError = signal<string | null>(null);
 
-  /** Folder ids come from storage when set, falling back to the record. */
+  /** True once durable records have been layered in. */
+  readonly hydrated = this._hydrated.asReadonly();
+  readonly persistError = this._persistError.asReadonly();
+
+  readonly submissions = this._submissions.asReadonly();
+  readonly rounds = this._rounds.asReadonly();
+  readonly annotations = this._annotations.asReadonly();
+  readonly sync = this._sync.asReadonly();
+
+  /** Folder ids come from the persisted map when set, else from the record. */
   readonly course = computed<Course>(() => ({
     ...this._course(),
     drive_folder_id: this.folders()[this._course().id] ?? this._course().drive_folder_id,
@@ -96,11 +90,6 @@ export class DataStore {
     drive_folder_id: this.folders()[this._assignment().id] ?? this._assignment().drive_folder_id,
   }));
 
-  readonly submissions = this._submissions.asReadonly();
-  readonly rounds = this._rounds.asReadonly();
-  readonly annotations = this._annotations.asReadonly();
-  readonly sync = this._sync.asReadonly();
-
   /** The folder the sync actually watches: the assignment's, else the course's. */
   readonly watchedFolderId = computed(
     () => this.assignment().drive_folder_id ?? this.course().drive_folder_id,
@@ -109,6 +98,40 @@ export class DataStore {
   readonly liveAnnotations = computed(() =>
     this._annotations().filter((a) => a.status !== 'dismissed'),
   );
+
+  /**
+   * Loads durable records over the seeded ones.
+   *
+   * Persisted records win by id, so review work done on a seeded submission
+   * survives a reload just as work on a synced one does. Called once at
+   * startup, before the first screen renders.
+   */
+  async hydrate(): Promise<void> {
+    let snapshot: PersistedSnapshot;
+    try {
+      snapshot = await this.repository.load();
+    } catch (error) {
+      this._persistError.set(errorText(error));
+      this._hydrated.set(true);
+      return;
+    }
+
+    this._submissions.update((list) => mergeById(list, snapshot.submissions));
+    this._rounds.update((list) => mergeById(list, snapshot.rounds));
+    this._annotations.update((list) => mergeById(list, snapshot.annotations));
+    this.folders.set(snapshot.driveFolders);
+
+    // "Last synced" is not its own record — it is simply the most recent one
+    // stamped on a submission, so it comes back with them.
+    const latest = snapshot.submissions
+      .map((s) => s.last_synced_at)
+      .filter((at): at is string => !!at)
+      .sort()
+      .at(-1);
+    if (latest) this._sync.update((state) => ({ ...state, last_synced_at: latest }));
+
+    this._hydrated.set(true);
+  }
 
   studentName(studentId: UUID): string {
     return this.students.find((s) => s.id === studentId)?.full_name ?? '—';
@@ -124,8 +147,9 @@ export class DataStore {
   }
 
   roundFor(submissionId: UUID): SubmissionRound | undefined {
-    const rounds = this._rounds().filter((r) => r.submission_id === submissionId);
-    return rounds.sort((a, b) => b.round_number - a.round_number)[0];
+    return this._rounds()
+      .filter((r) => r.submission_id === submissionId)
+      .sort((a, b) => b.round_number - a.round_number)[0];
   }
 
   annotationsPending(submissionId: UUID): number {
@@ -137,41 +161,28 @@ export class DataStore {
   // -- annotation review ----------------------------------------------------
 
   setAnnotationStatus(id: UUID, status: AnnotationStatus) {
-    this._annotations.update((list) =>
-      list.map((a) => {
-        if (a.id !== id) return a;
-        const round = this.roundFor(a.submission_id)?.round_number ?? 1;
-        return {
-          ...a,
-          status,
-          resolved_in_round: status === 'resolved' ? round : null,
-          updated_at: new Date().toISOString(),
-        };
-      }),
-    );
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      status,
+      resolved_in_round:
+        status === 'resolved' ? (this.roundFor(a.submission_id)?.round_number ?? 1) : null,
+      updated_at: new Date().toISOString(),
+    }));
   }
 
   /** The teacher rewrote a comment: her wording wins, the AI's is kept. */
   editAnnotation(id: UUID, body: string) {
-    this._annotations.update((list) =>
-      list.map((a) =>
-        a.id === id
-          ? {
-              ...a,
-              body: body.trim(),
-              status: 'edited' as AnnotationStatus,
-              edited_by_teacher: true,
-              updated_at: new Date().toISOString(),
-            }
-          : a,
-      ),
-    );
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      body: body.trim(),
+      status: 'edited' as AnnotationStatus,
+      edited_by_teacher: true,
+      updated_at: new Date().toISOString(),
+    }));
   }
 
   setSubmissionStatus(id: UUID, status: SubmissionStatus) {
-    this._submissions.update((list) =>
-      list.map((s) => (s.id === id ? { ...s, status, updated_at: new Date().toISOString() } : s)),
-    );
+    this.updateSubmission(id, { status });
   }
 
   // -- Drive configuration --------------------------------------------------
@@ -181,9 +192,9 @@ export class DataStore {
       const next = { ...map };
       if (folderId) next[ownerId] = folderId;
       else delete next[ownerId];
-      writeFolders(next);
       return next;
     });
+    this.persist(() => this.repository.saveDriveFolder(ownerId, folderId));
   }
 
   // -- writes from the sync -------------------------------------------------
@@ -195,17 +206,25 @@ export class DataStore {
   /** Inserts a submission the sync has just discovered in the folder. */
   addSubmission(submission: Submission) {
     this._submissions.update((list) => [...list, submission]);
+    this.persist(() => this.repository.saveSubmission(submission));
   }
 
   /** Applies whatever the sync learned about an existing submission. */
   updateSubmission(id: UUID, patch: Partial<Submission>) {
+    let written: Submission | undefined;
     this._submissions.update((list) =>
-      list.map((s) => (s.id === id ? { ...s, ...patch, updated_at: new Date().toISOString() } : s)),
+      list.map((s) => {
+        if (s.id !== id) return s;
+        written = { ...s, ...patch, updated_at: new Date().toISOString() };
+        return written;
+      }),
     );
+    if (written) this.persist(() => this.repository.saveSubmission(written!));
   }
 
   addRound(round: SubmissionRound) {
     this._rounds.update((list) => [...list, round]);
+    this.persist(() => this.repository.saveRound(round));
   }
 
   /**
@@ -216,10 +235,55 @@ export class DataStore {
    * round instead, so nothing she has already annotated is overwritten.
    */
   replaceRoundDocument(roundId: UUID, patch: Partial<SubmissionRound>) {
+    let written: SubmissionRound | undefined;
     this._rounds.update((list) =>
-      list.map((r) =>
-        r.id === roundId ? { ...r, ...patch, updated_at: new Date().toISOString() } : r,
-      ),
+      list.map((r) => {
+        if (r.id !== roundId) return r;
+        written = { ...r, ...patch, updated_at: new Date().toISOString() };
+        return written;
+      }),
     );
+    if (written) this.persist(() => this.repository.saveRound(written!));
   }
+
+  /** Waits for outstanding writes — used by tests, not by the UI. */
+  async settled(): Promise<void> {
+    await Promise.allSettled(this.pending);
+    this.pending = [];
+  }
+
+  // -- plumbing -------------------------------------------------------------
+
+  private pending: Promise<unknown>[] = [];
+
+  private writeAnnotation(id: UUID, apply: (a: Annotation) => Annotation) {
+    let written: Annotation | undefined;
+    this._annotations.update((list) =>
+      list.map((a) => {
+        if (a.id !== id) return a;
+        written = apply(a);
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveAnnotation(written!));
+  }
+
+  private persist(write: () => Promise<void>) {
+    const promise = write().catch((error: unknown) => {
+      this._persistError.set(errorText(error));
+    });
+    this.pending.push(promise);
+  }
+}
+
+/** Later records win by id; unknown ones are appended. */
+function mergeById<T extends { id: string }>(base: T[], overrides: T[]): T[] {
+  if (overrides.length === 0) return base;
+  const byId = new Map(base.map((item) => [item.id, item]));
+  for (const item of overrides) byId.set(item.id, item);
+  return [...byId.values()];
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

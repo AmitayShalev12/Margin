@@ -119,14 +119,12 @@ export class SyncService {
     if (!folderId) {
       return this.fail(empty, 'עדיין לא הוגדרה תיקייה בדרייב.');
     }
-    // Expiry is evaluated lazily, so re-read the clock before trusting the
-    // token — otherwise a tab left open all morning reports itself connected.
-    this.auth.refreshClock();
-    if (!this.auth.isConnected()) {
-      return this.fail(
-        empty,
-        this.auth.isExpired() ? 'החיבור לגוגל פג. צריך להתחבר מחדש.' : 'לא מחוברת לגוגל דרייב.',
-      );
+    // Minting proves the connection is live: the server either has a usable
+    // credential for this teacher or it doesn't, and a stale one can't linger
+    // in the browser to give a false answer.
+    const token = await this.auth.accessToken();
+    if (!token) {
+      return this.fail(empty, 'לא מחוברת לגוגל דרייב.');
     }
 
     this.running = true;

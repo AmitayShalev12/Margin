@@ -24,14 +24,43 @@ The entire interface is Hebrew and right-to-left.
 | 5     | Reliability / authenticity module                             | —       |
 
 `DataStore` starts out holding the seeded records in
-`src/app/core/mock/seed-data.ts` and takes real ones from `SyncService` as they
-arrive from Drive. Both are the same model types, so the screens can't tell
-them apart.
+`src/app/core/mock/seed-data.ts`, layers anything durable over them on boot,
+and writes every change straight back out. Synced records and seeded ones are
+the same model types, so the screens can't tell them apart.
 
-Persistence is still the open piece: synced records live in memory, and the
-watched folder id is the only thing written to `localStorage`. Writing these
-through Supabase is a matter of saving the same records — nothing needs
-reshaping.
+### Persistence
+
+Durable storage sits behind a `Repository` port with two adapters:
+
+- **`SupabaseRepository`** — the real one. Every write is a plain upsert on the
+  primary key, because the model's field names _are_ the column names. That is
+  what makes a re-sync idempotent: the same Drive file updates its row instead
+  of inserting a second.
+- **`LocalRepository`** — browser storage, used only while the project still
+  holds placeholder credentials, so the app is usable and a reload is
+  non-destructive before it is configured. It holds records, never credentials.
+
+Hydration runs as an app initializer, so the first screen renders with durable
+records already in place rather than flashing the seed and correcting itself.
+Persisted records win by id, which means review work on a _seeded_ submission
+survives a reload exactly as work on a synced one does.
+
+Writes are fire-and-forget — the signal updates immediately so the screen never
+waits on the network — and a failure surfaces on `DataStore.persistError`
+rather than being swallowed.
+
+Two consequences worth knowing:
+
+- Seed ids are real UUIDs, resolved through `seedId()`. The `id` columns are
+  `uuid`, so a demonstration record with a friendly id could never be
+  persisted; routing them through one function keeps the seed literals legible
+  anyway.
+- "Last synced" is not a record of its own. It is the most recent
+  `last_synced_at` stamped on a submission, so it comes back with them.
+
+`persistence.spec.ts` simulates a reload by tearing the injector down and
+rebuilding it over the same storage — new `DataStore`, new signals — so
+anything that comes back did so because it was persisted.
 
 Grading forms and student email are still placeholders — they belong to
 Phase 4.
@@ -64,23 +93,82 @@ npm test
 
 ## Connecting Google Drive
 
-The Drive integration needs three things set up once, outside this repo.
+Drive's OAuth is owned by two Edge Functions rather than by the browser. The
+refresh token — a long-lived key to a teacher's Drive — is stored in a
+service-role-only table and never sent to the client, which receives only
+short-lived access tokens minted on demand. Real students' work flows through
+this, so it is worth understanding before changing any of it.
+
+```
+browser                    drive-auth (Edge Function)          Google
+  │                              │                                │
+  ├─ POST /start ───────────────►│ records single-use state       │
+  │◄──────── { consent url } ────┤                                │
+  ├─ follow url ─────────────────┼───────────────────────────────►│
+  │                              │◄──── code ─────────────────────┤
+  │                              ├─ exchange ────────────────────►│
+  │                              │◄──── refresh + access token ───┤
+  │◄──── 302 back to the app ────┤ stores refresh token           │
+  │                                                                │
+  ├─ POST /drive-token ─────────►│ refresh grant ────────────────►│
+  │◄──── short-lived access token ┤                                │
+```
 
 **1. Enable the APIs.** In the Google Cloud project behind your OAuth client,
 enable both **Google Drive API** and **Google Docs API**. Drive alone is not
 enough — its plain-text export throws away the headings the review screen
 groups by, so the document itself is read through the Docs API.
 
-**2. Configure the Google provider in Supabase.** Authentication → Providers →
-Google, with your client id and secret. Add the redirect URI Supabase gives you
-to the OAuth client's authorised redirects.
+**2. Point the OAuth client at the function.** Its authorised redirect URI is
+the callback, not the app:
 
-**3. Grant the scopes.** Both are read-only:
+```
+https://<project-ref>.supabase.co/functions/v1/drive-auth/callback
+```
+
+Both scopes are read-only:
 
 ```
 https://www.googleapis.com/auth/drive.readonly
 https://www.googleapis.com/auth/documents.readonly
 ```
+
+**3. Deploy the functions with their secrets.**
+
+```bash
+supabase secrets set GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... MARGIN_FUNCTIONS_URL=https://<project-ref>.supabase.co/functions/v1 MARGIN_ALLOWED_ORIGINS=http://localhost:4200
+```
+
+```bash
+supabase functions deploy drive-auth drive-token
+```
+
+`MARGIN_ALLOWED_ORIGINS` is the allow-list for both CORS and the post-consent
+redirect — an open redirect there would hand Google's authorization code to
+whoever asked for it, so it is checked rather than echoed.
+
+`drive-auth` is deployed with `verify_jwt = false` (see `supabase/config.toml`)
+because Google calls its callback with no Supabase session. Each route
+authenticates itself instead: `start`, `status` and the delete verify the
+caller's JWT, and `callback` is authenticated by the single-use state row it
+redeems.
+
+### Where the credential lives
+
+|                     | Refresh token                           | Access token                         |
+| ------------------- | --------------------------------------- | ------------------------------------ |
+| Lifetime            | until revoked                           | ~1 hour, trimmed by 2 minutes        |
+| Stored in           | `google_credentials`, service-role only | a private field on `GoogleDriveAuth` |
+| Reaches the browser | never                                   | yes, in memory only                  |
+
+`google_credentials` and `google_oauth_states` have RLS enabled with **no
+policies at all**, which denies every anon and authenticated request, and their
+grants are revoked as well. Do not add a policy to either table — the Edge
+Functions reach them with the service role, which bypasses RLS.
+
+Nothing credential-shaped is written to `localStorage` or `sessionStorage`, and
+`google-auth.spec.ts` holds that line by spying on `Storage.prototype.setItem`
+across a full mint and asserting nothing is written.
 
 Then, in the app: **קורסים** → **חיבור לגוגל**, and paste the folder's Drive URL
 into **בחירת תיקייה**. The folder is verified before it is saved, so a mistyped
@@ -166,6 +254,7 @@ src/
   styles/            design tokens, base reset, shared primitives
 supabase/
   migrations/        SQL schema with RLS policies
+  functions/         Edge Functions — they own the Drive OAuth credential
 ```
 
 ### Model conventions

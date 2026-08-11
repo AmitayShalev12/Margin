@@ -1,139 +1,197 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { SupabaseService } from '../supabase/supabase';
 
-/**
- * Read-only access, and nothing more.
- *
- * `drive.readonly` lists the folder and reads file metadata and revisions.
- * `documents.readonly` is what makes the Docs API return the document's
- * *structure* — Drive's plain-text export throws away the headings the review
- * screen groups by, so the second scope is what keeps grouping working.
- */
-export const DRIVE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/documents.readonly',
-].join(' ');
+export type DriveConnection = 'unknown' | 'connected' | 'disconnected';
 
-const STORAGE_KEY = 'margin.drive_token';
+/** Keys earlier versions wrote. Cleared on startup so nothing lingers. */
+const LEGACY_TOKEN_KEYS = ['margin.drive_token'];
 
-/** Google's OAuth access tokens last an hour; we retire ours slightly early. */
-const ASSUMED_LIFETIME_MS = 55 * 60 * 1000;
-
-interface StoredToken {
+interface MintedToken {
   access_token: string;
-  obtained_at: number;
+  /** Epoch milliseconds. */
+  expires_at: number;
 }
 
-function read(): StoredToken | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StoredToken) : null;
-  } catch {
-    return null;
-  }
+interface TokenResponse {
+  connected: boolean;
+  access_token?: string;
+  expires_in?: number;
+  scope?: string;
+  google_email?: string | null;
+  reason?: string;
 }
 
-function write(token: StoredToken | null) {
-  try {
-    if (token) sessionStorage.setItem(STORAGE_KEY, JSON.stringify(token));
-    else sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Private browsing with storage disabled: the token simply lives in
-    // memory for this page view.
-  }
+interface StatusResponse {
+  connected: boolean;
+  google_email?: string | null;
+  scope?: string;
 }
 
 /**
- * Connects the teacher's Google account and holds the Drive access token.
+ * The teacher's Drive connection.
  *
- * The OAuth round trip runs through Supabase Auth, which hands back Google's
- * access token as `session.provider_token` on the redirect back into the app.
+ * The long-lived credential — Google's refresh token — lives in the
+ * `drive-auth` Edge Function and its service-role-only table. It is never sent
+ * to the browser. What this class holds is an access token minted on demand by
+ * `drive-token`, kept in a private field for the minutes it is valid and
+ * written to no storage of any kind.
  *
- * Two things worth knowing about that token:
- *
- *  - supabase-js surfaces it on the sign-in event and does not refresh it. So
- *    it is cached here, in `sessionStorage` — it dies with the browser tab
- *    rather than persisting to disk, and when it expires the teacher is asked
- *    to reconnect.
- *  - holding an access token in the browser at all is a tradeoff. It is bounded
- *    (read-only, one hour, tab-scoped), but the durable answer is to keep the
- *    refresh token server-side in a Supabase Edge Function and have the client
- *    ask *it* for documents. That is the right move before this handles a real
- *    class's work; it is out of scope for wiring up the integration.
+ * That is the whole point of the indirection: a compromised browser yields at
+ * most the remainder of one short window against read-only scopes, rather than
+ * standing access to a class's work.
  */
 @Injectable({ providedIn: 'root' })
 export class GoogleDriveAuth {
   private readonly supabase = inject(SupabaseService);
 
-  private readonly token = signal<StoredToken | null>(read());
-  private readonly now = signal(Date.now());
+  /**
+   * Deliberately a plain field, not a signal and not persisted. Nothing should
+   * be able to observe it into a template, a devtools snapshot or storage.
+   */
+  private token: MintedToken | null = null;
+  /** De-duplicates concurrent mints during a sync. */
+  private inFlight: Promise<string | null> | null = null;
 
-  /** True when there is a live token to call Drive with. */
-  readonly isConnected = computed(() => {
-    const token = this.token();
-    return !!token && this.now() - token.obtained_at < ASSUMED_LIFETIME_MS;
-  });
+  private readonly _connection = signal<DriveConnection>('unknown');
+  private readonly _email = signal<string | null>(null);
+  private readonly _busy = signal(false);
 
-  /** True when a token existed but has aged out — the teacher must reconnect. */
-  readonly isExpired = computed(() => !!this.token() && !this.isConnected());
+  readonly connection = this._connection.asReadonly();
+  readonly googleEmail = this._email.asReadonly();
+  readonly busy = this._busy.asReadonly();
 
-  /** Supabase must be configured before any of this can work. */
+  readonly isConnected = computed(() => this._connection() === 'connected');
   readonly canConnect = this.supabase.isConfigured;
 
   constructor() {
-    // The provider token arrives on the session when Google redirects back.
-    effect(() => {
-      const session = this.supabase.session();
-      const provider = session?.provider_token;
-      if (provider) this.store(provider);
-    });
-  }
-
-  accessToken(): string | null {
-    return this.isConnected() ? (this.token()?.access_token ?? null) : null;
-  }
-
-  /** Sends the teacher to Google's consent screen. */
-  connect(redirectTo: string = window.location.href) {
-    return this.supabase.client.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        scopes: DRIVE_SCOPES,
-        redirectTo,
-        queryParams: {
-          // Ask every time, so the Drive scopes are actually granted rather
-          // than silently reused from an earlier, narrower consent.
-          prompt: 'consent',
-          access_type: 'offline',
-        },
-      },
-    });
-  }
-
-  /** Forgets the cached token. Does not revoke the grant at Google's end. */
-  disconnect() {
-    this.token.set(null);
-    write(null);
+    // Anything an earlier build left in browser storage is a credential we no
+    // longer want to exist. Remove it whether or not it is still valid.
+    for (const key of LEGACY_TOKEN_KEYS) {
+      try {
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
+      } catch {
+        // Storage unavailable — nothing to clean up.
+      }
+    }
   }
 
   /**
-   * Called when Drive rejects the token mid-sync. Clears it so the UI offers
-   * reconnection rather than retrying with a credential that cannot work.
+   * Asks the server whether this teacher has a stored credential. Called on
+   * startup and after returning from Google's consent screen.
    */
+  async refreshStatus(): Promise<DriveConnection> {
+    if (!this.canConnect) {
+      this._connection.set('disconnected');
+      return 'disconnected';
+    }
+
+    try {
+      const status = await this.call<StatusResponse>('drive-auth/status', { method: 'POST' });
+      this._connection.set(status?.connected ? 'connected' : 'disconnected');
+      this._email.set(status?.google_email ?? null);
+    } catch {
+      this._connection.set('disconnected');
+    }
+    return this._connection();
+  }
+
+  /**
+   * Starts the consent flow. The server builds the URL and records a
+   * single-use state bound to this teacher; the browser only follows it.
+   */
+  async connect(redirectTo: string = window.location.origin + window.location.pathname) {
+    this._busy.set(true);
+    try {
+      const started = await this.call<{ url: string }>('drive-auth/start', {
+        method: 'POST',
+        body: JSON.stringify({ redirect_to: redirectTo }),
+      });
+      if (started?.url) window.location.href = started.url;
+    } finally {
+      this._busy.set(false);
+    }
+  }
+
+  /** Forgets the stored credential and revokes it at Google's end. */
+  async disconnect() {
+    this.token = null;
+    try {
+      await this.call('drive-auth', { method: 'DELETE' });
+    } finally {
+      this._connection.set('disconnected');
+      this._email.set(null);
+    }
+  }
+
+  /**
+   * A usable access token, minting a fresh one when the current is missing or
+   * spent. Returns null when there is nothing to mint from.
+   */
+  async accessToken(): Promise<string | null> {
+    if (this.token && this.token.expires_at > Date.now()) return this.token.access_token;
+    if (this.inFlight) return this.inFlight;
+
+    this.inFlight = this.mint().finally(() => {
+      this.inFlight = null;
+    });
+    return this.inFlight;
+  }
+
+  /** Drops the cached token after Drive rejects it, forcing a fresh mint. */
   invalidate() {
-    this.disconnect();
+    this.token = null;
   }
 
-  /** Re-evaluates expiry — the connection card calls this when it is shown. */
-  refreshClock() {
-    this.now.set(Date.now());
+  private async mint(): Promise<string | null> {
+    if (!this.canConnect) {
+      this._connection.set('disconnected');
+      return null;
+    }
+
+    let response: TokenResponse | null;
+    try {
+      response = await this.call<TokenResponse>('drive-token', { method: 'POST' });
+    } catch {
+      return null;
+    }
+
+    if (!response?.connected || !response.access_token) {
+      // Includes the case where the teacher revoked access at Google's end,
+      // which the function reports as `reason: 'revoked'`.
+      this.token = null;
+      this._connection.set('disconnected');
+      return null;
+    }
+
+    this.token = {
+      access_token: response.access_token,
+      expires_at: Date.now() + (response.expires_in ?? 600) * 1000,
+    };
+    this._connection.set('connected');
+    if (response.google_email !== undefined) this._email.set(response.google_email);
+
+    return this.token.access_token;
   }
 
-  private store(accessToken: string) {
-    const token: StoredToken = { access_token: accessToken, obtained_at: Date.now() };
-    this.token.set(token);
-    this.now.set(Date.now());
-    write(token);
+  /** Calls an Edge Function with the teacher's Supabase session. */
+  private async call<T>(path: string, init: RequestInit): Promise<T | null> {
+    const { data } = await this.supabase.client.auth.getSession();
+    const jwt = data.session?.access_token;
+    if (!jwt) throw new Error('Not signed in');
+
+    const response = await fetch(`${this.functionsUrl}/${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
+    });
+
+    if (!response.ok) throw new Error(`Edge function ${path} failed (${response.status})`);
+    const text = await response.text();
+    return text ? (JSON.parse(text) as T) : null;
+  }
+
+  private get functionsUrl(): string {
+    return `${this.supabase.functionsUrl}`;
   }
 }

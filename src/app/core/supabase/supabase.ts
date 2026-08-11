@@ -68,6 +68,11 @@ export class SupabaseService {
     return this.supabase;
   }
 
+  /** Base URL of the project's Edge Functions. */
+  get functionsUrl(): string {
+    return `${environment.supabaseUrl.replace(/\/$/, '')}/functions/v1`;
+  }
+
   /** Convenience: the signed-in teacher's id, used as the tenant key. */
   get teacherId(): string | null {
     return this.user()?.id ?? null;

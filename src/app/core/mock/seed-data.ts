@@ -35,6 +35,25 @@ function daysAgo(days: number): string {
   return new Date(bootedAt - days * DAY).toISOString();
 }
 
+const seedUuids = new Map<string, string>();
+
+/**
+ * Turns a readable seed key into a stable UUID.
+ *
+ * The seed literals below stay legible (`'s1'`, `'sub-noa'`, `'an-4'`) while
+ * the records themselves carry real UUIDs — the `id` columns are `uuid`, so a
+ * demonstration record with a friendly id could never be persisted. Tests
+ * resolve the same keys through this function.
+ */
+export function seedId(key: string): string {
+  const existing = seedUuids.get(key);
+  if (existing) return existing;
+
+  const id = `00000000-0000-4000-8000-${String(seedUuids.size + 1).padStart(12, '0')}`;
+  seedUuids.set(key, id);
+  return id;
+}
+
 // ---------------------------------------------------------------------------
 // Course, assignment, students
 // ---------------------------------------------------------------------------
@@ -80,7 +99,7 @@ const STUDENT_SEEDS: StudentSeed[] = [
 ];
 
 export const STUDENTS: Student[] = STUDENT_SEEDS.map((s) => ({
-  id: s.id,
+  id: seedId(s.id),
   teacher_id: TEACHER_ID,
   full_name: s.full_name,
   email: null,
@@ -157,9 +176,9 @@ const SUBMISSION_SEEDS: SubmissionSeed[] = [
 ];
 
 export const SUBMISSIONS: Submission[] = SUBMISSION_SEEDS.map((s) => ({
-  id: s.id,
+  id: seedId(s.id),
   assignment_id: ASSIGNMENT_ID,
-  student_id: s.student_id,
+  student_id: seedId(s.student_id),
   status: s.status,
   current_round: s.round,
   title: null,
@@ -383,8 +402,8 @@ const ANNOTATION_SEEDS: AnnotationSeed[] = [
 const NOA_ROUND_ID = 'round-noa-2';
 
 export const NOA_ROUND: SubmissionRound = {
-  id: NOA_ROUND_ID,
-  submission_id: 'sub-noa',
+  id: seedId(NOA_ROUND_ID),
+  submission_id: seedId('sub-noa'),
   round_number: 2,
   document_text: DOCUMENT_BLOCKS.map((b) => b.text).join('\n\n'),
   document_blocks: DOCUMENT_BLOCKS,
@@ -407,8 +426,8 @@ export const ROUNDS: SubmissionRound[] = SUBMISSION_SEEDS.map((s) =>
     ? NOA_ROUND
     : {
         ...NOA_ROUND,
-        id: `round-${s.id}`,
-        submission_id: s.id,
+        id: seedId(`round-${s.id}`),
+        submission_id: seedId(s.id),
         round_number: s.round,
         received_at: daysAgo(s.updatedDaysAgo),
         created_at: daysAgo(s.updatedDaysAgo),
@@ -432,9 +451,9 @@ function toAnnotation(seed: AnnotationSeed, sortOrder: number): Annotation {
   const edited = seed.status === 'edited';
 
   return {
-    id: seed.id,
-    submission_id: 'sub-noa',
-    round_id: NOA_ROUND_ID,
+    id: seedId(seed.id),
+    submission_id: seedId('sub-noa'),
+    round_id: seedId(NOA_ROUND_ID),
     anchor: {
       block_id: block.id,
       block_index: block.index,
@@ -472,7 +491,7 @@ function rule(
   active = true,
 ): CourseRule {
   return {
-    id,
+    id: seedId(id),
     course_id: COURSE_ID,
     kind,
     title: body,
@@ -501,7 +520,7 @@ export const COURSE_RULES: CourseRule[] = [
  * `LearningFeedbackLog`; here it is part of the seed.
  */
 export const LEARNED_RULE_NOTES: Record<string, string> = {
-  r3: 'נלמד מ־7 הערות שכתבת',
+  [seedId('r3')]: 'נלמד מ־7 הערות שכתבת',
 };
 
 function material(
@@ -512,7 +531,7 @@ function material(
   active = true,
 ): CourseMaterial {
   return {
-    id,
+    id: seedId(id),
     course_id: COURSE_ID,
     kind,
     title,
@@ -556,7 +575,7 @@ export const STYLE_EXAMPLES: TeacherStyleExample[] = [
   ['manual', 'מובהק זה לא הכול — כמה גדול האפקט בפועל בכיתה?'],
   ['manual', 'אני מעדיפה שאלה על פני קביעה. תני לה להגיע לזה בעצמה.'],
 ].map(([source, text], i) => ({
-  id: `sx${i + 1}`,
+  id: seedId(`sx${i + 1}`),
   teacher_id: TEACHER_ID,
   course_id: COURSE_ID,
   source: source as TeacherStyleExample['source'],
@@ -627,11 +646,11 @@ const FEEDBACK_SEEDS: FeedbackSeed[] = [
 ];
 
 export const FEEDBACK_LOGS: LearningFeedbackLog[] = FEEDBACK_SEEDS.map((f, i) => ({
-  id: `lf${i + 1}`,
+  id: seedId(`lf${i + 1}`),
   teacher_id: TEACHER_ID,
   course_id: COURSE_ID,
   target_type: 'annotation',
-  target_id: `an-${i + 1}`,
+  target_id: seedId(`an-${i + 1}`),
   action: 'edited',
   ai_text: f.ai,
   final_text: f.final,

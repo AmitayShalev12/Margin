@@ -134,7 +134,8 @@ export class DriveApi {
   }
 
   private async get<T>(url: string): Promise<T> {
-    const token = this.auth.accessToken();
+    // Minted server-side per request window; never read from browser storage.
+    const token = await this.auth.accessToken();
     if (!token) throw new DriveError('unauthorized', 'No Drive access token');
 
     let response: Response;

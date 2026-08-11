@@ -1,6 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 
 import { DataStore } from '../data/data-store';
+import { LocalRepository } from '../data/local-repository';
+import { Repository } from '../data/repository';
+import { seedId } from '../mock/seed-data';
 import { DriveApi } from './drive-api';
 import { DocsDocument, DriveFile, DriveMetadataSnapshot, DriveRevision } from './drive-types';
 import { GoogleDriveAuth } from './google-auth';
@@ -84,9 +87,9 @@ class FakeDriveApi {
 class FakeAuth {
   connected = true;
   isConnected = () => this.connected;
-  isExpired = () => false;
+  /** Mirrors the real one: a token is minted per call, never stored. */
+  accessToken = async () => (this.connected ? 'minted-access-token' : null);
   invalidate = () => {};
-  refreshClock = () => {};
 }
 
 describe('SyncService', () => {
@@ -102,6 +105,7 @@ describe('SyncService', () => {
       providers: [
         { provide: DriveApi, useValue: api },
         { provide: GoogleDriveAuth, useValue: new FakeAuth() },
+        { provide: Repository, useClass: LocalRepository },
       ],
     });
 
@@ -128,7 +132,7 @@ describe('SyncService', () => {
     const submission = store.submissionByDriveFile('file-noa');
     expect(submission?.status).toBe('new');
     expect(submission?.current_round).toBe(1);
-    expect(submission?.student_id).toBe('s1');
+    expect(submission?.student_id).toBe(seedId('s1'));
     expect(submission?.drive_file_name).toBe('נועה ברקוביץ׳ — סמינריון');
   });
 

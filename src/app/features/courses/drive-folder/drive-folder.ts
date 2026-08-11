@@ -10,8 +10,7 @@ import { relativeDay } from '../../../core/presentation/submission-status';
  *
  * It sits on the course screen because that is where the rest of "what this
  * course is made of" lives, and it stays one card: connect, name a folder,
- * and a line saying when work last came in. Everything past that is folded
- * away until it has something to say.
+ * and a line saying when work last came in.
  */
 @Component({
   selector: 'app-drive-folder',
@@ -27,20 +26,14 @@ export class DriveFolder {
   protected readonly folderId = computed(() => this.store.course().drive_folder_id);
   protected readonly syncState = this.store.sync;
 
-  /** Open only when there is something to do — otherwise the card is one line. */
   protected readonly editing = signal(false);
   protected readonly draft = signal('');
   protected readonly checking = signal(false);
   protected readonly checkError = signal<string | null>(null);
-  protected readonly folderName = signal<string | null>(null);
 
   protected readonly supabaseReady = this.auth.canConnect;
-
-  constructor() {
-    // The card is where she looks to find out whether the connection is live,
-    // so re-check the token's age each time it appears.
-    this.auth.refreshClock();
-  }
+  protected readonly connecting = this.auth.busy;
+  protected readonly googleEmail = this.auth.googleEmail;
 
   protected readonly lastSyncedLabel = computed(() => {
     const at = this.syncState().last_synced_at;
@@ -51,9 +44,19 @@ export class DriveFolder {
     return `סונכרן ${relativeDay(at)}`;
   });
 
+  constructor() {
+    // The connection lives on the server, so the card asks rather than
+    // reading anything local. Also picks up the ?drive=connected redirect
+    // Google sends us back with.
+    void this.auth.refreshStatus().then(() => this.clearRedirectParams());
+  }
+
   protected connect() {
-    this.auth.refreshClock();
     void this.auth.connect();
+  }
+
+  protected disconnect() {
+    void this.auth.disconnect();
   }
 
   protected startEdit() {
@@ -69,7 +72,7 @@ export class DriveFolder {
 
   /**
    * Checks the folder exists before saving it. A mistyped id that silently
-   * saves would look identical to an empty folder, and she would have no way
+   * saved would look identical to an empty folder, and she would have no way
    * to tell which it was.
    */
   protected async save() {
@@ -90,7 +93,6 @@ export class DriveFolder {
       return;
     }
 
-    this.folderName.set(result.name);
     this.store.setDriveFolder(this.store.course().id, id);
     this.editing.set(false);
     void this.sync.syncNow();
@@ -98,6 +100,15 @@ export class DriveFolder {
 
   protected async syncNow() {
     await this.sync.syncNow();
+  }
+
+  /** Tidies `?drive=connected` out of the address bar after the round trip. */
+  private clearRedirectParams() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('drive')) return;
+    url.searchParams.delete('drive');
+    url.searchParams.delete('drive_error');
+    window.history.replaceState({}, '', url.toString());
   }
 }
 

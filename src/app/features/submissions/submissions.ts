@@ -77,9 +77,7 @@ export class Submissions {
 
     if (state.phase === 'syncing') return 'מסנכרנת מהדרייב…';
     if (state.message) return state.message;
-    if (!this.auth.isConnected()) {
-      return this.auth.isExpired() ? 'החיבור לגוגל פג' : 'לא מחוברת לגוגל דרייב';
-    }
+    if (!this.auth.isConnected()) return 'לא מחוברת לגוגל דרייב';
     if (!state.last_synced_at) return 'טרם סונכרן';
 
     const minutes = Math.max(

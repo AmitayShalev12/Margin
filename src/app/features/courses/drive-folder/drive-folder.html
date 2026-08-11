@@ -6,13 +6,16 @@
         <span class="title">חיבור לדרייב</span>
         <span class="meta">צריך למלא את פרטי Supabase לפני שאפשר להתחבר.</span>
       } @else if (!auth.isConnected()) {
-        <span class="title">{{
-          auth.isExpired() ? 'החיבור לגוגל פג' : 'לא מחוברת לגוגל דרייב'
-        }}</span>
+        <span class="title">לא מחוברת לגוגל דרייב</span>
         <span class="meta">העבודות נמשכות מתיקייה משותפת בדרייב. הרשאת קריאה בלבד.</span>
       } @else if (!folderId()) {
         <span class="title">מחוברת לגוגל</span>
-        <span class="meta">עוד לא נבחרה תיקייה לקורס הזה.</span>
+        <span class="meta">
+          @if (googleEmail()) {
+            <span class="ltr">{{ googleEmail() }}</span> ·
+          }
+          עוד לא נבחרה תיקייה לקורס הזה.
+        </span>
       } @else {
         <span class="title">תיקיית הקורס</span>
         <span class="meta">
@@ -26,8 +29,13 @@
 
     @if (supabaseReady) {
       @if (!auth.isConnected()) {
-        <button type="button" class="btn btn-primary btn-sm" (click)="connect()">
-          {{ auth.isExpired() ? 'חיבור מחדש' : 'חיבור לגוגל' }}
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="connecting()"
+          (click)="connect()"
+        >
+          {{ connecting() ? 'רגע…' : 'חיבור לגוגל' }}
         </button>
       } @else if (!editing()) {
         <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit()">
@@ -69,16 +77,20 @@
     </div>
   }
 
-  @if (auth.isConnected() && folderId() && !editing()) {
+  @if (auth.isConnected() && !editing()) {
     <div class="foot">
-      @if (syncState().phase === 'syncing') {
-        <span class="muted">מסנכרנת מהדרייב…</span>
-      } @else if (syncState().message) {
-        <span class="error-inline">{{ syncState().message }}</span>
-        <button type="button" class="link" (click)="syncNow()">נסי שוב</button>
-      } @else {
-        <button type="button" class="link" (click)="syncNow()">סנכרון עכשיו</button>
+      @if (folderId()) {
+        @if (syncState().phase === 'syncing') {
+          <span class="muted">מסנכרנת מהדרייב…</span>
+        } @else if (syncState().message) {
+          <span class="error-inline">{{ syncState().message }}</span>
+          <button type="button" class="link" (click)="syncNow()">נסי שוב</button>
+        } @else {
+          <button type="button" class="link" (click)="syncNow()">סנכרון עכשיו</button>
+        }
       }
+      <span class="spacer"></span>
+      <button type="button" class="link quiet" (click)="disconnect()">ניתוק החשבון</button>
     </div>
   }
 </div>

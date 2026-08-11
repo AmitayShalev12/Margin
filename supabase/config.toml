@@ -1,0 +1,13 @@
+# Supabase CLI configuration for the Margin project.
+
+project_id = "margin"
+
+[functions.drive-auth]
+# Google redirects to /drive-auth/callback with no Supabase session, so the
+# function authenticates each route itself: `start`, `status` and the delete
+# verify the caller's JWT, and `callback` is authenticated by the single-use
+# state row it redeems.
+verify_jwt = false
+
+[functions.drive-token]
+verify_jwt = true
