@@ -1,0 +1,116 @@
+.drive {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  margin-block-end: var(--s-4);
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+// Connection state as a single dot — the card should read at a glance without
+// the teacher having to parse a sentence.
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--c-line-strong);
+  flex: 0 0 auto;
+
+  &.on {
+    background: var(--c-ok);
+  }
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  display: block;
+  font-weight: 600;
+}
+
+.meta {
+  display: block;
+  margin-block-start: 2px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.btn-sm {
+  min-height: 2.25rem;
+  padding-inline: var(--s-3);
+  font-size: var(--fs-sm);
+  flex: 0 0 auto;
+}
+
+// -- folder editor ----------------------------------------------------------
+
+.editor {
+  margin-block-start: var(--s-4);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.field {
+  display: block;
+}
+
+.label {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+  margin-block-end: var(--s-2);
+}
+
+.input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding-inline: var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  font-size: var(--fs-base);
+}
+
+.error {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+.editor-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}
+
+// -- sync line --------------------------------------------------------------
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+  font-size: var(--fs-sm);
+}
+
+.link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--c-accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.error-inline {
+  color: var(--c-danger);
+}

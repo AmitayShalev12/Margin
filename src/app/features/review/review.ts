@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
-import { MockDataService } from '../../core/mock/mock-data';
+import { DataStore } from '../../core/data/data-store';
 import { Annotation, AnnotationStatus, DocumentBlock, UUID } from '../../core/models';
 import {
   ANNOTATION_STATE_LABEL,
@@ -73,7 +73,7 @@ function commentCount(n: number): string {
   styleUrl: './review.scss',
 })
 export class Review {
-  private readonly data = inject(MockDataService);
+  private readonly data = inject(DataStore);
   private readonly router = inject(Router);
   protected readonly viewport = inject(Viewport);
 
@@ -101,7 +101,7 @@ export class Review {
   protected readonly roundNumber = computed(() => this.submission().current_round);
 
   protected readonly context = computed(
-    () => `סבב ${this.roundNumber()} · ${this.data.course.name}, ${this.data.assignment.title}`,
+    () => `סבב ${this.roundNumber()} · ${this.data.course().name}, ${this.data.assignment().title}`,
   );
 
   /** Comments on this submission that the teacher hasn't thrown away. */

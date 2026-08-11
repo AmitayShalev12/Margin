@@ -129,6 +129,19 @@ describe('sectionsOf', () => {
     expect(sectionsOf(blocks).map((s) => s.block_indexes)).toEqual([[2], [4, 5]]);
   });
 
+  it('keeps a sub-heading inside its section rather than opening a new one', () => {
+    const withSub = [
+      block('title', 0, 'כותרת', 1),
+      block('h1', 1, 'שיטה', 2),
+      block('h1a', 2, 'משתתפים', 3),
+      block('p1', 3, 'פסקה'),
+    ];
+    const sections = sectionsOf(withSub);
+
+    expect(sections.map((s) => s.title)).toEqual(['שיטה']);
+    expect(sections[0].block_indexes).toEqual([2, 3]);
+  });
+
   it('opens an unnamed section for text that precedes any heading', () => {
     const sections = sectionsOf([block('p0', 0, 'פסקה יתומה'), ...blocks.slice(1)]);
     expect(sections[0].title).toBe('פתיחה');

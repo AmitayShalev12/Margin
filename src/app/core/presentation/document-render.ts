@@ -24,7 +24,7 @@ export interface RenderedBlock {
  * its brackets the wrong way round otherwise. Bare numbers are left alone:
  * they are already weak-LTR and behave correctly inside Hebrew.
  */
-const LTR_RUN = /[^֐-׿\s]*[A-Za-z][^֐-׿]*/g;
+const LTR_RUN = /[^\u0590-\u05FF\s]*[A-Za-z][^\u0590-\u05FF]*/g;
 
 /** Characters allowed to open and close an isolated run. */
 const LTR_EDGE_START = /[A-Za-z0-9([]/;
@@ -114,16 +114,20 @@ export interface DocumentSection {
 
 /**
  * Derives sections from the document's own headings, rather than storing a
- * grouping alongside it. Phase 3 pulls real documents out of Drive, and their
- * headings are the only structure we can count on being there.
+ * grouping alongside it. Real documents out of Drive bring their headings with
+ * them, and that is the only structure we can count on being there.
+ *
+ * Only level 2 opens a section. Level 1 is the paper's title, and anything
+ * deeper is a sub-heading *within* a section — grouping on those as well would
+ * shatter forty comments into fifteen groups of two, which is exactly the
+ * density the review screen exists to tame.
  */
 export function sectionsOf(blocks: readonly DocumentBlock[]): DocumentSection[] {
   const sections: DocumentSection[] = [];
   let current: DocumentSection | null = null;
 
   for (const block of blocks) {
-    // The level-1 heading is the paper's title, not a section of it.
-    if (block.type === 'heading' && (block.level ?? 1) > 1) {
+    if (block.type === 'heading' && (block.level ?? 1) === 2) {
       current = { id: block.id, title: block.text, block_indexes: [] };
       sections.push(current);
       continue;

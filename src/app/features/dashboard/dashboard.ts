@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { MockDataService } from '../../core/mock/mock-data';
+import { DataStore } from '../../core/data/data-store';
 import {
   needsTeacher,
   relativeDay,
@@ -18,7 +18,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
-  private readonly data = inject(MockDataService);
+  private readonly data = inject(DataStore);
 
   /**
    * The only thing this screen shows: submissions currently sitting with the
@@ -34,7 +34,7 @@ export class Dashboard {
         student: this.data.studentName(s.student_id),
         when: relativeDay(s.updated_at),
         line: statusSummary(s.status, this.data.annotationsPending(s.id)),
-        course: `${this.data.course.name} · ${this.data.assignment.title}`,
+        course: `${this.data.course().name} · ${this.data.assignment().title}`,
         statusClass: statusClass(s.status),
       })),
   );

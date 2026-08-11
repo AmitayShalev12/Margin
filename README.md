@@ -19,14 +19,19 @@ The entire interface is Hebrew and right-to-left.
 | ----- | ------------------------------------------------------------- | ------- |
 | 1     | Project setup, data model, SQL schema, routed shell           | ✅ done |
 | 2     | Core screens (dashboard, submissions, review, courses, style) | ✅ done |
-| 3     | Google Drive integration                                      | next    |
-| 4     | AI feedback engine, learning loop, grading forms, email       | —       |
+| 3     | Google Drive integration                                      | ✅ done |
+| 4     | AI feedback engine, learning loop, grading forms, email       | next    |
 | 5     | Reliability / authenticity module                             | —       |
 
-The five core screens run on seeded records in
-`src/app/core/mock/seed-data.ts` — real model types, real `SubmissionStatus`
-values, real character-offset anchors. Phase 3 swaps the source of those
-records for Google Drive and Supabase; the screens keep their shape.
+`DataStore` starts out holding the seeded records in
+`src/app/core/mock/seed-data.ts` and takes real ones from `SyncService` as they
+arrive from Drive. Both are the same model types, so the screens can't tell
+them apart.
+
+Persistence is still the open piece: synced records live in memory, and the
+watched folder id is the only thing written to `localStorage`. Writing these
+through Supabase is a matter of saving the same records — nothing needs
+reshaping.
 
 Grading forms and student email are still placeholders — they belong to
 Phase 4.
@@ -57,6 +62,76 @@ npm test
 
 ---
 
+## Connecting Google Drive
+
+The Drive integration needs three things set up once, outside this repo.
+
+**1. Enable the APIs.** In the Google Cloud project behind your OAuth client,
+enable both **Google Drive API** and **Google Docs API**. Drive alone is not
+enough — its plain-text export throws away the headings the review screen
+groups by, so the document itself is read through the Docs API.
+
+**2. Configure the Google provider in Supabase.** Authentication → Providers →
+Google, with your client id and secret. Add the redirect URI Supabase gives you
+to the OAuth client's authorised redirects.
+
+**3. Grant the scopes.** Both are read-only:
+
+```
+https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/documents.readonly
+```
+
+Then, in the app: **קורסים** → **חיבור לגוגל**, and paste the folder's Drive URL
+into **בחירת תיקייה**. The folder is verified before it is saved, so a mistyped
+id says so rather than looking like an empty folder.
+
+### How a file becomes a submission
+
+`SyncService` lists the watched folder and, for each file:
+
+- **Works out whose it is.** The owning Google account is checked against
+  `Student.drive_account_email` first; failing that, the file name has to
+  contain every part of exactly one student's name. Anything matching neither
+  is _reported_, not guessed at — attributing a paper to the wrong student is
+  worse than asking. Unattributed files show up in the sync line.
+- **Captures the metadata verbatim.** Owner, creator, created and modified
+  times, and the full revision list land on the submission, with the untouched
+  API payloads in `drive_metadata_raw`. Phase 3 draws no conclusions from any
+  of it; Phase 5 does. Worth knowing: Drive's revision list for a Google Doc is
+  much coarser than the editor's own version history, so the snapshot carries a
+  `revisions_truncated` flag rather than letting a short list read as evidence.
+- **Extracts the text, for Google Docs only.** A `.docx` sitting in Drive keeps
+  its metadata but gets `document_blocks: null` — a mangled approximation of
+  the text would be worse than none.
+
+On a later sync, a file whose `modifiedTime` hasn't moved is skipped entirely.
+When it has moved, what happens depends on whether the teacher has already sent
+notes: if she has, the edit opens a **new round** so the round she annotated is
+never overwritten; if she hasn't, the current round's text is refreshed in
+place, because there is no history to protect yet.
+
+### Extraction and the anchors
+
+`docs-extract.ts` is written around one constraint: annotation offsets are
+character positions into `block.text`, so extraction must not quietly rewrite
+the text. It does **not** collapse runs of spaces, trim inside a paragraph,
+normalise non-breaking spaces, or reformat Latin/numeric notation — `(r = .42,
+p < .01)` has to arrive exactly as written or the bidi isolation has nothing to
+isolate. The only edits are dropping the newline Docs appends to every
+paragraph, and mapping two control characters (soft line break, page break) to
+`\n` one-for-one so no offset shifts. There are tests for each of those.
+
+Heading levels are the one place extraction has to make a judgement. Students
+are inconsistent — some use `HEADING_1` for sections under a `TITLE`, some use
+`HEADING_2` under a `HEADING_1` title. Rather than a fixed table, the
+_shallowest heading depth that occurs more than once_ is taken to be the section
+level: a depth used repeatedly is structure, a depth used once is a title.
+`TITLE` and `SUBTITLE` never compete for it. That is what keeps the review
+screen's grouping working across both conventions.
+
+---
+
 ## Applying the database schema
 
 The schema lives in `supabase/migrations/`. With the
@@ -78,7 +153,9 @@ src/
   app/
     core/
       models/        TypeScript interfaces — one file per entity group
-      mock/          seeded records standing in for Supabase until Phase 3
+      data/          the in-memory store the screens read from
+      drive/         OAuth, the Drive/Docs clients, extraction, sync
+      mock/          seeded records the store starts out holding
       presentation/  model records → what the screens actually show
       navigation.ts  the nav destinations, shared by rail and tab bar
       supabase/      the single Supabase client + auth signals

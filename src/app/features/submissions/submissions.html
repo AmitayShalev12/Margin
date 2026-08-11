@@ -9,6 +9,9 @@
       (click)="toggleFilters()"
     >
       <span>{{ filtersOpen() ? 'סגירת סינון' : 'סינון וסנכרון' }}</span>
+      @if (syncFlag() !== 'none') {
+        <span class="flag" [class.err]="syncFlag() === 'error'" aria-hidden="true"></span>
+      }
       <svg
         width="16"
         height="16"
@@ -42,7 +45,18 @@
         }
       </div>
       <div class="sync">
-        {{ lastSynced() }} · <button type="button" class="sync-now">סנכרון עכשיו</button>
+        {{ lastSynced() }}
+        @if (canSync()) {
+          · <button type="button" class="sync-now" (click)="syncNow()">סנכרון עכשיו</button>
+        } @else {
+          · <a class="sync-now" routerLink="/courses">הגדרת הדרייב</a>
+        }
+        @if (unmatched().length) {
+          <div class="unmatched">
+            {{ unmatched().length }} קבצים בתיקייה לא שויכו לתלמידה:
+            <span class="ltr">{{ unmatched().join(', ') }}</span>
+          </div>
+        }
       </div>
     </div>
   }

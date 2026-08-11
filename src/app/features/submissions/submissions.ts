@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { MockDataService } from '../../core/mock/mock-data';
+import { DataStore } from '../../core/data/data-store';
+import { GoogleDriveAuth } from '../../core/drive/google-auth';
+import { SyncService } from '../../core/drive/sync';
 import { SubmissionStatus } from '../../core/models';
 import {
   needsTeacher,
@@ -42,7 +44,9 @@ function matches(filter: FilterKey, status: SubmissionStatus): boolean {
   styleUrl: './submissions.scss',
 })
 export class Submissions {
-  private readonly data = inject(MockDataService);
+  private readonly data = inject(DataStore);
+  private readonly sync = inject(SyncService);
+  private readonly auth = inject(GoogleDriveAuth);
 
   protected readonly filters = FILTERS;
   protected readonly filter = signal<FilterKey>('all');
@@ -64,15 +68,51 @@ export class Submissions {
       })),
   );
 
+  /**
+   * One line of sync status, in the same quiet place the mock-up put it —
+   * inside the filter panel, not competing with the list.
+   */
   protected readonly lastSynced = computed(() => {
-    const synced = this.data.submissions()[0]?.last_synced_at;
-    if (!synced) return 'טרם סונכרן';
-    const minutes = Math.max(1, Math.round((Date.now() - new Date(synced).getTime()) / 60_000));
+    const state = this.data.sync();
+
+    if (state.phase === 'syncing') return 'מסנכרנת מהדרייב…';
+    if (state.message) return state.message;
+    if (!this.auth.isConnected()) {
+      return this.auth.isExpired() ? 'החיבור לגוגל פג' : 'לא מחוברת לגוגל דרייב';
+    }
+    if (!state.last_synced_at) return 'טרם סונכרן';
+
+    const minutes = Math.max(
+      1,
+      Math.round((Date.now() - new Date(state.last_synced_at).getTime()) / 60_000),
+    );
     if (minutes < 60) return `סונכרן מהדרייב לפני ${minutes} דקות`;
-    return `סונכרן מהדרייב ${relativeDay(synced)}`;
+    return `סונכרן מהדרייב ${relativeDay(state.last_synced_at)}`;
+  });
+
+  /** Files sitting in the folder that couldn't be attributed to a student. */
+  protected readonly unmatched = computed(() => this.data.sync().unmatched);
+
+  protected readonly canSync = computed(
+    () => this.auth.isConnected() && !!this.data.watchedFolderId(),
+  );
+
+  /**
+   * A dot on the disclosure button when the sync needs attention. Without it,
+   * a failing sync would be invisible to anyone who never opens the panel.
+   */
+  protected readonly syncFlag = computed<'none' | 'busy' | 'error'>(() => {
+    const state = this.data.sync();
+    if (state.phase === 'syncing') return 'busy';
+    if (state.phase === 'error' || state.message) return 'error';
+    return 'none';
   });
 
   protected toggleFilters() {
     this.filtersOpen.update((open) => !open);
+  }
+
+  protected async syncNow() {
+    await this.sync.syncNow();
   }
 }

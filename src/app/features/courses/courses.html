@@ -1,5 +1,7 @@
 <div class="page">
-  <app-page-header [title]="course.name" [subtitle]="subtitle" />
+  <app-page-header [title]="course().name" [subtitle]="subtitle()" />
+
+  <app-drive-folder />
 
   <div class="kb">
     @for (s of sections(); track s.id) {

@@ -74,7 +74,28 @@
   padding: 0;
   color: var(--c-accent);
   font-weight: 600;
+  font-size: inherit;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.unmatched {
+  margin-block-start: var(--s-2);
+  color: var(--c-attention);
+}
+
+// A 6px mark on the disclosure button, so a failed sync isn't invisible to
+// someone who never opens the panel. Deliberately not a banner.
+.flag {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--c-ink-4);
+  flex: 0 0 auto;
+
+  &.err {
+    background: var(--c-attention);
+  }
 }
 
 // -- the list ---------------------------------------------------------------

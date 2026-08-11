@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
-import { MockDataService } from '../../core/mock/mock-data';
+import { DataStore } from '../../core/data/data-store';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
+import { DriveFolder } from './drive-folder/drive-folder';
 
 interface KbItem {
   id: string;
@@ -29,16 +30,19 @@ interface KbSection {
 @Component({
   selector: 'app-courses',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader],
+  imports: [PageHeader, DriveFolder],
   templateUrl: './courses.html',
   styleUrl: './courses.scss',
 })
 export class Courses {
-  private readonly data = inject(MockDataService);
+  private readonly data = inject(DataStore);
 
   protected readonly course = this.data.course;
 
-  protected readonly subtitle = `${this.data.assignment.title}, ${this.course.year} · על סמך החומרים כאן נכתבות ההערות.`;
+  protected readonly subtitle = computed(
+    () =>
+      `${this.data.assignment().title}, ${this.course().year} · על סמך החומרים כאן נכתבות ההערות.`,
+  );
 
   private readonly open = signal<Record<string, boolean>>({ rules: true });
 

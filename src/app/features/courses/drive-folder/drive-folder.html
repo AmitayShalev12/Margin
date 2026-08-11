@@ -1,0 +1,84 @@
+<div class="drive">
+  <div class="line">
+    <span class="dot" [class.on]="auth.isConnected()" aria-hidden="true"></span>
+    <span class="text">
+      @if (!supabaseReady) {
+        <span class="title">חיבור לדרייב</span>
+        <span class="meta">צריך למלא את פרטי Supabase לפני שאפשר להתחבר.</span>
+      } @else if (!auth.isConnected()) {
+        <span class="title">{{
+          auth.isExpired() ? 'החיבור לגוגל פג' : 'לא מחוברת לגוגל דרייב'
+        }}</span>
+        <span class="meta">העבודות נמשכות מתיקייה משותפת בדרייב. הרשאת קריאה בלבד.</span>
+      } @else if (!folderId()) {
+        <span class="title">מחוברת לגוגל</span>
+        <span class="meta">עוד לא נבחרה תיקייה לקורס הזה.</span>
+      } @else {
+        <span class="title">תיקיית הקורס</span>
+        <span class="meta">
+          {{ lastSyncedLabel() }}
+          @if (syncState().unmatched.length) {
+            · {{ syncState().unmatched.length }} קבצים לא שויכו לתלמידה
+          }
+        </span>
+      }
+    </span>
+
+    @if (supabaseReady) {
+      @if (!auth.isConnected()) {
+        <button type="button" class="btn btn-primary btn-sm" (click)="connect()">
+          {{ auth.isExpired() ? 'חיבור מחדש' : 'חיבור לגוגל' }}
+        </button>
+      } @else if (!editing()) {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit()">
+          {{ folderId() ? 'שינוי תיקייה' : 'בחירת תיקייה' }}
+        </button>
+      }
+    }
+  </div>
+
+  @if (editing()) {
+    <div class="editor">
+      <label class="field">
+        <span class="label">קישור לתיקייה בדרייב</span>
+        <input
+          type="text"
+          class="input ltr"
+          dir="ltr"
+          [value]="draft()"
+          (input)="draft.set($any($event.target).value)"
+          placeholder="https://drive.google.com/drive/folders/…"
+        />
+      </label>
+
+      @if (checkError()) {
+        <p class="error">{{ checkError() }}</p>
+      }
+
+      <div class="editor-actions">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="checking()"
+          (click)="save()"
+        >
+          {{ checking() ? 'בודקת…' : 'שמירה' }}
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">ביטול</button>
+      </div>
+    </div>
+  }
+
+  @if (auth.isConnected() && folderId() && !editing()) {
+    <div class="foot">
+      @if (syncState().phase === 'syncing') {
+        <span class="muted">מסנכרנת מהדרייב…</span>
+      } @else if (syncState().message) {
+        <span class="error-inline">{{ syncState().message }}</span>
+        <button type="button" class="link" (click)="syncNow()">נסי שוב</button>
+      } @else {
+        <button type="button" class="link" (click)="syncNow()">סנכרון עכשיו</button>
+      }
+    </div>
+  }
+</div>

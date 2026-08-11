@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 
-import { MockDataService } from '../../core/mock/mock-data';
+import { DataStore } from '../../core/data/data-store';
 import { kindClass } from '../../core/presentation/annotation-kind';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 
@@ -18,7 +18,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
   styleUrl: './style-settings.scss',
 })
 export class StyleSettings {
-  private readonly data = inject(MockDataService);
+  private readonly data = inject(DataStore);
 
   protected readonly traits = this.data.styleTraits.map((t) => ({
     text: t.text,
