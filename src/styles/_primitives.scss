@@ -1,0 +1,188 @@
+@use 'tokens' as *;
+
+// ---------------------------------------------------------------------------
+// A small set of shared primitives. Kept global (not per-component) because
+// they are the visual vocabulary of every screen — cards, buttons, chips,
+// quiet section labels. Screens in later phases compose these rather than
+// inventing new ones.
+// ---------------------------------------------------------------------------
+
+// -- layout -----------------------------------------------------------------
+
+.page {
+  padding-block: var(--s-5) calc(var(--s-8) + var(--bottom-nav-h) + var(--safe-bottom));
+  padding-inline: var(--s-4);
+  max-width: var(--content-max);
+  margin-inline: auto;
+
+  @media (min-width: $bp-lg) {
+    padding-block: var(--s-8) var(--s-12);
+    padding-inline: var(--s-8);
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.stack-lg {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+// -- surfaces ---------------------------------------------------------------
+
+.card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  box-shadow: var(--sh-1);
+}
+
+.card-quiet {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+}
+
+// -- text -------------------------------------------------------------------
+
+.section-label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-3);
+  margin-block-end: var(--s-2);
+}
+
+.muted {
+  color: var(--c-ink-3);
+}
+
+.hint {
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+  line-height: var(--lh-normal);
+}
+
+// -- buttons ----------------------------------------------------------------
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 2.75rem; // 44px — comfortable touch target
+  padding: 0 var(--s-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+
+  &:hover:not(:disabled) {
+    background: var(--c-line);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.btn-primary {
+  background: var(--c-accent);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: var(--c-accent-strong);
+  }
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--c-line-strong);
+
+  &:hover:not(:disabled) {
+    background: var(--c-surface-sunk);
+  }
+}
+
+.btn-plain {
+  background: transparent;
+  border-color: transparent;
+  color: var(--c-accent);
+  padding-inline: var(--s-2);
+  font-weight: 600;
+
+  &:hover:not(:disabled) {
+    background: var(--c-accent-soft);
+  }
+}
+
+.btn-block {
+  width: 100%;
+}
+
+// -- chips / status ---------------------------------------------------------
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 0.15rem var(--s-3);
+  border-radius: var(--r-full);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip-accent {
+  background: var(--c-accent-soft);
+  color: var(--c-accent-strong);
+}
+
+.chip-attention {
+  background: var(--c-attention-soft);
+  color: var(--c-attention);
+}
+
+.chip-ok {
+  background: var(--c-ok-soft);
+  color: var(--c-ok);
+}
+
+// -- document type ----------------------------------------------------------
+
+.doc-text {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: var(--lh-doc);
+  color: var(--c-ink);
+}
+
+// An annotated span in the document. Underline rather than a solid block
+// so dense annotation stays readable.
+.doc-mark {
+  background: var(--c-mark);
+  box-shadow: inset 0 -0.15em 0 var(--c-mark-strong);
+  border-radius: 2px;
+  cursor: pointer;
+}

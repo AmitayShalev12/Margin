@@ -1,0 +1,239 @@
+@use '../styles/tokens' as *;
+
+// The shell is mobile-first: top bar + content + bottom tab bar. The desktop
+// rail only appears at $bp-lg. Every edge uses logical properties so the RTL
+// layout is genuine, not a transform.
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--s-4);
+  inset-block-start: -3rem;
+  z-index: 100;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-4);
+  transition: inset-block-start var(--dur) var(--ease);
+
+  &:focus {
+    inset-block-start: var(--s-3);
+  }
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+// -- brand ------------------------------------------------------------------
+
+.wordmark {
+  font-family: var(--font-doc);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--c-ink);
+}
+
+// -- mobile top bar ---------------------------------------------------------
+
+.topbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: 3.25rem;
+  padding-inline: var(--s-4);
+  background: color-mix(in srgb, var(--c-paper) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-block-end: 1px solid var(--c-line);
+}
+
+// -- mobile tab bar ---------------------------------------------------------
+
+.tabbar {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 30;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  height: calc(var(--bottom-nav-h) + var(--safe-bottom));
+  padding-block-end: var(--safe-bottom);
+  background: var(--c-surface);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--c-ink-3);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease);
+
+  &.is-active {
+    color: var(--c-accent);
+  }
+}
+
+// -- "עוד" sheet ------------------------------------------------------------
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(20, 26, 28, 0.28);
+}
+
+.sheet {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 50;
+  background: var(--c-surface);
+  border-start-start-radius: var(--r-lg);
+  border-start-end-radius: var(--r-lg);
+  box-shadow: var(--sh-3);
+  padding: var(--s-3) var(--s-4) calc(var(--s-4) + var(--safe-bottom));
+}
+
+.sheet-grip {
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: var(--r-full);
+  background: var(--c-line-strong);
+  margin: 0 auto var(--s-3);
+}
+
+.sheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.sheet-link {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 3rem;
+  padding-inline: var(--s-2);
+  border-radius: var(--r-md);
+  color: var(--c-ink);
+  text-decoration: none;
+  font-weight: 600;
+
+  &:active {
+    background: var(--c-surface-sunk);
+  }
+}
+
+// -- desktop rail -----------------------------------------------------------
+
+.rail {
+  display: none;
+}
+
+@media (min-width: $bp-lg) {
+  .shell {
+    flex-direction: row;
+  }
+
+  .topbar,
+  .tabbar,
+  .sheet,
+  .sheet-backdrop {
+    display: none;
+  }
+
+  .rail {
+    position: sticky;
+    inset-block-start: 0;
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-6);
+    width: var(--nav-rail-w);
+    flex: 0 0 var(--nav-rail-w);
+    height: 100dvh;
+    padding: var(--s-6) var(--s-4);
+    border-inline-end: 1px solid var(--c-line);
+    background: var(--c-surface);
+  }
+
+  .rail-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding-inline: var(--s-2);
+  }
+
+  .rail-tag {
+    font-size: var(--fs-sm);
+    color: var(--c-ink-3);
+  }
+
+  .rail-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+  }
+
+  .rail-link {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    min-height: 2.5rem;
+    padding-inline: var(--s-3);
+    border-radius: var(--r-md);
+    color: var(--c-ink-2);
+    text-decoration: none;
+    font-weight: 600;
+    transition:
+      background var(--dur-fast) var(--ease),
+      color var(--dur-fast) var(--ease);
+
+    &:hover {
+      background: var(--c-surface-sunk);
+      color: var(--c-ink);
+    }
+
+    &.is-active {
+      background: var(--c-accent-soft);
+      color: var(--c-accent-strong);
+    }
+  }
+}
