@@ -15,13 +15,16 @@ The entire interface is Hebrew and right-to-left.
 
 ## Status
 
-| Phase | Scope                                                         | State   |
-| ----- | ------------------------------------------------------------- | ------- |
-| 1     | Project setup, data model, SQL schema, routed shell           | ✅ done |
-| 2     | Core screens (dashboard, submissions, review, courses, style) | ✅ done |
-| 3     | Google Drive integration                                      | ✅ done |
-| 4     | AI feedback engine, learning loop, grading forms, email       | next    |
-| 5     | Reliability / authenticity module                             | —       |
+| Phase | Scope                                                         | State       |
+| ----- | ------------------------------------------------------------- | ----------- |
+| 1     | Project setup, data model, SQL schema, routed shell           | ✅ done     |
+| 2     | Core screens (dashboard, submissions, review, courses, style) | ✅ done     |
+| 3     | Google Drive integration                                      | ✅ done     |
+| 4     | AI feedback engine, learning loop, grading forms, email       | in progress |
+| 5     | Reliability / authenticity module                             | —           |
+
+Phase 4 so far: **AI-drafted annotations** (below). The learning loop, grading
+forms and student email are still to come.
 
 `DataStore` starts out holding the seeded records in
 `src/app/core/mock/seed-data.ts`, layers anything durable over them on boot,
@@ -220,6 +223,127 @@ screen's grouping working across both conventions.
 
 ---
 
+## Drafting annotations
+
+The model call lives in the `annotate` Edge Function, so the API key never
+reaches the browser — the same posture as the Drive credential.
+
+```bash
+supabase secrets set GEMINI_API_KEY=...
+```
+
+```bash
+supabase functions deploy annotate
+```
+
+### The provider is a cost decision, and it lives in one file
+
+`supabase/functions/_shared/model-config.ts` holds the provider, model, key
+env var, endpoint and retry policy. `_shared/gemini.ts` is the adapter that
+shapes requests and classifies responses. `annotate/index.ts` owns only the
+environment, the HTTP call and the retry loop — swapping provider is an edit to
+the config plus one new adapter, and nothing client-side moves.
+
+It currently runs **`gemini-3.6-flash`** on Google AI Studio's free tier, which
+needs no billing account. Two constraints that come with that:
+
+- **Flash only.** Pro tiers are paid. The model string is asserted in
+  `gemini-adapter.spec.ts` so an upgrade can't happen by accident.
+- **Free tier means Google may use submitted content to improve their models.**
+  Point this at seeded or synthetic documents only. Real student work should
+  not go through it until someone decides to move to a paid tier. The request
+  sets `store: false` so the interaction isn't persisted server-side, but that
+  is a separate matter from training use.
+
+The call uses the **Interactions API** (`POST /v1beta/interactions`), which
+replaced `generateContent` and went GA in June 2026 — note if you are working
+from older examples, the request shape and the schema's type casing both
+differ. Structured output is enforced with
+`response_format: { mime_type: 'application/json', schema }`, so the reply
+arrives in the shape the client already parses rather than as prose.
+
+Prompt caching was dropped in the move from Claude: `cache_control` was
+Anthropic-specific, and at free-tier volumes the rate limit binds long before
+cost does. The prompt is still ordered the right way for it — stable knowledge
+base first, volatile document second — so reinstating caching on a paid tier is
+marking the boundary, not restructuring. There's a `REVISIT` comment on the
+knowledge-base builder.
+
+### When it fails
+
+Free-tier limits are per-project and only visible in AI Studio, so the function
+reads what the API returns rather than tracking a hardcoded quota. Failures come
+back as a code; the client turns it into Hebrew, the same split as `DriveError`:
+
+| Code                | What she is told                                                              |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `safety_blocked`    | part of the document couldn't be processed automatically — review it directly |
+| `rate_limited`      | too many requests in a row, try again shortly (retried with backoff first)    |
+| `daily_cap`         | the daily quota is spent, try tomorrow — **not** retried                      |
+| `bad_response`      | the reply arrived truncated; retry                                            |
+| `generation_failed` | anything else                                                                 |
+
+`safety_blocked` earns its own message because SEL coursework legitimately
+discusses distress and family difficulty, and a content filter will occasionally
+stop on a perfectly ordinary paper. The teacher needs telling that the document
+is fine and the automatic pass isn't.
+
+One caveat worth knowing: Google documents safety filtering thoroughly for the
+old `generateContent` shape but not for the Interactions API, which says only
+that filtered content "results in modified output or status change". So
+`looksSafetyBlocked()` scans for the vocabulary a filter would use rather than
+matching one documented field, and a completed-but-empty reply is treated as a
+block. A false positive costs a slightly wrong message on a batch that failed
+anyway; missing it costs the teacher a useful explanation.
+
+### Quotes in, offsets out
+
+The function returns **quotes**, not offsets. The client locates each quote in
+its own copy of the block text and builds the `TextAnchor` — the same shape
+Phase 2 renders from and Phase 3 extracts for.
+
+The rule is: a comment anchors to exactly the words it quoted, or it is thrown
+away. Nothing searches approximately or trims to fit. `anchor-resolver.ts`
+rejects a draft when the quote isn't in the named block, appears twice in it
+(no way to know which was meant), names a block that doesn't exist, uses a
+category the review screen has no colour for, or duplicates a span already
+taken. Rejections are counted and shown to the teacher rather than silently
+shortening the batch — a pass where half the quotes failed to resolve is a
+signal about the generation, not something to hide.
+
+**Anchors also refuse to bisect bidi-isolated notation.** An anchor that
+started or ended part-way through `(r = .42, p < .01)` would split the isolate
+in two when rendered and scramble it. Anchoring to the whole run, or around it,
+is fine; cutting into it is rejected.
+
+### Categories
+
+The model may only use the seven kinds the app already models — the five
+coloured ones plus `formatting` and `other`. `GENERATED_KINDS` in
+`core/ai/contract.ts` is the single source of truth: the client sends it as
+`allowed_kinds` and the function builds its JSON-schema enum from what it
+receives, so there is no second list to drift.
+
+### One confirmation per batch
+
+Before the comments become hers to work through, the teacher reads one
+plain-language restatement of what was flagged and why — stored on
+`SubmissionRound.ai_summary`, confirmed by stamping `ai_summary_confirmed_at`.
+Until she confirms, the review screen shows the restatement and a category
+breakdown, and the comment column stays folded away. That is what makes it one
+pass rather than forty individual judgements. Declining discards the batch
+outright rather than leaving her to sift it.
+
+### Comment text is bidi-isolated too
+
+Phase 2 isolated Latin and numeric runs in the _document_; comment bodies and
+quoted spans were rendered as plain interpolation. Drafted comments quote the
+document's statistics constantly, so `(r = .42, p < .01)` inside a comment came
+out with its brackets reversed. The `app-bidi-text` component applies the same
+`splitLtrRuns` treatment to comment bodies, quotes and the batch summary.
+
+---
+
 ## Applying the database schema
 
 The schema lives in `supabase/migrations/`. With the
@@ -241,6 +365,7 @@ src/
   app/
     core/
       models/        TypeScript interfaces — one file per entity group
+      ai/            drafting annotations: contract, anchor resolution, generator
       data/          the in-memory store the screens read from
       drive/         OAuth, the Drive/Docs clients, extraction, sync
       mock/          seeded records the store starts out holding

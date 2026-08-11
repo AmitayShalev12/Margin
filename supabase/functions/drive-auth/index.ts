@@ -54,8 +54,10 @@ Deno.serve(async (request: Request) => {
 
   try {
     if (route === 'callback') return await handleCallback(request, env, url);
-    if (request.method === 'POST' && route === 'start') return await handleStart(request, env, cors);
-    if (request.method === 'POST' && route === 'status') return await handleStatus(request, env, cors);
+    if (request.method === 'POST' && route === 'start')
+      return await handleStart(request, env, cors);
+    if (request.method === 'POST' && route === 'status')
+      return await handleStatus(request, env, cors);
     if (request.method === 'DELETE') return await handleDisconnect(request, env, cors);
     return json({ error: 'Not found' }, 404, cors);
   } catch (error) {
@@ -115,7 +117,10 @@ async function handleCallback(request: Request, env: Env, url: URL) {
 
   if (!state) return json({ error: 'missing_state' }, 400);
 
-  const rows = await db<StateRow[]>(env, `google_oauth_states?state=eq.${encodeURIComponent(state)}`);
+  const rows = await db<StateRow[]>(
+    env,
+    `google_oauth_states?state=eq.${encodeURIComponent(state)}`,
+  );
   const row = rows?.[0];
 
   // Redeem it whatever happens next: a state is good for exactly one attempt.
@@ -170,7 +175,12 @@ async function handleStatus(request: Request, env: Env, cors: Record<string, str
   const row = rows?.[0];
   return json(
     row
-      ? { connected: true, google_email: row.google_email, scope: row.scope, connected_at: row.connected_at }
+      ? {
+          connected: true,
+          google_email: row.google_email,
+          scope: row.scope,
+          connected_at: row.connected_at,
+        }
       : { connected: false },
     200,
     cors,

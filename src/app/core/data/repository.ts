@@ -1,4 +1,11 @@
-import { Annotation, Submission, SubmissionRound, UUID } from '../models';
+import {
+  Annotation,
+  LearningFeedbackLog,
+  Submission,
+  SubmissionRound,
+  TeacherStyleExample,
+  UUID,
+} from '../models';
 
 /**
  * Everything that has to survive a reload.
@@ -12,6 +19,10 @@ export interface PersistedSnapshot {
   annotations: Annotation[];
   /** Watched Drive folder, keyed by the course or assignment it belongs to. */
   driveFolders: Record<UUID, string>;
+  /** Her decisions on drafted comments — the signal later drafts learn from. */
+  feedbackLogs: LearningFeedbackLog[];
+  /** Samples of her own writing. Read-only for now; nothing here writes them. */
+  styleExamples: TeacherStyleExample[];
 }
 
 export const EMPTY_SNAPSHOT: PersistedSnapshot = {
@@ -19,6 +30,8 @@ export const EMPTY_SNAPSHOT: PersistedSnapshot = {
   rounds: [],
   annotations: [],
   driveFolders: {},
+  feedbackLogs: [],
+  styleExamples: [],
 };
 
 /**
@@ -37,5 +50,17 @@ export abstract class Repository {
   abstract saveSubmission(submission: Submission): Promise<void>;
   abstract saveRound(round: SubmissionRound): Promise<void>;
   abstract saveAnnotation(annotation: Annotation): Promise<void>;
+  /** Hard delete — used when a drafted batch is thrown away, not for dismissal. */
+  abstract deleteAnnotations(ids: readonly UUID[]): Promise<void>;
   abstract saveDriveFolder(ownerId: UUID, folderId: string | null): Promise<void>;
+
+  /**
+   * One log per drafted comment, superseded in place when she changes her mind.
+   * The store reuses the existing record's id, so this stays a plain upsert.
+   *
+   * Deliberately not deleted alongside its annotation: `target_id` carries no
+   * foreign key, and the before/after pair is self-contained training data that
+   * outlives the comment it came from.
+   */
+  abstract saveFeedbackLog(log: LearningFeedbackLog): Promise<void>;
 }

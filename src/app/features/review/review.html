@@ -26,7 +26,32 @@
       }
     </header>
 
-    @if (hasComments()) {
+    <!--
+      One restatement per batch, read before any individual comment. The
+      comment column stays folded away until she has confirmed it.
+    -->
+    @if (pendingSummary(); as summary) {
+      <section class="batch" aria-label="מה סומן">
+        <h2 class="batch-title">עברתי על העבודה</h2>
+        <p class="batch-summary"><app-bidi-text [value]="summary" /></p>
+
+        @if (batchBreakdown().length) {
+          <div class="batch-counts">
+            @for (entry of batchBreakdown(); track entry.label) {
+              <span class="legend-chip" [class]="entry.class">
+                <span class="swatch" aria-hidden="true"></span>{{ entry.label }} · {{ entry.count }}
+              </span>
+            }
+          </div>
+        }
+
+        @if (generator.state().discarded) {
+          <p class="batch-note">
+            {{ generator.state().discarded }} הערות לא נקשרו למקום מדויק בטקסט והושמטו.
+          </p>
+        }
+      </section>
+    } @else if (hasComments()) {
       <div class="legend">
         @for (l of legend; track l.label) {
           <span class="legend-chip" [class]="l.class">
@@ -72,7 +97,7 @@
       </article>
 
       <!-- Desktop: the margin. -->
-      @if (viewport.isDesktop() && hasComments()) {
+      @if (viewport.isDesktop() && hasComments() && !pendingSummary()) {
         <aside class="margin" aria-label="הערות">
           @for (s of sections(); track s.id) {
             <div class="group">
@@ -108,7 +133,7 @@
                         <span class="tag">{{ c.kindLabel }}</span>
                         <span class="state">{{ c.stateLabel }}</span>
                       </div>
-                      <div class="quote">״{{ c.quote }}״</div>
+                      <div class="quote">״<app-bidi-text [value]="c.quote" />״</div>
 
                       @if (editingId() === c.id) {
                         <textarea
@@ -127,7 +152,7 @@
                           </button>
                         </div>
                       } @else {
-                        <div class="body">{{ c.body }}</div>
+                        <div class="body"><app-bidi-text [value]="c.body" /></div>
                         @if (c.isPending) {
                           <div class="actions">
                             <button
@@ -169,7 +194,7 @@
     </div>
 
     <!-- Mobile: the same comments, grouped under the document. -->
-    @if (!viewport.isDesktop() && hasComments()) {
+    @if (!viewport.isDesktop() && hasComments() && !pendingSummary()) {
       <div class="mobile-groups">
         <div class="section-label">{{ counterText() }}</div>
         @for (s of sections(); track s.id) {
@@ -203,8 +228,8 @@
                 @for (c of s.comments; track c.id) {
                   <li [class]="c.kindClass" [class.is-resolved]="c.isResolved">
                     <button type="button" class="m-item" (click)="openSheet(c.id)">
-                      <span class="m-quote">״{{ c.quote }}״</span>
-                      <span class="m-short">{{ c.short }}</span>
+                      <span class="m-quote">״<app-bidi-text [value]="c.quote" />״</span>
+                      <span class="m-short"><app-bidi-text [value]="c.short" /></span>
                       <span class="m-state">{{ c.stateLabel }}</span>
                     </button>
                   </li>
@@ -217,20 +242,51 @@
     }
 
     @if (!hasComments()) {
-      <p class="no-comments hint">
-        אין עדיין הערות על העבודה הזו. כשהמערכת תנסח טיוטה ראשונה, היא תופיע כאן בשוליים.
-      </p>
+      <div class="no-comments">
+        @if (generator.isGenerating()) {
+          <p class="hint">קוראת את העבודה ומנסחת הערות… זה לוקח דקה או שתיים.</p>
+        } @else {
+          <p class="hint">
+            אין עדיין הערות על העבודה הזו. אנסח טיוטה ראשונה בסגנון שלך, ואת תעברי עליה.
+          </p>
+          @if (generator.state().message) {
+            <p class="gen-error">{{ generator.state().message }}</p>
+          }
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="!hasDocument() || !generator.canGenerate"
+            (click)="generate()"
+          >
+            ניסוח טיוטת הערות
+          </button>
+          @if (!generator.canGenerate) {
+            <p class="hint">צריך למלא את פרטי Supabase כדי לנסח הערות.</p>
+          }
+        }
+      </div>
     }
   </div>
 </div>
 
-<!-- One primary action, always reachable. -->
+<!--
+  One primary action, always reachable — but which one depends on where the
+  round is. An unconfirmed batch is confirmed before anything else can happen.
+-->
 <div class="action-bar">
   <div class="action-inner">
-    <span class="send-hint">{{ sendHint() }}</span>
-    <button type="button" class="btn btn-primary" (click)="send()">
-      שליחת ההערות ל{{ firstName() }}
-    </button>
+    @if (pendingSummary()) {
+      <button type="button" class="btn btn-plain" (click)="discardBatch()">לא, נסי שוב</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn-primary" (click)="confirmBatch()">
+        מתחילה לעבור על ההערות
+      </button>
+    } @else {
+      <span class="send-hint">{{ sendHint() }}</span>
+      <button type="button" class="btn btn-primary" (click)="send()">
+        שליחת ההערות ל{{ firstName() }}
+      </button>
+    }
   </div>
 </div>
 
@@ -243,7 +299,7 @@
       <span class="tag">{{ c.kindLabel }}</span>
       <span class="state">{{ c.stateLabel }}</span>
     </div>
-    <div class="quote">״{{ c.quote }}״</div>
+    <div class="quote">״<app-bidi-text [value]="c.quote" />״</div>
 
     @if (editingId() === c.id) {
       <textarea
@@ -258,7 +314,7 @@
         <button type="button" class="btn btn-ghost" (click)="cancelEdit()">ביטול</button>
       </div>
     } @else {
-      <p class="sheet-body">{{ c.body }}</p>
+      <p class="sheet-body"><app-bidi-text [value]="c.body" /></p>
 
       @if (c.isPending) {
         <div class="sheet-actions">

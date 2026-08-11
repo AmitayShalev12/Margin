@@ -6,5 +6,5 @@
 export const environment = {
   production: false,
   supabaseUrl: 'https://cqmzcvaitiumnqyrttpe.supabase.co',
-  supabaseAnonKey: 'YOUR-SUPABASE-ANON-KEY',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxbXpjdmFpdGl1bW5xeXJ0dHBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDM0OTAsImV4cCI6MjEwMjAxOTQ5MH0.JzMqk8TmKySSwYfGn88ONobqJtTaRvKMvFSVarr7RsQ',
 };

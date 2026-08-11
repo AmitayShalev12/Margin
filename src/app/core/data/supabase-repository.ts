@@ -1,6 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 
-import { Annotation, Submission, SubmissionRound, TABLES, UUID } from '../models';
+import {
+  Annotation,
+  LearningFeedbackLog,
+  Submission,
+  SubmissionRound,
+  TABLES,
+  TeacherStyleExample,
+  UUID,
+} from '../models';
 import { SupabaseService } from '../supabase/supabase';
 import { EMPTY_SNAPSHOT, PersistedSnapshot, Repository } from './repository';
 
@@ -21,18 +29,27 @@ export class SupabaseRepository extends Repository {
   async load(): Promise<PersistedSnapshot> {
     const client = this.supabase.client;
 
-    // RLS scopes all four of these to the signed-in teacher; there is no
-    // filtering to do here beyond asking.
-    const [submissions, rounds, annotations, courses, assignments] = await Promise.all([
-      client.from(TABLES.submissions).select('*'),
-      client.from(TABLES.submissionRounds).select('*'),
-      client.from(TABLES.annotations).select('*'),
-      client.from(TABLES.courses).select('id,drive_folder_id'),
-      client.from(TABLES.assignments).select('id,drive_folder_id'),
-    ]);
+    // RLS scopes all of these to the signed-in teacher; there is no filtering
+    // to do here beyond asking.
+    const [submissions, rounds, annotations, courses, assignments, feedbackLogs, styleExamples] =
+      await Promise.all([
+        client.from(TABLES.submissions).select('*'),
+        client.from(TABLES.submissionRounds).select('*'),
+        client.from(TABLES.annotations).select('*'),
+        client.from(TABLES.courses).select('id,drive_folder_id'),
+        client.from(TABLES.assignments).select('id,drive_folder_id'),
+        client.from(TABLES.learningFeedbackLogs).select('*'),
+        client.from(TABLES.teacherStyleExamples).select('*'),
+      ]);
 
     const firstError =
-      submissions.error ?? rounds.error ?? annotations.error ?? courses.error ?? assignments.error;
+      submissions.error ??
+      rounds.error ??
+      annotations.error ??
+      courses.error ??
+      assignments.error ??
+      feedbackLogs.error ??
+      styleExamples.error;
     if (firstError) throw new Error(firstError.message);
 
     const driveFolders: Record<UUID, string> = {};
@@ -47,6 +64,8 @@ export class SupabaseRepository extends Repository {
       rounds: (rounds.data ?? []) as SubmissionRound[],
       annotations: (annotations.data ?? []) as Annotation[],
       driveFolders,
+      feedbackLogs: (feedbackLogs.data ?? []) as LearningFeedbackLog[],
+      styleExamples: (styleExamples.data ?? []) as TeacherStyleExample[],
     };
   }
 
@@ -61,6 +80,19 @@ export class SupabaseRepository extends Repository {
 
   async saveAnnotation(annotation: Annotation): Promise<void> {
     await this.upsert(TABLES.annotations, annotation, 'id');
+  }
+
+  async saveFeedbackLog(log: LearningFeedbackLog): Promise<void> {
+    await this.upsert(TABLES.learningFeedbackLogs, log, 'id');
+  }
+
+  async deleteAnnotations(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { error } = await this.supabase.client
+      .from(TABLES.annotations)
+      .delete()
+      .in('id', [...ids]);
+    if (error) throw new Error(`${TABLES.annotations}: ${error.message}`);
   }
 
   /**

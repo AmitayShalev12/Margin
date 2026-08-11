@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
+import { AnnotationGenerator } from '../../core/ai/annotation-generator';
 import { DataStore } from '../../core/data/data-store';
 import { Annotation, AnnotationStatus, DocumentBlock, UUID } from '../../core/models';
 import {
@@ -11,6 +12,7 @@ import {
 } from '../../core/presentation/annotation-kind';
 import { renderBlock, sectionsOf } from '../../core/presentation/document-render';
 import { Viewport } from '../../core/viewport';
+import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 
 /** A run of text as the template needs it, with its styling already decided. */
 interface ViewRun {
@@ -68,7 +70,7 @@ function commentCount(n: number): string {
 @Component({
   selector: 'app-review',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, BidiText],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -76,6 +78,7 @@ export class Review {
   private readonly data = inject(DataStore);
   private readonly router = inject(Router);
   protected readonly viewport = inject(Viewport);
+  protected readonly generator = inject(AnnotationGenerator);
 
   readonly submissionId = input<string>('');
 
@@ -111,11 +114,34 @@ export class Review {
       .filter((a) => a.submission_id === this.submission().id && a.status !== 'dismissed'),
   );
 
+  protected readonly round = computed(() => this.data.roundFor(this.submission().id));
+
   private readonly blocks = computed<readonly DocumentBlock[]>(
-    () => this.data.roundFor(this.submission().id)?.document_blocks ?? [],
+    () => this.round()?.document_blocks ?? [],
   );
 
   protected readonly hasComments = computed(() => this.live().length > 0);
+
+  protected readonly hasDocument = computed(() => this.blocks().length > 0);
+
+  /**
+   * The drafted batch's restatement, shown once before she works through the
+   * comments. Confirming it is what makes the batch hers.
+   */
+  protected readonly pendingSummary = computed(() => {
+    const round = this.round();
+    if (!round?.ai_summary || round.ai_summary_confirmed_at) return null;
+    return round.ai_summary;
+  });
+
+  /** Counts per category, so the restatement can be checked against the batch. */
+  protected readonly batchBreakdown = computed(() =>
+    LEGEND_KINDS.map((kind) => ({
+      label: KIND_LABEL[kind],
+      class: kindClass(kind),
+      count: this.live().filter((a) => a.kind === kind).length,
+    })).filter((entry) => entry.count > 0),
+  );
 
   protected readonly viewBlocks = computed<ViewBlock[]>(() => {
     const annotations = this.live();
@@ -258,6 +284,24 @@ export class Review {
 
   protected cancelEdit() {
     this.editingId.set(null);
+  }
+
+  // -- drafting -------------------------------------------------------------
+
+  protected async generate() {
+    await this.generator.generate(this.submission().id);
+  }
+
+  /** She has read the restatement; the comments become hers to work through. */
+  protected confirmBatch() {
+    const round = this.round();
+    if (round) this.generator.confirmBatch(round.id);
+  }
+
+  /** The pass was aimed wrong — drop it rather than make her sift it. */
+  protected discardBatch() {
+    const round = this.round();
+    if (round) this.generator.discardBatch(round.id);
   }
 
   /** The one primary action on the screen. */

@@ -48,7 +48,7 @@ export function readEnv(): Env {
 export function corsHeaders(origin: string | null, allowed: string[]): Record<string, string> {
   // Echo the origin only when it is one we know; never `*`, because these
   // endpoints are authenticated and credentialed.
-  const allow = origin && allowed.includes(origin) ? origin : allowed[0] ?? '';
+  const allow = origin && allowed.includes(origin) ? origin : (allowed[0] ?? '');
   return {
     'Access-Control-Allow-Origin': allow,
     'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -57,7 +57,11 @@ export function corsHeaders(origin: string | null, allowed: string[]): Record<st
   };
 }
 
-export function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
+export function json(
+  body: unknown,
+  status: number,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json', ...headers },

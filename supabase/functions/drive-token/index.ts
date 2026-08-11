@@ -11,7 +11,15 @@
  *
  * Deploy with `verify_jwt = true`, or leave the explicit check below to do it.
  */
-import { Env, callerId, corsHeaders, db, exchangeWithGoogle, json, readEnv } from '../_shared/google.ts';
+import {
+  Env,
+  callerId,
+  corsHeaders,
+  db,
+  exchangeWithGoogle,
+  json,
+  readEnv,
+} from '../_shared/google.ts';
 
 interface CredentialRow {
   refresh_token: string;

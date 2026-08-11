@@ -412,6 +412,55 @@
 
 .no-comments {
   margin-block-start: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.gen-error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+// -- the batch restatement --------------------------------------------------
+// Deliberately the only thing on screen worth reading at this moment: the
+// comment column stays hidden until she has confirmed this.
+
+.batch {
+  background: var(--c-surface);
+  border: 1px solid var(--c-accent-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  margin-block-end: var(--s-5);
+  box-shadow: var(--sh-1);
+}
+
+.batch-title {
+  font-size: var(--fs-lg);
+  margin-block-end: var(--s-2);
+}
+
+.batch-summary {
+  margin: 0;
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  max-width: 60ch;
+}
+
+.batch-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-block-start: var(--s-4);
+}
+
+.batch-note {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
 }
 
 // -- the one primary action -------------------------------------------------

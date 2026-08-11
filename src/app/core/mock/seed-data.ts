@@ -24,7 +24,8 @@ import {
  * stays "אתמול" rather than drifting into a date from months ago.
  */
 
-const TEACHER_ID = '00000000-0000-4000-8000-000000000001';
+/** Stands in as the tenant key until a real teacher is signed in. */
+export const TEACHER_ID = '00000000-0000-4000-8000-000000000001';
 const COURSE_ID = 'c0000000-0000-4000-8000-000000000001';
 const ASSIGNMENT_ID = 'a5000000-0000-4000-8000-000000000001';
 
@@ -650,7 +651,11 @@ export const FEEDBACK_LOGS: LearningFeedbackLog[] = FEEDBACK_SEEDS.map((f, i) =>
   teacher_id: TEACHER_ID,
   course_id: COURSE_ID,
   target_type: 'annotation',
-  target_id: seedId(`an-${i + 1}`),
+  // Comments from earlier work, not the ones on screen. Pointing these at the
+  // seeded annotations would be wrong twice over: the wording doesn't match
+  // them, and a real decision on one of those comments supersedes the log for
+  // its target — which would quietly delete a fixture.
+  target_id: seedId(`lf-target-${i + 1}`),
   action: 'edited',
   ai_text: f.ai,
   final_text: f.final,
@@ -659,14 +664,7 @@ export const FEEDBACK_LOGS: LearningFeedbackLog[] = FEEDBACK_SEEDS.map((f, i) =>
   created_at: daysAgo(f.daysAgo),
 }));
 
-/**
- * What the system noticed about how she writes. Phase 4 derives these from
- * the feedback log; for now they are stated, so the screen can show the shape
- * of the answer.
- */
-export const STYLE_TRAITS: { text: string; kind: AnnotationKind }[] = [
-  { text: 'את פותחת בשאלה, לא בתיקון.', kind: 'language' },
-  { text: 'את מקצרת: משפט אחד להערה, לכל היותר שניים.', kind: 'structure' },
-  { text: 'את מבקשת את המספר עצמו במקום לקבוע שהדיווח חסר.', kind: 'sources' },
-  { text: 'על כל שלוש הערות תיקון את משאירה אחת של חיזוק.', kind: 'praise' },
-];
+// The stated style traits that used to live here are gone: they are now
+// derived from the feedback log by `core/learning/style-profile.ts`, which is
+// what the screen shows. A fixture that reads as insight is worse than an
+// empty state, because she cannot tell it from the real thing.

@@ -57,6 +57,19 @@ export function splitLtrRuns(text: string): { text: string; ltr: boolean }[] {
 }
 
 /**
+ * Splits any text that will be shown inside the RTL interface into runs.
+ *
+ * Comment bodies and quoted spans need this as much as the document does: a
+ * generated comment routinely contains `(r = .42, p < .01)` or a term like
+ * SEL, and rendered as one plain string its brackets and operators come out
+ * reversed. Same isolation rule, applied to what the teacher reads about the
+ * text rather than to the text itself.
+ */
+export function isolateForDisplay(text: string): { text: string; ltr: boolean }[] {
+  return splitLtrRuns(text);
+}
+
+/**
  * Weaves a block's annotations back into its text.
  *
  * The document is stored as plain text and comments are anchored by character

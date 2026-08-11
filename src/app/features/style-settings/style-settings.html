@@ -1,35 +1,60 @@
 <div class="page">
   <app-page-header title="הסגנון שלי" [subtitle]="subtitle()" />
 
-  <div class="card traits-card">
-    <div class="section-label">מה שמתי לב שאת עושה</div>
-    <ul class="traits">
-      @for (t of traits; track t.text) {
-        <li [class]="t.class">
-          <span class="bullet" aria-hidden="true"></span>
-          <span class="trait-text">{{ t.text }}</span>
-        </li>
+  @if (hasDecisions()) {
+    <div class="tally" aria-label="מה עשית עם הטיוטות">
+      @for (t of tally(); track t.label) {
+        <div class="tally-cell">
+          <span class="tally-value">{{ t.value }}</span>
+          <span class="tally-label">{{ t.label }}</span>
+        </div>
       }
-    </ul>
-  </div>
+    </div>
+  }
 
-  <div class="section-label recent-label">מתוך התיקונים האחרונים שלך</div>
-  <div class="stack">
-    @for (l of learned(); track l.id) {
-      <div class="card">
-        <div class="mini">ההצעה שלי</div>
-        <div class="before">{{ l.before }}</div>
-        <div class="mini after-label">מה שכתבת</div>
-        <div class="after">{{ l.after }}</div>
-        @if (l.note) {
-          <div class="note">{{ l.note }}</div>
+  @if (traits().length) {
+    <div class="card traits-card">
+      <div class="section-label">מה שמתי לב שאת עושה</div>
+      <ul class="traits">
+        @for (t of traits(); track t.text) {
+          <li [class]="t.class">
+            <span class="bullet" aria-hidden="true"></span>
+            <span class="trait-text">
+              {{ t.text }}
+              <span class="evidence">{{ t.evidence }}</span>
+            </span>
+          </li>
         }
-      </div>
-    }
-  </div>
+      </ul>
+    </div>
+  }
+
+  @if (learned().length) {
+    <div class="section-label recent-label">מתוך התיקונים האחרונים שלך</div>
+    <div class="stack">
+      @for (l of learned(); track l.id) {
+        <div class="card">
+          <div class="mini">ההצעה שלי</div>
+          <div class="before">{{ l.before }}</div>
+          <div class="mini after-label">מה שכתבת</div>
+          <div class="after">{{ l.after }}</div>
+          @if (l.note) {
+            <div class="note">{{ l.note }}</div>
+          }
+        </div>
+      }
+    </div>
+  }
 
   <div class="add">
     <button type="button" class="btn btn-primary btn-block">הוספת דוגמאות מהכתיבה שלי</button>
     <p class="hint">הערות משנים קודמות, מיילים שכתבת, או טקסט שתדביקי כאן.</p>
+  </div>
+
+  <div class="take">
+    <button type="button" class="btn btn-ghost btn-block" (click)="exportProfile()">
+      הורדת מה שנלמד ממני
+    </button>
+    <p class="hint">קובץ אחד עם כל התיקונים והדוגמאות. שלך, גם אם תפסיקי להשתמש כאן.</p>
   </div>
 </div>

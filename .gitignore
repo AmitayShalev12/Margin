@@ -39,6 +39,16 @@ testem.log
 /typings
 __screenshots__/
 
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+supabase/.env
+supabase/.env.*
+# ...but the template carries no values and documents what has to be set.
+!supabase/.env.example
+supabase/.temp/
+
 # System files
 .DS_Store
 Thumbs.db

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { Annotation, Submission, SubmissionRound, UUID } from '../models';
+import { Annotation, LearningFeedbackLog, Submission, SubmissionRound, UUID } from '../models';
 import { EMPTY_SNAPSHOT, PersistedSnapshot, Repository } from './repository';
 
 const STORAGE_KEY = 'margin.persisted';
@@ -46,6 +46,20 @@ export class LocalRepository extends Repository {
     });
   }
 
+  async deleteAnnotations(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.annotations = snapshot.annotations.filter((a) => !gone.has(a.id));
+    });
+  }
+
+  async saveFeedbackLog(log: LearningFeedbackLog): Promise<void> {
+    this.mutate((snapshot) => {
+      snapshot.feedbackLogs = replaceById(snapshot.feedbackLogs, log);
+    });
+  }
+
   async saveDriveFolder(ownerId: UUID, folderId: string | null): Promise<void> {
     this.mutate((snapshot) => {
       if (folderId) snapshot.driveFolders[ownerId] = folderId;
@@ -80,6 +94,8 @@ function read(): PersistedSnapshot {
       rounds: parsed.rounds ?? [],
       annotations: parsed.annotations ?? [],
       driveFolders: parsed.driveFolders ?? {},
+      feedbackLogs: parsed.feedbackLogs ?? [],
+      styleExamples: parsed.styleExamples ?? [],
     };
   } catch {
     // Corrupt or unavailable storage shouldn't stop the app booting.
@@ -93,6 +109,8 @@ function clone(snapshot: PersistedSnapshot): PersistedSnapshot {
     rounds: [...snapshot.rounds],
     annotations: [...snapshot.annotations],
     driveFolders: { ...snapshot.driveFolders },
+    feedbackLogs: [...snapshot.feedbackLogs],
+    styleExamples: [...snapshot.styleExamples],
   };
 }
 

@@ -1,0 +1,254 @@
+import { Injectable, computed, inject, signal } from '@angular/core';
+
+import { DataStore } from '../data/data-store';
+import { newId } from '../ids';
+import {
+  Annotation,
+  DocumentBlock,
+  LearningFeedbackLog,
+  Submission,
+  SubmissionRound,
+  UUID,
+} from '../models';
+import { SupabaseService } from '../supabase/supabase';
+import { resolveAnnotations } from './anchor-resolver';
+import { AnnotateRequest, AnnotateResponse, GENERATED_KINDS } from './contract';
+
+export type GenerationPhase = 'idle' | 'generating' | 'error';
+
+export interface GenerationState {
+  phase: GenerationPhase;
+  /** Hebrew, teacher-facing. */
+  message: string | null;
+  /** Comments whose quote didn't resolve — worth surfacing, not hiding. */
+  discarded: number;
+}
+
+const IDLE: GenerationState = { phase: 'idle', message: null, discarded: 0 };
+
+/**
+ * What the teacher is told when a batch fails, by the code the Edge Function
+ * returned. Codes live server-side, wording lives here — the same split as
+ * `DriveError`.
+ *
+ * `safety_blocked` matters more than it looks: SEL coursework legitimately
+ * discusses distress, self-harm and family difficulty, and a content filter
+ * will occasionally stop on it. She needs to know the document is fine and the
+ * automatic pass isn't — not to be left wondering what she did wrong.
+ */
+const FAILURE_MESSAGES: Record<string, string> = {
+  safety_blocked:
+    'חלק מהעבודה הזו לא עבר עיבוד אוטומטי. אין בזה כלום על העבודה עצמה — פשוט תעברי עליה ישירות.',
+  rate_limited: 'יותר מדי בקשות ברצף. אפשר לנסות שוב עוד רגע.',
+  daily_cap: 'נגמרה המכסה היומית של ניסוח ההערות. אפשר לנסות שוב מחר.',
+  bad_response: 'התשובה שהתקבלה לא הייתה שלמה. אפשר לנסות שוב.',
+  generation_failed: 'משהו השתבש בניסוח ההערות. אפשר לנסות שוב.',
+};
+
+const FALLBACK_MESSAGE = FAILURE_MESSAGES['generation_failed'];
+
+/** Style examples and past decisions are the voice signal; more is better, but not unbounded. */
+const MAX_STYLE_EXAMPLES = 40;
+const MAX_STYLE_EDITS = 60;
+/** Accepts and dismissals are weaker per record, so fewer of them earn their tokens. */
+const MAX_STYLE_ACCEPTED = 30;
+const MAX_STYLE_DISMISSED = 30;
+
+/**
+ * Drafts a round's inline comments.
+ *
+ * The model returns quotes; this resolves them against the round's own blocks
+ * and discards anything that doesn't land exactly. What survives is written as
+ * ordinary `Annotation` records through the store, so it persists by the same
+ * path as a comment the teacher wrote herself.
+ */
+@Injectable({ providedIn: 'root' })
+export class AnnotationGenerator {
+  private readonly store = inject(DataStore);
+  private readonly supabase = inject(SupabaseService);
+
+  private readonly _state = signal<GenerationState>(IDLE);
+  readonly state = this._state.asReadonly();
+
+  readonly isGenerating = computed(() => this._state().phase === 'generating');
+  readonly canGenerate = this.supabase.isConfigured;
+
+  /**
+   * Generates a batch for one submission and stores it unconfirmed.
+   *
+   * The comments exist immediately but the round's `ai_summary_confirmed_at`
+   * stays null — the review screen holds them behind the restatement until the
+   * teacher has read it once. Confirming is `confirmBatch()`.
+   */
+  async generate(submissionId: UUID): Promise<{ created: number; discarded: number } | null> {
+    if (this.isGenerating()) return null;
+
+    const submission = this.store.submission(submissionId);
+    const round = this.store.roundFor(submissionId);
+    const blocks = round?.document_blocks;
+
+    if (!submission || !round || !blocks?.length) {
+      return this.fail('אין עדיין מסמך לנתח בעבודה הזו.');
+    }
+    if (!this.canGenerate) {
+      return this.fail('צריך למלא את פרטי Supabase לפני שאפשר לנסח הערות.');
+    }
+
+    this._state.set({ phase: 'generating', message: null, discarded: 0 });
+
+    let response: AnnotateResponse;
+    try {
+      response = await this.call(this.buildRequest(submission, round, blocks));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      return this.fail(FAILURE_MESSAGES[code] ?? FALLBACK_MESSAGE);
+    }
+
+    const { resolved, rejected } = resolveAnnotations(response.annotations ?? [], blocks);
+
+    const now = new Date().toISOString();
+    const annotations: Annotation[] = resolved.map((item, index) => ({
+      id: newId(),
+      submission_id: submission.id,
+      round_id: round.id,
+      anchor: item.anchor,
+      kind: item.draft.kind,
+      body: item.draft.body.trim(),
+      // Kept from the start: the learning loop compares this against whatever
+      // she edits it into, and there is no second chance to capture it.
+      ai_body: item.draft.body.trim(),
+      origin: 'ai',
+      edited_by_teacher: false,
+      status: 'pending',
+      confidence: null,
+      grading_category_id: null,
+      resolved_in_round: null,
+      sort_order: index,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    this.store.replaceRoundAnnotations(round.id, annotations);
+    this.store.replaceRoundDocument(round.id, {
+      ai_summary: response.summary?.trim() || null,
+      ai_summary_confirmed_at: null,
+    });
+    this.store.setSubmissionStatus(submission.id, 'in_review');
+
+    this._state.set({ phase: 'idle', message: null, discarded: rejected.length });
+    return { created: annotations.length, discarded: rejected.length };
+  }
+
+  /** The teacher has read the restatement; the batch becomes hers to work through. */
+  confirmBatch(roundId: UUID) {
+    this.store.replaceRoundDocument(roundId, {
+      ai_summary_confirmed_at: new Date().toISOString(),
+    });
+  }
+
+  /** She didn't recognise the pass — drop it rather than make her sift it. */
+  discardBatch(roundId: UUID) {
+    this.store.replaceRoundAnnotations(roundId, []);
+    this.store.replaceRoundDocument(roundId, {
+      ai_summary: null,
+      ai_summary_confirmed_at: null,
+    });
+  }
+
+  // -- request assembly -----------------------------------------------------
+
+  private buildRequest(
+    submission: Submission,
+    round: SubmissionRound,
+    blocks: readonly DocumentBlock[],
+  ): AnnotateRequest {
+    const course = this.store.course();
+    const assignment = this.store.assignment();
+
+    return {
+      allowed_kinds: [...GENERATED_KINDS],
+      student_name: this.store.studentName(submission.student_id),
+      round_number: round.round_number,
+      course_name: course.name,
+      assignment_title: assignment.title,
+      assignment_brief: assignment.brief,
+      blocks: blocks.map((b) => ({
+        id: b.id,
+        type: b.type,
+        ...(b.level === undefined ? {} : { level: b.level }),
+        text: b.text,
+      })),
+      rules: this.store.courseRules
+        .filter((r) => r.active)
+        .map((r) => ({ kind: r.kind, body: r.body, origin: r.origin })),
+      materials: this.store.courseMaterials
+        .filter((m) => m.active)
+        .map((m) => ({
+          kind: m.kind,
+          title: m.title,
+          notes: m.notes,
+          content: m.content,
+        })),
+      style_examples: this.store
+        .styleExamples()
+        .filter((e) => e.active)
+        .slice(0, MAX_STYLE_EXAMPLES)
+        .map((e) => ({
+          source: e.source,
+          student_text: e.student_text,
+          teacher_text: e.teacher_text,
+        })),
+      // Newest first, throughout: her most recent decisions describe her voice
+      // best, and the caps below cut the oldest rather than an arbitrary slice.
+      style_edits: this.decisions('edited')
+        .filter((l) => l.final_text)
+        .slice(0, MAX_STYLE_EDITS)
+        .map((l) => ({
+          ai_text: l.ai_text,
+          final_text: l.final_text as string,
+          change_note: l.change_note,
+          context_excerpt: l.context_excerpt,
+        })),
+      style_accepted: this.decisions('accepted')
+        .slice(0, MAX_STYLE_ACCEPTED)
+        .map((l) => ({ ai_text: l.ai_text, context_excerpt: l.context_excerpt })),
+      style_dismissed: this.decisions('dismissed')
+        .slice(0, MAX_STYLE_DISMISSED)
+        .map((l) => ({ ai_text: l.ai_text, context_excerpt: l.context_excerpt })),
+    };
+  }
+
+  /** Her decisions of one kind, newest first. */
+  private decisions(action: LearningFeedbackLog['action']): LearningFeedbackLog[] {
+    return this.store
+      .feedbackLogs()
+      .filter((l) => l.target_type === 'annotation' && l.action === action)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  }
+
+  private async call(body: AnnotateRequest): Promise<AnnotateResponse> {
+    const { data } = await this.supabase.client.auth.getSession();
+    const jwt = data.session?.access_token;
+    if (!jwt) throw new Error('not_signed_in');
+
+    const response = await fetch(`${this.supabase.functionsUrl}/annotate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      // The function names the failure; rethrowing the code lets `generate`
+      // pick the wording without the HTTP status leaking into the UI layer.
+      const failure = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(failure.error ?? 'generation_failed');
+    }
+
+    return (await response.json()) as AnnotateResponse;
+  }
+
+  private fail(message: string): null {
+    this._state.set({ phase: 'error', message, discarded: 0 });
+    return null;
+  }
+}

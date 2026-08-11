@@ -3,7 +3,20 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals"],
+    /* The model adapter is Deno source, and Deno requires explicit extensions. */
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
-  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
+  /*
+   * The model adapter is included so its spec type-checks against the real
+   * source rather than a copy. Only these two files: they are pure, while the
+   * rest of `supabase/functions` uses Deno globals this program can't see.
+   */
+  "include": [
+    "src/**/*.d.ts",
+    "src/**/*.spec.ts",
+    "supabase/functions/_shared/gemini.ts",
+    "supabase/functions/_shared/model-config.ts"
+  ]
 }

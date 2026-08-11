@@ -77,7 +77,7 @@ describe('SupabaseRepository', () => {
     supabase = new FakeSupabase();
   });
 
-  it('loads the four record sets plus the configured folders', async () => {
+  it('loads every record set plus the configured folders', async () => {
     const repository = makeRepository(supabase);
     supabase.rows['submissions'] = [SUBMISSION];
     supabase.rows['courses'] = [{ id: 'course-1', drive_folder_id: 'folder-1' }];
@@ -91,6 +91,8 @@ describe('SupabaseRepository', () => {
       'annotations',
       'courses',
       'assignments',
+      'learning_feedback_logs',
+      'teacher_style_examples',
     ]);
     expect(snapshot.submissions).toEqual([SUBMISSION]);
     // A course with no folder set must not appear as an empty one.

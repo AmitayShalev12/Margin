@@ -11,3 +11,7 @@ verify_jwt = false
 
 [functions.drive-token]
 verify_jwt = true
+
+[functions.annotate]
+# Only a signed-in teacher may spend model tokens.
+verify_jwt = true
