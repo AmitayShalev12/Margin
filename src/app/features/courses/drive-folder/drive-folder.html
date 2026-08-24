@@ -195,10 +195,20 @@
       </div>
 
       @if (sharedOpen()) {
+        <!--
+          The convention, said where she will read it, because she is the one
+          who has to tell the girls. A file named this way is picked up by the
+          sync on its own, from an account Margin has never seen.
+        -->
         <p class="shared-note">
-          תלמידה יכולה גם פשוט לשתף איתך את המסמך, בלי להעביר אותו לתיקייה. כאן אני מציגה מסמכים
-          ששותפו איתך ועדיין לא שויכו לאף עבודה — אחרי שתגידי של מי מסמך אחד, כל מה שהיא תשתף
-          מהחשבון הזה ייקלט לבד בסנכרון הבא.
+          תלמידה יכולה גם פשוט לשתף איתך את המסמך, בלי להעביר אותו לתיקייה. כדי שאזהה אותו לבד, שם
+          הקובץ צריך להיות <strong>שם התלמידה כפי שהוא ברשימה - שם העבודה</strong> (למשל
+          <span class="shared-example">נועה ברקוביץ׳ - עבודת גמר</span>). מה שאחרי המקף יכול להיות
+          כל דבר.
+        </p>
+        <p class="shared-note">
+          כאן אפשר לצרף ידנית מסמכים ששותפו איתך ולא זוהו — גם כאלה ששמם לא לפי הפורמט. אחרי שתגידי
+          של מי מסמך אחד, כל מה שהיא תשתף מהחשבון הזה ייקלט לבד גם בלי השם.
         </p>
 
         @if (sharedLoading()) {

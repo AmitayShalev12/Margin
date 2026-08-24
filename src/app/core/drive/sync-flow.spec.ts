@@ -2,8 +2,8 @@ import { TestBed } from '@angular/core/testing';
 
 import { DataStore } from '../data/data-store';
 import { LocalRepository } from '../data/local-repository';
-import { Repository } from '../data/repository';
-import { COURSE, seedId } from '../mock/seed-data';
+import { EMPTY_SNAPSHOT, Repository } from '../data/repository';
+import { ASSIGNMENT, COURSE, seedId } from '../mock/seed-data';
 import { seedStore } from '../mock/seed-store';
 import { DriveApi, DriveError } from './drive-api';
 import {
@@ -119,6 +119,17 @@ class FakeDriveApi {
 
   listSharedDocuments = async () => this.shared;
 
+  /** The prefixes each name query was scoped to, in order. */
+  namedQueries: string[][] = [];
+
+  listSharedNamedAfter = async (prefixes: readonly string[]) => {
+    this.namedQueries.push([...prefixes]);
+    return this.sharedByName;
+  };
+
+  /** What the name query returns, kept apart from the owner query's answer. */
+  sharedByName: DriveFile[] = [];
+
   getFile = async (fileId: string) => {
     if (!this.targetReadable) throw new DriveError('not_found', 'target not visible', 404);
     return this.byId[fileId] ?? docFile({ id: fileId });
@@ -144,6 +155,31 @@ describe('SyncService', () => {
   let store: DataStore;
   let sync: SyncService;
 
+  /**
+   * A course and an assignment, and nothing else — no folder, no roster.
+   *
+   * The fixtures carry a class list, and a class list is now a source in its
+   * own right, so the "nothing to sync from" refusal cannot be reached with
+   * them installed.
+   */
+  function bootBare() {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DriveApi, useValue: api },
+        { provide: GoogleDriveAuth, useValue: new FakeAuth() },
+        { provide: Repository, useClass: LocalRepository },
+      ],
+    });
+    const bare = TestBed.inject(DataStore);
+    bare.applySnapshot({
+      ...EMPTY_SNAPSHOT,
+      courses: [COURSE],
+      assignments: [ASSIGNMENT],
+    });
+    return { store: bare, sync: TestBed.inject(SyncService) };
+  }
+
   beforeEach(() => {
     localStorage.clear();
     api = new FakeDriveApi();
@@ -167,19 +203,30 @@ describe('SyncService', () => {
   afterEach(() => localStorage.clear());
 
   /**
-   * Both sources named, because either one alone would do.
+   * A roster is a source in its own right.
    *
-   * The old wording sent her to choose a folder, which is the wrong fix for a
-   * class that hands work in by sharing it: there the folder is beside the
-   * point and the missing piece is a confirmed account.
+   * Students are asked to name their file `שם התלמידה - שם העבודה`, so a class
+   * list is enough to go looking with — no folder, and no confirmed account.
+   * The old refusal sent her to choose a folder, which is the wrong fix for a
+   * class that hands work in by sharing it.
    */
-  it('refuses to sync with neither a folder nor a confirmed account', async () => {
+  it('syncs with no folder and no confirmed account, on the roster alone', async () => {
     store.setDriveFolder(COURSE.id, null);
     const result = await sync.syncNow();
 
+    expect(result.error).toBeNull();
+    // It went looking by name, which is the only thing it had.
+    expect(api.namedQueries.length).toBe(1);
+    expect(api.namedQueries[0]).toContain('נועה');
+  });
+
+  it('refuses only when there is no folder, no account and no roster', async () => {
+    const bare = bootBare();
+    const result = await bare.sync.syncNow();
+
     expect(result.error).toContain('עדיין לא הוגדרה תיקייה בדרייב');
-    expect(result.error).toContain('חשבון הדרייב');
-    expect(store.sync().phase).toBe('error');
+    expect(result.error).toContain('תלמידות');
+    expect(bare.store.sync().phase).toBe('error');
   });
 
   /**
@@ -215,30 +262,68 @@ describe('SyncService', () => {
   });
 
   /**
-   * The attribution rule that separates the two sources.
+   * The first paper any girl shares, before her account is known.
    *
-   * A file in the year folder may be matched on its name: the folder is the
-   * teacher's own assertion that everything in it is work for this course.
-   * Her "Shared with me" asserts nothing — it holds memos, colleagues' drafts
-   * and years of unrelated paperwork — so a document named after a student but
-   * owned by a stranger must not become her submission and overwrite the text
-   * her comments are anchored to.
+   * The owner query cannot find it — there is no confirmed address yet — so
+   * the naming convention is what carries it in. This is the whole reason the
+   * name search exists.
    */
-  it('refuses to attribute a shared file by its name alone', async () => {
-    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
-    api.shared = [
+  it('attributes a shared file that follows the naming convention', async () => {
+    api.sharedByName = [
       shiraFile({
-        id: 'shared-stranger',
-        name: 'שירה אלמוג — הערכת מורה',
+        id: 'shared-named',
+        name: 'שירה אלמוג - עבודת גמר',
+        owners: [{ emailAddress: 'unknown@gmail.com' }],
+      }),
+    ];
+
+    await sync.syncNow();
+
+    const submission = store.submissionByDriveFile('shared-named');
+    expect(submission?.student_id).toBe(seedId('s2'));
+    // And what she called it, taken from the name she gave the file.
+    expect(submission?.title).toBe('עבודת גמר');
+  });
+
+  /**
+   * The convention is the whole claim, so it is read exactly.
+   *
+   * A file in the year folder may be matched on a name appearing anywhere in
+   * it, because the folder is the teacher's own assertion that everything in
+   * it is coursework. "Shared with me" asserts nothing — it holds memos,
+   * colleagues' drafts and years of paperwork — so a document that merely
+   * mentions a student must not take over her submission and overwrite the
+   * text her comments are anchored to.
+   */
+  it('refuses a shared document that only mentions a student', async () => {
+    api.sharedByName = [
+      shiraFile({
+        id: 'shared-mention',
+        name: 'הערכת מורה — שירה אלמוג',
         owners: [{ emailAddress: 'rina@school.org.il' }],
       }),
+      shiraFile({ id: 'shared-nodash', name: 'שירה אלמוג עבודת גמר' }),
     ];
 
     const result = await sync.syncNow();
 
-    expect(store.submissionByDriveFile('shared-stranger')).toBeUndefined();
-    // And it is not reported as a problem either: nobody said it was coursework.
+    expect(store.submissionByDriveFile('shared-mention')).toBeUndefined();
+    expect(store.submissionByDriveFile('shared-nodash')).toBeUndefined();
+    // Not reported as a problem either: nobody said either was coursework.
     expect(result.unmatched).toEqual([]);
+  });
+
+  /**
+   * A confirmed account still wins, and still needs no convention: a girl who
+   * has handed in once is found whatever she calls the next file.
+   */
+  it('still takes a confirmed account s file whatever it is called', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    api.shared = [docFile({ id: 'shared-noa', name: 'סופי סופי (3)' })];
+
+    await sync.syncNow();
+
+    expect(store.submissionByDriveFile('shared-noa')?.student_id).toBe(seedId('s1'));
   });
 
   /**

@@ -124,6 +124,44 @@ describe('the shared-with-me query', () => {
   });
 
   /**
+   * The other half of the shared search, and the one that works before any
+   * account is confirmed.
+   *
+   * Drive's `contains` is **prefix** matching on `name` — `name contains
+   * 'Hello'` finds `HelloWorld` and not `otherHello` — so the query itself
+   * enforces "the name begins with hers", which is the first half of
+   * `שם התלמידה - שם העבודה`. The strict parse enforces the rest.
+   */
+  it('asks for documents whose name begins with a student s', async () => {
+    await api().listSharedNamedAfter(['נועה', 'שירה']);
+
+    expect(urls.length).toBe(1);
+    const q = query(urls[0]);
+
+    expect(q).toContain('sharedWithMe');
+    expect(q).toContain("name contains 'נועה'");
+    expect(q).toContain("name contains 'שירה'");
+    // Scoped by name, not by owner: whoever shared it, the name is the claim.
+    expect(q).not.toContain(' in owners');
+  });
+
+  it('asks nothing when the roster is empty', async () => {
+    await api().listSharedNamedAfter([]);
+    expect(urls.length).toBe(0);
+  });
+
+  it('splits a large roster across several name queries', async () => {
+    const roster = Array.from({ length: 30 }, (_, i) => `student${i}`);
+    await api().listSharedNamedAfter(roster);
+
+    expect(urls.length).toBeGreaterThan(1);
+    const asked = urls
+      .flatMap((url) => [...query(url).matchAll(/name contains '([^']+)'/g)])
+      .map((m) => m[1]);
+    expect(new Set(asked).size).toBe(30);
+  });
+
+  /**
    * The one broad read, and it happens only because she pressed a button. It
    * is still bounded to documents: her shared surface holds spreadsheets,
    * photos and folders, and none of them is a paper.

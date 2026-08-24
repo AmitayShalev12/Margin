@@ -243,14 +243,26 @@ deliberately as little as possible:
   **מסמכים ששותפו איתך** on the course screen, and is bounded to document mime
   types and to five pages, newest first. It exists for the bootstrap case: the
   first document a girl shares comes from an account Margin has never seen.
-- **A shared file may not be attributed by its name.** A file in the year
-  folder may, because putting it there is the teacher's own assertion that it
-  is coursework. Her shared list asserts nothing — it holds memos, colleagues'
-  drafts and years of paperwork — so a document called
-  `נועה ברקוביץ׳ — הערכת מורה` shared by a colleague must not take over that
-  student's submission and overwrite the text her comments are anchored to.
-  Shared files are matched on a confirmed account only; the name match survives
-  as a pre-selection in the list she confirms.
+- **A shared file is attributed by a confirmed account, or by an exact naming
+  convention — never by a loose name match.** Students are asked to name their
+  file `שם התלמידה - שם העבודה`: the left side has to be a girl on the roster,
+  the right side is whatever she called her paper. Drive's `contains` is
+  _prefix_ matching on `name`, so the query itself enforces "the name begins
+  with hers" and `file-name.ts` enforces the rest — exactly, with every
+  separator tried in turn so `בת-אל כהן - עבודה` splits at the right dash.
+
+  The strictness is the point. A file in the year folder may be matched on a
+  name appearing anywhere in it, because putting it there is the teacher's own
+  assertion that it is coursework. Her shared list asserts nothing — it holds
+  memos, colleagues' drafts and years of paperwork — so the convention is what
+  stands in for that assertion, and `הערכת מורה — נועה ברקוביץ׳` is refused
+  where `נועה ברקוביץ׳ - עבודת גמר` is accepted. It cannot tell a paper from a
+  document _about_ that student named the same way; nothing in a file name can.
+
+  The convention is also what carries a girl's very first paper, before any
+  account is on file — which is why a roster alone is enough to sync from, with
+  no folder and no confirmed account. The work's name lands on
+  `submissions.title`.
 
 `shared-with-me.spec.ts` pins the query shape — scoped by owner during a sync,
 never bare — and `sync-flow.spec.ts` pins the attribution rule and the case

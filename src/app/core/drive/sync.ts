@@ -11,6 +11,7 @@ import {
   SubmissionStatus,
 } from '../models';
 import { blocksToText, countWords, extractDocumentBlocks } from './docs-extract';
+import { parseSubmissionName, searchPrefixes } from './file-name';
 import { DriveApi, DriveError } from './drive-api';
 import {
   DriveFile,
@@ -275,10 +276,10 @@ export class SyncService {
      * problem is that no student's account has been confirmed sends her to fix
      * the wrong thing.
      */
-    if (!folderId && !accounts.length) {
+    if (!folderId && !accounts.length && !this.store.students().length) {
       return this.fail(
         empty,
-        'עדיין לא הוגדרה תיקייה בדרייב, ולא אושר חשבון הדרייב של אף תלמידה — בלי אחד מהשניים אין מאיפה למשוך עבודות.',
+        'עדיין לא הוגדרה תיקייה בדרייב ואין תלמידות ברשימה — בלי אחד מהשניים אין מאיפה למשוך עבודות.',
       );
     }
 
@@ -329,6 +330,26 @@ export class SyncService {
          * this app has any business touching.
          */
         await this.ingestListing(await this.api.listSharedByOwners(accounts), 'shared', {
+          claimed,
+          seen,
+          outcome,
+          assignment,
+        });
+      }
+
+      /**
+       * And the files named for a student, whoever shared them.
+       *
+       * The account query above only finds work from an address she has
+       * already confirmed, which cannot be true of the first paper any girl
+       * shares. This is how that one arrives: students are asked to name the
+       * file `שם התלמידה - שם העבודה`, Drive returns the ones whose name
+       * begins with a girl's, and `parseSubmissionName` refuses everything
+       * that is not exactly that shape.
+       */
+      const prefixes = searchPrefixes(this.store.students());
+      if (prefixes.length) {
+        await this.ingestListing(await this.api.listSharedNamedAfter(prefixes), 'shared', {
           claimed,
           seen,
           outcome,
@@ -581,11 +602,17 @@ export class SyncService {
        * document may only be matched on a confirmed account, because nothing
        * about being shared says the document is a paper at all.
        */
+      const students = this.store.students();
       const student = assumeStudentId
-        ? (this.store.students().find((s) => s.id === assumeStudentId) ?? null)
+        ? (students.find((s) => s.id === assumeStudentId) ?? null)
         : source === 'shared'
-          ? matchByAccount(file, this.store.students())
-          : matchStudent(file, this.store.students());
+          ? // The account she confirmed is the stronger signal and is tried
+            // first; the naming convention is what carries a girl's very first
+            // paper, before any account is on file.
+            (matchByAccount(file, students) ??
+            parseSubmissionName(file.name, students)?.student ??
+            null)
+          : matchStudent(file, students);
       if (!student) return 'no_student';
 
       /**
@@ -658,7 +685,14 @@ export class SyncService {
       student_id: studentId,
       status: 'new',
       current_round: 1,
-      title: null,
+      /**
+       * What she called the paper, when the file name says.
+       *
+       * `שם התלמידה - שם העבודה` carries a title the teacher never has to type,
+       * and it is the student's own words for her work. A file named any other
+       * way leaves this null rather than having a title invented for it.
+       */
+      title: parseSubmissionName(file.name, this.store.students())?.work ?? null,
       drive_file_id: file.id,
       drive_file_name: file.name ?? null,
       drive_mime_type: file.mimeType ?? null,
@@ -732,6 +766,15 @@ export class SyncService {
             drive_created_at: file.createdTime ?? existing.drive_created_at,
           }
         : {}),
+      /**
+       * The name she gave the paper, kept in step with the file.
+       *
+       * Set here as well as on creation, because a row is just as often
+       * adopted as created — she already had a submission and the file has
+       * only now arrived. A file renamed away from the convention keeps the
+       * title it had rather than losing it.
+       */
+      title: parseSubmissionName(file.name, this.store.students())?.work ?? existing.title,
       drive_file_name: file.name ?? existing.drive_file_name,
       drive_web_view_link: file.webViewLink ?? existing.drive_web_view_link,
       drive_owner_email: file.owners?.[0]?.emailAddress ?? existing.drive_owner_email,

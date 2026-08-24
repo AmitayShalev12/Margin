@@ -33,6 +33,9 @@ const REVISION_PAGE_SIZE = 1000;
 /** Owner addresses per `sharedWithMe` query, so the URL stays a sane length. */
 const OWNER_CHUNK = 12;
 
+/** Student names per query, for the same reason. */
+const NAME_CHUNK = 12;
+
 /** Pages of her shared documents the picker will read before stopping. */
 const MAX_SHARED_PAGES = 5;
 
@@ -328,6 +331,35 @@ export class DriveApi {
       const chunk = wanted.slice(i, i + OWNER_CHUNK);
       const owners = chunk.map((email) => `${quote(email)} in owners`).join(' or ');
       files.push(...(await this.listShared(`and (${owners})`)));
+    }
+    return files;
+  }
+
+  /**
+   * Shared documents whose name starts with one of these words.
+   *
+   * The other half of the shared search, and the one that works before any
+   * account has been confirmed: students are asked to name their file
+   * `שם התלמידה - שם העבודה`, and Drive's `contains` is **prefix** matching on
+   * `name` — `name contains 'Hello'` finds `HelloWorld` and not `otherHello`.
+   * So the query itself enforces "the name begins with hers", and the strict
+   * parse in `file-name.ts` enforces the rest.
+   *
+   * Chunked for the same reason as the owner query: a class of thirty in one
+   * `or` chain makes a URL long enough to be refused, and a refusal here looks
+   * exactly like "nobody shared anything".
+   */
+  async listSharedNamedAfter(prefixes: readonly string[]): Promise<DriveFile[]> {
+    const wanted = [...new Set(prefixes.map((p) => p.trim()).filter(Boolean))];
+    if (!wanted.length) return [];
+
+    const files: DriveFile[] = [];
+    for (let i = 0; i < wanted.length; i += NAME_CHUNK) {
+      const names = wanted
+        .slice(i, i + NAME_CHUNK)
+        .map((prefix) => `name contains ${quote(prefix)}`)
+        .join(' or ');
+      files.push(...(await this.listShared(`and (${names})`)));
     }
     return files;
   }
