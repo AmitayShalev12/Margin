@@ -606,7 +606,21 @@ src/
 supabase/
   migrations/        SQL schema with RLS policies
   functions/         Edge Functions — they own the Drive OAuth credential
+  tests/             the RLS suite, run against a real database
+  tools/             one-off scripts you run by hand, destructive by nature
 ```
+
+`supabase/tools/` holds two scripts, both meant for the SQL editor:
+
+- `reset-for-testing.sql` empties every table so the next test run starts from
+  nothing, leaving your sign-in and your Drive connection in place. **Remove
+  the markers from the test documents before running it** — taking a marker out
+  needs the number recorded against the annotation, and wiping the database
+  destroys that half of the pair, leaving glyphs nothing can remove but hand
+  editing.
+- `remove-demo-records.sql` clears the fictional course and class that earlier
+  versions provisioned into every account on first sign-in. A one-off; new
+  accounts never get them.
 
 ### Model conventions
 
