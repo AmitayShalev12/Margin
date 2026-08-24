@@ -24,7 +24,16 @@ import type { AnnotateErrorCode, ModelConfig } from './model-config.ts';
  * `GENERATED_KINDS` is the single source of truth for which categories the
  * review screen can colour.
  */
-export function responseSchema(kinds: string[]) {
+/** Just enough JSON Schema for what these functions ask the model for. */
+export interface JsonSchema {
+  type: string;
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  enum?: string[];
+}
+
+export function responseSchema(kinds: string[]): JsonSchema {
   return {
     type: 'object',
     properties: {
@@ -51,7 +60,11 @@ export function buildRequestBody(options: {
   config: ModelConfig;
   systemInstruction: string;
   input: string;
-  kinds: string[];
+  /**
+   * The shape the model must answer in. `responseSchema` builds the one for
+   * annotations; the student-facing form passes its own.
+   */
+  schema: JsonSchema;
 }) {
   return {
     model: options.config.model,
@@ -60,7 +73,7 @@ export function buildRequestBody(options: {
     response_format: {
       type: 'text',
       mime_type: 'application/json',
-      schema: responseSchema(options.kinds),
+      schema: options.schema,
     },
     generation_config: {
       max_output_tokens: options.config.maxOutputTokens,

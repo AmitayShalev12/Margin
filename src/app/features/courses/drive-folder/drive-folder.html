@@ -1,27 +1,53 @@
 <div class="drive">
+  <!--
+    A partial grant reads as connected everywhere else — valid token, right
+    account — and only shows up as Drive refusing calls. Said plainly here,
+    above everything, because no amount of checking the folder will fix it.
+  -->
+  @if (auth.missingScopeMessage(); as message) {
+    <p class="scope-warning" role="status">{{ message }}</p>
+  }
+
   <div class="line">
-    <span class="dot" [class.on]="auth.isConnected()" aria-hidden="true"></span>
+    <span
+      class="dot"
+      [class.on]="auth.isConnected()"
+      [class.warn]="auth.isIncomplete()"
+      aria-hidden="true"
+    ></span>
     <span class="text">
       @if (!supabaseReady) {
         <span class="title">חיבור לדרייב</span>
         <span class="meta">צריך למלא את פרטי Supabase לפני שאפשר להתחבר.</span>
       } @else if (!auth.isConnected()) {
         <span class="title">לא מחוברת לגוגל דרייב</span>
-        <span class="meta">העבודות נמשכות מתיקייה משותפת בדרייב. הרשאת קריאה בלבד.</span>
+        <!--
+          This line used to promise read-only, which stopped being true when
+          Margin started posting comments. It says what the permission is now.
+        -->
+        <span class="meta">
+          העבודות נמשכות מתיקייה משותפת בדרייב. Margin קוראת אותן ומוסיפה הערות בצד, ולא משנה אף
+          מילה בעבודה עצמה.
+        </span>
       } @else if (!folderId()) {
         <span class="title">מחוברת לגוגל</span>
         <span class="meta">
           @if (googleEmail()) {
             <span class="ltr">{{ googleEmail() }}</span> ·
           }
-          עוד לא נבחרה תיקייה לקורס הזה.
+          <!--
+            Not a dead end any more. Work also arrives by a student sharing her
+            document, and that path needs no folder at all — so this says what
+            is missing rather than implying nothing can happen without it.
+          -->
+          עוד לא נבחרה תיקייה לקורס הזה. אפשר גם בלי: עבודות שתלמידות משתפות איתך ייקלטו ישירות.
         </span>
       } @else {
         <span class="title">תיקיית הקורס</span>
         <span class="meta">
           {{ lastSyncedLabel() }}
           @if (syncState().unmatched.length) {
-            · {{ syncState().unmatched.length }} קבצים לא שויכו לתלמידה
+            · {{ unmatchedLabel() }}
           }
         </span>
       }
@@ -36,6 +62,15 @@
           (click)="connect()"
         >
           {{ connecting() ? 'רגע…' : 'חיבור לגוגל' }}
+        </button>
+      } @else if (auth.isIncomplete()) {
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="connecting()"
+          (click)="connect()"
+        >
+          {{ connecting() ? 'רגע…' : 'חיבור מחדש' }}
         </button>
       } @else if (!editing()) {
         <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit()">
@@ -61,6 +96,25 @@
 
       @if (checkError()) {
         <p class="error">{{ checkError() }}</p>
+        <!--
+          The two facts that separate every cause of a refusal from every
+          other: which folder was actually asked for, and which account asked.
+        -->
+        <p class="error-detail">
+          @if (checkedId(); as id) {
+            <span
+              >מזהה התיקייה שקראתי: <span class="ltr">{{ id }}</span></span
+            >
+          }
+          @if (googleEmail(); as email) {
+            <span
+              >החשבון שמחובר: <span class="ltr">{{ email }}</span></span
+            >
+          }
+          @if (checkDetail(); as detail) {
+            <span class="raw ltr">{{ detail }}</span>
+          }
+        </p>
       }
 
       <div class="editor-actions">
@@ -77,9 +131,122 @@
     </div>
   }
 
+  <!--
+    Whose account is whose. Asked, not inferred: the match that produced this
+    was a filename guess, and turning a guess into a permanent identity without
+    her is how one bad match becomes every later one.
+  -->
+  @if (unconfirmedAccounts().length) {
+    <div class="accounts">
+      <p class="accounts-title">איזה חשבון שייך למי?</p>
+      @for (item of unconfirmedAccounts(); track item.student.id) {
+        <div class="account">
+          <span class="account-text">
+            {{ item.student.full_name }} הגישה מהחשבון
+            <span class="ltr">{{ item.email }}</span>
+          </span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            (click)="confirmAccount(item.student.id, item.email)"
+          >
+            זה החשבון שלה
+          </button>
+        </div>
+      }
+      <p class="accounts-note">
+        אחרי שתאשרי, כל עבודה שתגיע מהחשבון הזה תשויך אליה לפי החשבון ולא לפי שם הקובץ.
+      </p>
+    </div>
+  }
+
+  <!--
+    Named, not counted. Each of these has a different fix and she is the only
+    one who can apply it; a number alone tells her something is wrong and
+    withholds everything she would need to put it right.
+  -->
+  @if (unmatched().length) {
+    <div class="unmatched">
+      <p class="unmatched-title">{{ unmatchedLabel() }}</p>
+      @for (file of unmatched(); track file.name) {
+        <div class="unmatched-file">
+          <span class="unmatched-name">{{ file.name }}</span>
+          <span class="unmatched-why">{{ file.why }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!--
+    The other way in.
+    A student who shares her document instead of moving it into the folder
+    produces a file that is in no folder of the teacher's at all — it cannot be
+    found by looking in one. Once she says whose a shared document is, that
+    account is on file and everything it shares afterwards is picked up by the
+    ordinary sync.
+  -->
+  @if (auth.isConnected() && !editing()) {
+    <div class="shared">
+      <div class="shared-head">
+        <span class="shared-title">מסמכים ששותפו איתך</span>
+        <button type="button" class="link" (click)="toggleShared()">
+          {{ sharedOpen() ? 'סגירה' : 'חיפוש' }}
+        </button>
+      </div>
+
+      @if (sharedOpen()) {
+        <p class="shared-note">
+          תלמידה יכולה גם פשוט לשתף איתך את המסמך, בלי להעביר אותו לתיקייה. כאן אני מציגה מסמכים
+          ששותפו איתך ועדיין לא שויכו לאף עבודה — אחרי שתגידי של מי מסמך אחד, כל מה שהיא תשתף
+          מהחשבון הזה ייקלט לבד בסנכרון הבא.
+        </p>
+
+        @if (sharedLoading()) {
+          <p class="muted">מחפשת…</p>
+        } @else if (sharedError()) {
+          <p class="error">{{ sharedError() }}</p>
+          <button type="button" class="link" (click)="loadShared()">נסי שוב</button>
+        } @else if (!sharedFiles().length) {
+          <p class="muted">לא נמצאו מסמכים ששותפו איתך ועדיין לא שויכו.</p>
+          <button type="button" class="link" (click)="loadShared()">חיפוש מחדש</button>
+        } @else {
+          @if (attachError()) {
+            <p class="error">{{ attachError() }}</p>
+          }
+          @for (file of sharedFiles(); track file.id) {
+            <div class="shared-file">
+              <span class="shared-name" dir="auto">{{ file.name }}</span>
+              @if (file.sharedBy) {
+                <span class="shared-by ltr">{{ file.sharedBy }}</span>
+              }
+              <select
+                class="shared-pick"
+                [value]="studentFor(file.id)"
+                (change)="choose(file.id, $any($event.target).value)"
+              >
+                <option value="">של מי המסמך?</option>
+                @for (student of roster(); track student.id) {
+                  <option [value]="student.id">{{ student.full_name }}</option>
+                }
+              </select>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="!studentFor(file.id) || attaching() === file.id"
+                (click)="attach(file)"
+              >
+                {{ attaching() === file.id ? 'מצרפת…' : 'צירוף' }}
+              </button>
+            </div>
+          }
+        }
+      }
+    </div>
+  }
+
   @if (auth.isConnected() && !editing()) {
     <div class="foot">
-      @if (folderId()) {
+      @if (canSync()) {
         @if (syncState().phase === 'syncing') {
           <span class="muted">מסנכרנת מהדרייב…</span>
         } @else if (syncState().message) {

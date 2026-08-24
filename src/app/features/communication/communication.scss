@@ -1,0 +1,301 @@
+.picker {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-block-end: var(--s-2);
+  margin-block-end: var(--s-5);
+}
+
+.variants {
+  margin-block-end: var(--s-3);
+}
+
+.pick {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  border-radius: var(--r-full);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--c-accent-soft);
+    border-color: transparent;
+    color: var(--c-accent-strong);
+    font-weight: 600;
+  }
+}
+
+.pick-count {
+  unicode-bidi: isolate;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-4);
+}
+
+.pick-sent {
+  font-size: var(--fs-xs);
+  color: var(--c-ok);
+}
+
+.empty {
+  text-align: center;
+
+  .btn {
+    margin-block-start: var(--s-4);
+  }
+}
+
+.failure {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-warn-soft, var(--c-surface-sunk));
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+// -- the composer -----------------------------------------------------------
+
+.compose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.field {
+  display: block;
+}
+
+.label {
+  display: block;
+  margin-block-end: 4px;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.control {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: var(--fs-base);
+  color: var(--c-ink-1);
+
+  &:focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink-3);
+  }
+}
+
+// The message reads as a message, in the same face the document uses.
+.body {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+  resize: vertical;
+  min-height: 14rem;
+}
+
+.learned {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ok);
+}
+
+// -- sending ----------------------------------------------------------------
+
+.send {
+  margin-block-start: var(--s-4);
+}
+
+.send-note {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.send-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.send-hint {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-4);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.confirm-q {
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  margin-inline-end: var(--s-1);
+}
+
+.sent {
+  margin-block-start: var(--s-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.sent-line {
+  margin: 0;
+  color: var(--c-ok);
+}
+
+// -- provenance -------------------------------------------------------------
+
+.source {
+  margin-block-start: var(--s-5);
+
+  summary {
+    cursor: pointer;
+    font-size: var(--fs-sm);
+    color: var(--c-ink-3);
+  }
+}
+
+.lines {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.line {
+  border-inline-start: 3px solid var(--c-line-strong);
+  padding-inline-start: var(--s-3);
+}
+
+.line-quote {
+  font-family: var(--font-doc);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+  margin-block-end: 2px;
+}
+
+.line-body {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+}
+
+// -- the comments on the document -------------------------------------------
+
+.post {
+  margin-block-start: var(--s-4);
+}
+
+.post-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  margin-block-end: var(--s-2);
+}
+
+.post-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+
+.post-count {
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.post-note,
+.consent {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+  line-height: 1.6;
+}
+
+.consent {
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-sunk);
+  color: var(--c-ink-2);
+}
+
+.outcome {
+  margin-block-start: var(--s-4);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.outcome-line {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+
+.outcome-warn {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--c-warn, var(--c-ink-2));
+}
+
+.raw {
+  display: block;
+  margin-block-start: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-4);
+  unicode-bidi: isolate;
+  word-break: break-word;
+}
+
+.sent-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sent-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+
+  // Not an error — she has not done anything wrong — but not quiet either.
+  &.is-warn {
+    color: var(--c-warn, var(--c-ink-2));
+    font-weight: 600;
+  }
+}
+
+.outcome-placement {
+  display: block;
+  margin-block-start: 2px;
+  color: var(--c-ink-3);
+}

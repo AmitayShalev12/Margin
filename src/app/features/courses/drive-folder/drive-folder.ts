@@ -2,8 +2,24 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 
 import { DataStore } from '../../../core/data/data-store';
 import { GoogleDriveAuth } from '../../../core/drive/google-auth';
-import { SyncService } from '../../../core/drive/sync';
+import { SharedCandidate, SyncService, UnmatchedReason } from '../../../core/drive/sync';
 import { relativeDay } from '../../../core/presentation/submission-status';
+
+/**
+ * What to do about a file the sync could not turn into a submission.
+ *
+ * Three different problems that all used to arrive as the same number. The
+ * wording says what to change, because none of these is something the app can
+ * resolve on her behalf without guessing whose work a paper is.
+ */
+const UNMATCHED_REASON: Record<UnmatchedReason, string> = {
+  no_student:
+    'לא זיהיתי לפי שם הקובץ לאיזו תלמידה הוא שייך. אפשר לשנות את שם הקובץ כך שיכיל את שמה המלא, או לאשר את חשבון הדרייב שלה כאן למעלה.',
+  shortcut_unreadable:
+    'זה קיצור דרך למסמך שאין לי גישה אליו. התלמידה צריכה לשתף את המסמך עצמו, או להעביר אותו לתיקייה במקום קיצור דרך.',
+  duplicate_student:
+    'כבר שויך קובץ אחר לאותה תלמידה בסבב הזה — אולי אחד בתיקייה ואחד בשיתוף. אפשר להשאיר רק אחד, או לשנות שם כדי שיהיה ברור מי כתבה מה.',
+};
 
 /**
  * Connecting Google Drive and pointing the course at a folder.
@@ -23,17 +39,84 @@ export class DriveFolder {
   private readonly sync = inject(SyncService);
   protected readonly auth = inject(GoogleDriveAuth);
 
-  protected readonly folderId = computed(() => this.store.course().drive_folder_id);
+  protected readonly folderId = computed(() => this.store.course()?.drive_folder_id ?? null);
+
+  /**
+   * Addresses seen on submissions, waiting for her to say whose they are.
+   *
+   * Each student now owns the document she hands in, so her Drive account is
+   * the one thing about a file that cannot be mistyped. Recording it turns
+   * every later sync from a filename guess into a certainty — but only she can
+   * say the address is really that girl's, so it is asked rather than assumed.
+   */
+  protected readonly unconfirmedAccounts = computed(() => this.store.observedAccounts());
+
+  /**
+   * The files that produced nothing, named and explained.
+   *
+   * A count on its own — "1 קבצים לא שויכו" — reports that something is wrong
+   * and withholds everything needed to fix it. Each reason has a different
+   * remedy and only she can apply any of them.
+   */
+  protected readonly unmatched = computed(() =>
+    this.syncState().unmatched.map((file) => ({
+      name: file.name,
+      why: UNMATCHED_REASON[file.reason],
+    })),
+  );
+
+  /** Hebrew agreement: one file is not "1 קבצים". */
+  protected readonly unmatchedLabel = computed(() => {
+    const n = this.syncState().unmatched.length;
+    if (n === 1) return 'קובץ אחד לא שויך לתלמידה';
+    if (n === 2) return 'שני קבצים לא שויכו לתלמידה';
+    return `${n} קבצים לא שויכו לתלמידה`;
+  });
   protected readonly syncState = this.store.sync;
+
+  /**
+   * The second way work arrives: a student presses Share instead of moving her
+   * file into the year folder.
+   *
+   * Kept behind a button rather than run on load. This is the one call that
+   * reads her shared documents broadly rather than asking about named
+   * accounts, and a thing like that should happen because she asked for it,
+   * from a screen that says what it is about to look at.
+   */
+  protected readonly sharedOpen = signal(false);
+  protected readonly sharedLoading = signal(false);
+  protected readonly sharedError = signal<string | null>(null);
+  protected readonly sharedFiles = signal<SharedCandidate[]>([]);
+  /** File id → the student she picked for it, before she presses attach. */
+  protected readonly chosen = signal<Record<string, string>>({});
+  protected readonly attaching = signal<string | null>(null);
+  protected readonly attachError = signal<string | null>(null);
+
+  /** Who a document can be attributed to. */
+  protected readonly roster = computed(() => this.store.students().filter((s) => s.active));
+
+  /** Syncing needs a folder or a confirmed account — either one will do. */
+  protected readonly canSync = computed(
+    () => !!this.folderId() || this.store.confirmedDriveAccounts().length > 0,
+  );
 
   protected readonly editing = signal(false);
   protected readonly draft = signal('');
   protected readonly checking = signal(false);
   protected readonly checkError = signal<string | null>(null);
+  /** Google's raw reason, shown small — what makes a failure diagnosable. */
+  protected readonly checkDetail = signal<string | null>(null);
+  /** The id actually read out of whatever she pasted. */
+  protected readonly checkedId = signal<string | null>(null);
 
   protected readonly supabaseReady = this.auth.canConnect;
   protected readonly connecting = this.auth.busy;
   protected readonly googleEmail = this.auth.googleEmail;
+
+  /** She confirms the address belongs to that student. */
+  protected confirmAccount(studentId: string, email: string) {
+    this.store.setStudentDriveAccount(studentId, email);
+  }
 
   protected readonly lastSyncedLabel = computed(() => {
     const at = this.syncState().last_synced_at;
@@ -84,22 +167,90 @@ export class DriveFolder {
 
     this.checking.set(true);
     this.checkError.set(null);
+    this.checkDetail.set(null);
+    this.checkedId.set(null);
 
     const result = await this.sync.describeFolder(id);
     this.checking.set(false);
 
     if ('error' in result) {
       this.checkError.set(result.error);
+      this.checkDetail.set(result.detail ?? null);
+      // Which id came out of the link matters: a URL copied from a browser
+      // signed into a second Google account points at a folder this
+      // connection cannot see, and looks identical to a permissions problem.
+      this.checkedId.set(id);
       return;
     }
 
-    this.store.setDriveFolder(this.store.course().id, id);
+    const course = this.store.course();
+    if (!course) return;
+
+    this.store.setDriveFolder(course.id, id);
     this.editing.set(false);
     void this.sync.syncNow();
   }
 
   protected async syncNow() {
     await this.sync.syncNow();
+  }
+
+  protected toggleShared() {
+    const open = !this.sharedOpen();
+    this.sharedOpen.set(open);
+    if (open && !this.sharedFiles().length) void this.loadShared();
+  }
+
+  protected async loadShared() {
+    this.sharedLoading.set(true);
+    this.attachError.set(null);
+
+    const { candidates, error } = await this.sync.listSharedWithMe();
+
+    this.sharedLoading.set(false);
+    this.sharedError.set(error);
+    this.sharedFiles.set(candidates);
+
+    // The name match pre-selects, and does nothing else. It is a starting
+    // point for her to correct, never an attribution in its own right.
+    this.chosen.update((current) => {
+      const next = { ...current };
+      for (const candidate of candidates) {
+        if (!next[candidate.id] && candidate.suggestedStudentId) {
+          next[candidate.id] = candidate.suggestedStudentId;
+        }
+      }
+      return next;
+    });
+  }
+
+  protected choose(fileId: string, studentId: string) {
+    this.chosen.update((current) => ({ ...current, [fileId]: studentId }));
+  }
+
+  protected studentFor(fileId: string): string {
+    return this.chosen()[fileId] ?? '';
+  }
+
+  /** She has said whose document this is; Margin records it and reads it in. */
+  protected async attach(candidate: SharedCandidate) {
+    const studentId = this.studentFor(candidate.id);
+    if (!studentId) return;
+
+    this.attaching.set(candidate.id);
+    this.attachError.set(null);
+
+    const { error } = await this.sync.attachShared(candidate.id, studentId);
+
+    this.attaching.set(null);
+    if (error) {
+      this.attachError.set(error);
+      return;
+    }
+
+    // Gone from the list because it is now a submission, not because the list
+    // was refreshed and it happened not to come back.
+    this.sharedFiles.update((files) => files.filter((f) => f.id !== candidate.id));
   }
 
   /** Tidies `?drive=connected` out of the address bar after the round trip. */

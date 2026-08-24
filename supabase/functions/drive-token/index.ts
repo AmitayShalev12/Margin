@@ -18,6 +18,7 @@ import {
   db,
   exchangeWithGoogle,
   json,
+  missingScopes,
   readEnv,
 } from '../_shared/google.ts';
 
@@ -76,12 +77,20 @@ Deno.serve(async (request: Request) => {
 
     const expiresIn = Math.max(60, (token.expires_in ?? 3600) - SAFETY_MARGIN_SECONDS);
 
+    // The refresh grant reports what this token actually carries, which is the
+    // authority on what she consented to — the stored copy is only a fallback
+    // for the rare response that omits it.
+    const scope = token.scope ?? credential.scope;
+
     return json(
       {
         connected: true,
         access_token: token.access_token,
         expires_in: expiresIn,
-        scope: token.scope ?? credential.scope,
+        scope,
+        // Checked on every mint, so a permission she unticked at consent shows
+        // up before a sync turns it into an unexplained 403.
+        missing_scopes: missingScopes(scope),
         google_email: credential.google_email,
       },
       200,

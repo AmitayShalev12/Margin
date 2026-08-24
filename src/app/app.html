@@ -1,81 +1,107 @@
 <a class="skip-link" href="#main">דילוג לתוכן</a>
 
-<div class="shell">
-  <!-- Desktop: a rail on the inline-start edge, which in RTL is the right. -->
-  <nav class="rail" aria-label="ניווט ראשי">
-    <div class="rail-brand">
-      <span class="wordmark" dir="ltr">Margin</span>
-      <span class="rail-tag">הערות בשוליים</span>
-    </div>
-    <ul class="rail-list">
-      @for (item of navItems; track item.path) {
-        <li>
-          <a
-            class="rail-link"
-            [routerLink]="item.path"
-            routerLinkActive="is-active"
-            #rla="routerLinkActive"
-            [attr.aria-current]="rla.isActive ? 'page' : null"
-          >
-            <app-icon [name]="item.icon" [size]="20" />
-            <span>{{ item.longLabel }}</span>
-          </a>
-        </li>
-      }
-    </ul>
-  </nav>
+<!--
+  Rendered outside the gate on purpose: a failed load is reported by exactly
+  this banner, and hiding it behind a signed-in shell would hide the one case
+  where the app has her session but not her records.
+-->
+<app-save-error />
 
-  <div class="column">
-    <!-- Mobile only: a slim bar, brand and nothing else competing with it. -->
-    <header class="topbar">
-      <span class="wordmark" dir="ltr">Margin</span>
-    </header>
-
-    <main id="main" class="main" tabindex="-1">
-      <router-outlet />
-    </main>
-  </div>
-
-  <!-- Mobile only -->
-  <nav class="tabbar" aria-label="ניווט ראשי">
-    @for (item of primaryNav; track item.path) {
-      <a
-        class="tab"
-        [routerLink]="item.path"
-        routerLinkActive="is-active"
-        #rla="routerLinkActive"
-        [attr.aria-current]="rla.isActive ? 'page' : null"
-      >
-        <app-icon [name]="item.icon" [size]="21" />
-        <span>{{ item.label }}</span>
-      </a>
-    }
-    <button
-      type="button"
-      class="tab"
-      [class.is-active]="moreOpen()"
-      [attr.aria-expanded]="moreOpen()"
-      (click)="toggleMore()"
-    >
-      <app-icon name="more" [size]="21" />
-      <span>עוד</span>
-    </button>
-  </nav>
-
-  @if (moreOpen()) {
-    <div class="sheet-backdrop" (click)="closeMore()"></div>
-    <div class="sheet" role="dialog" aria-modal="true" aria-label="עוד">
-      <div class="sheet-grip" aria-hidden="true"></div>
-      <ul class="sheet-list">
-        @for (item of secondaryNav; track item.path) {
+@if (checkingSession()) {
+  <div class="booting" role="status">רגע…</div>
+} @else if (needsSignIn()) {
+  <app-sign-in />
+} @else {
+  <div class="shell">
+    <!-- Desktop: a rail on the inline-start edge, which in RTL is the right. -->
+    <nav class="rail" aria-label="ניווט ראשי">
+      <div class="rail-brand">
+        <span class="wordmark" dir="ltr">Margin</span>
+        <span class="rail-tag">הערות בשוליים</span>
+      </div>
+      <ul class="rail-list">
+        @for (item of navItems; track item.path) {
           <li>
-            <a class="sheet-link" [routerLink]="item.path">
+            <a
+              class="rail-link"
+              [routerLink]="item.path"
+              routerLinkActive="is-active"
+              #rla="routerLinkActive"
+              [attr.aria-current]="rla.isActive ? 'page' : null"
+            >
               <app-icon [name]="item.icon" [size]="20" />
               <span>{{ item.longLabel }}</span>
             </a>
           </li>
         }
       </ul>
+
+      @if (signedInAs(); as email) {
+        <div class="rail-account">
+          <span class="rail-email" dir="ltr" [title]="email">{{ email }}</span>
+          <button type="button" class="rail-signout" (click)="signOut()">התנתקות</button>
+        </div>
+      }
+    </nav>
+
+    <div class="column">
+      <!-- Mobile only: a slim bar, brand and nothing else competing with it. -->
+      <header class="topbar">
+        <span class="wordmark" dir="ltr">Margin</span>
+      </header>
+
+      <main id="main" class="main" tabindex="-1">
+        <router-outlet />
+      </main>
     </div>
-  }
-</div>
+
+    <!-- Mobile only -->
+    <nav class="tabbar" aria-label="ניווט ראשי">
+      @for (item of primaryNav; track item.path) {
+        <a
+          class="tab"
+          [routerLink]="item.path"
+          routerLinkActive="is-active"
+          #rla="routerLinkActive"
+          [attr.aria-current]="rla.isActive ? 'page' : null"
+        >
+          <app-icon [name]="item.icon" [size]="21" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+      <button
+        type="button"
+        class="tab"
+        [class.is-active]="moreOpen()"
+        [attr.aria-expanded]="moreOpen()"
+        (click)="toggleMore()"
+      >
+        <app-icon name="more" [size]="21" />
+        <span>עוד</span>
+      </button>
+    </nav>
+
+    @if (moreOpen()) {
+      <div class="sheet-backdrop" (click)="closeMore()"></div>
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="עוד">
+        <div class="sheet-grip" aria-hidden="true"></div>
+        <ul class="sheet-list">
+          @for (item of secondaryNav; track item.path) {
+            <li>
+              <a class="sheet-link" [routerLink]="item.path">
+                <app-icon [name]="item.icon" [size]="20" />
+                <span>{{ item.longLabel }}</span>
+              </a>
+            </li>
+          }
+          @if (signedInAs(); as email) {
+            <li class="sheet-account">
+              <span class="sheet-email" dir="ltr">{{ email }}</span>
+              <button type="button" class="sheet-signout" (click)="signOut()">התנתקות</button>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  </div>
+}

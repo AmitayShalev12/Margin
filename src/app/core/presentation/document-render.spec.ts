@@ -28,6 +28,9 @@ function annotation(id: string, blockId: string, text: string, quote: string): A
     grading_category_id: null,
     resolved_in_round: null,
     sort_order: 0,
+    posted_comment_id: null,
+    posted_at: null,
+    marker_number: null,
     created_at: '',
     updated_at: '',
   };

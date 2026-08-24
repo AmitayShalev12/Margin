@@ -1,0 +1,89 @@
+<section class="rel">
+  <button type="button" class="rel-head" [attr.aria-expanded]="open()" (click)="toggle()">
+    <span class="rel-title">מקוריות העבודה</span>
+    <span class="rel-hint">
+      {{ headline() ?? 'לא נבדק. אפשר לבקש בדיקה.' }}
+    </span>
+  </button>
+
+  @if (open()) {
+    <div class="rel-body">
+      @if (results() === null) {
+        <!--
+          Nothing runs unprompted. An authenticity assessment of every girl who
+          hands work in, without being asked, is a different tool from this one.
+        -->
+        <p class="rel-note">
+          הבדיקה משווה נתונים שגוגל מדווחת על הקובץ — מי יצר אותו, מי הבעלים, אילו חשבונות ערכו אותו
+          — ומשווה את הטקסט לעבודות אחרות שהוגשו כאן. שום דבר לא נשלח לשום מקום.
+        </p>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="run()">בדיקת מקוריות</button>
+      } @else {
+        @if (raised().length) {
+          <ul class="rel-list">
+            @for (result of raised(); track result.code) {
+              <li class="rel-item is-raised">
+                <span class="rel-item-title">{{ result.title }}</span>
+                <span class="rel-item-body">{{ result.flag?.message }}</span>
+              </li>
+            }
+          </ul>
+          <!-- Said next to the findings, not in a tooltip. -->
+          <p class="rel-note">
+            כל אלה נסיבתיים. הם סימן להסתכל, לא קביעה ש{{ studentName() }} לא כתבה את העבודה.
+          </p>
+        } @else {
+          <p class="rel-clear">לא עלה שום דבר מהבדיקות שנעשו.</p>
+        }
+
+        @if (unavailable().length) {
+          <!--
+            The half that makes the panel honest. "Nothing raised" and "could
+            not be checked" must never look the same.
+          -->
+          <div class="rel-group">
+            <h3 class="rel-group-title">מה לא נבדק כאן, כי חסרים נתונים</h3>
+            <ul class="rel-list">
+              @for (result of unavailable(); track result.code) {
+                <li class="rel-item">
+                  <span class="rel-item-title">{{ result.title }}</span>
+                  <span class="rel-item-body">{{ result.unavailable }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (clear().length) {
+          <div class="rel-group">
+            <h3 class="rel-group-title">מה כן נבדק ולא עלה בו כלום</h3>
+            <ul class="rel-list rel-list-quiet">
+              @for (result of clear(); track result.code) {
+                <li class="rel-item">
+                  <span class="rel-item-title">{{ result.title }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      }
+
+      <!--
+        Always shown, before and after a check. These are not gaps waiting to be
+        filled — they are things Margin will not claim, and a teacher reading
+        only what it found would reasonably assume they had been ruled out.
+      -->
+      <div class="rel-group">
+        <h3 class="rel-group-title">מה Margin לא בודקת בכלל</h3>
+        <ul class="rel-list">
+          @for (item of notChecked; track item.title) {
+            <li class="rel-item">
+              <span class="rel-item-title">{{ item.title }}</span>
+              <span class="rel-item-body">{{ item.why }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+</section>

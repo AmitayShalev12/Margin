@@ -34,7 +34,9 @@ export class Dashboard {
         student: this.data.studentName(s.student_id),
         when: relativeDay(s.updated_at),
         line: statusSummary(s.status, this.data.annotationsPending(s.id)),
-        course: `${this.data.course().name} · ${this.data.assignment().title}`,
+        course: [this.data.course()?.name, this.data.assignment()?.title]
+          .filter(Boolean)
+          .join(' · '),
         statusClass: statusClass(s.status),
       })),
   );

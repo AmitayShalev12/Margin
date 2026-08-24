@@ -5,6 +5,8 @@ import { DocsDocument, DriveFile } from '../drive/drive-types';
 import { GoogleDriveAuth } from '../drive/google-auth';
 import { SyncService } from '../drive/sync';
 import { seedId } from '../mock/seed-data';
+import { COURSE } from '../mock/seed-data';
+import { seedStore } from '../mock/seed-store';
 import { DataStore } from './data-store';
 import { LocalRepository } from './local-repository';
 import { Repository } from './repository';
@@ -87,10 +89,12 @@ function boot(api: FakeDriveApi) {
       { provide: Repository, useClass: LocalRepository },
     ],
   });
-  return {
-    store: TestBed.inject(DataStore),
-    sync: TestBed.inject(SyncService),
-  };
+  const store = TestBed.inject(DataStore);
+  // Stands in for what a real reload finds: the app itself starts empty, and
+  // these are the records the persisted rows are merged over.
+  seedStore(store);
+
+  return { store, sync: TestBed.inject(SyncService) };
 }
 
 describe('durability across a reload', () => {
@@ -105,7 +109,7 @@ describe('durability across a reload', () => {
 
   it('brings synced submissions back without re-syncing', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.sync.syncNow();
     await first.store.settled();
 
@@ -125,7 +129,7 @@ describe('durability across a reload', () => {
 
   it('brings the captured document and its metadata back', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.sync.syncNow();
     await first.store.settled();
 
@@ -188,7 +192,7 @@ describe('durability across a reload', () => {
 
   it('keeps the watched folder', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.store.settled();
 
     const second = boot(api);
@@ -199,7 +203,7 @@ describe('durability across a reload', () => {
 
   it('restores the last sync time, so the list does not claim it never ran', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.sync.syncNow();
     await first.store.settled();
 
@@ -211,7 +215,7 @@ describe('durability across a reload', () => {
 
   it('does not duplicate a submission when the same folder is synced again', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.sync.syncNow();
     await first.store.settled();
 
@@ -226,7 +230,7 @@ describe('durability across a reload', () => {
 
   it('preserves an earlier round after a resubmission survives a reload', async () => {
     const first = boot(api);
-    first.store.setDriveFolder(first.store.course().id, FOLDER);
+    first.store.setDriveFolder(COURSE.id, FOLDER);
     await first.sync.syncNow();
     await first.store.settled();
 

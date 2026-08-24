@@ -33,6 +33,14 @@ export interface StyleCounts {
   edited: number;
   dismissed: number;
   examples: number;
+  /**
+   * Rewrites of drafted *emails*, counted apart from the comment tallies above.
+   *
+   * Not pedantry: the screen says "מתוך N הערות שערכת", and the moment emails
+   * started writing to the same log that sentence would have counted messages
+   * as comments. Two different things she did, told apart.
+   */
+  emailEdits: number;
 }
 
 /**
@@ -67,11 +75,15 @@ export function countDecisions(
   logs: readonly LearningFeedbackLog[],
   examples: readonly TeacherStyleExample[],
 ): StyleCounts {
+  const comments = logs.filter((l) => l.target_type === 'annotation');
+
   return {
-    accepted: logs.filter((l) => l.action === 'accepted').length,
-    edited: logs.filter((l) => l.action === 'edited').length,
-    dismissed: logs.filter((l) => l.action === 'dismissed').length,
+    accepted: comments.filter((l) => l.action === 'accepted').length,
+    edited: comments.filter((l) => l.action === 'edited').length,
+    dismissed: comments.filter((l) => l.action === 'dismissed').length,
     examples: examples.filter((e) => e.active).length,
+    emailEdits: logs.filter((l) => l.target_type === 'student_email' && l.action === 'edited')
+      .length,
   };
 }
 
@@ -87,9 +99,12 @@ export function deriveTraits(
 ): StyleTrait[] {
   const traits: StyleTrait[] = [];
 
+  // Comments only. A message runs to paragraphs and a comment to a sentence,
+  // so mixing them would make "you write 24% shorter than me" a statement
+  // about two different things at once.
   const edits = logs.filter(
     (l): l is LearningFeedbackLog & { final_text: string } =>
-      l.action === 'edited' && !!l.final_text,
+      l.target_type === 'annotation' && l.action === 'edited' && !!l.final_text,
   );
 
   if (edits.length >= MIN_EDITS) {

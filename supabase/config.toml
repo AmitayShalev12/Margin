@@ -15,3 +15,9 @@ verify_jwt = true
 [functions.annotate]
 # Only a signed-in teacher may spend model tokens.
 verify_jwt = true
+
+[functions.student-form]
+verify_jwt = true
+
+[functions.student-email]
+verify_jwt = true

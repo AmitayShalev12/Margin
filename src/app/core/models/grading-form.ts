@@ -11,7 +11,14 @@ export interface GradingFormCategory extends Timestamped {
   course_id: UUID;
   name: string;
   description: string | null;
-  origin: 'learned' | 'teacher';
+  /**
+   * Where the heading came from.
+   *
+   * `starting` is the default set, used when a course has no past forms to
+   * learn from — kept distinct from `learned` so the screen can say which it
+   * is looking at rather than implying a history that does not exist.
+   */
+  origin: 'learned' | 'teacher' | 'starting';
   sort_order: number;
   active: boolean;
 }

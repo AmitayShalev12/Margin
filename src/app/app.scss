@@ -236,4 +236,82 @@
       color: var(--c-accent-strong);
     }
   }
+
+  // Pushed to the foot of the rail: which account this is, and the way out.
+  .rail-account {
+    margin-block-start: auto;
+    padding: var(--s-3) var(--s-3) 0;
+    border-block-start: 1px solid var(--c-line);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-1);
+    align-items: flex-start;
+  }
+
+  .rail-email {
+    unicode-bidi: isolate;
+    font-size: var(--fs-xs);
+    color: var(--c-ink-4);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rail-signout {
+    border: 0;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-size: var(--fs-sm);
+    color: var(--c-ink-3);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--c-ink);
+      text-decoration: underline;
+    }
+  }
+}
+
+// -- account, in the mobile sheet -------------------------------------------
+
+.sheet-account {
+  margin-block-start: var(--s-2);
+  padding-block-start: var(--s-3);
+  border-block-start: 1px solid var(--c-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.sheet-email {
+  unicode-bidi: isolate;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-signout {
+  flex: 0 0 auto;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-surface);
+  border-radius: var(--r-full);
+  padding: 5px 12px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  cursor: pointer;
+}
+
+// Shown for the moment it takes to restore a stored session.
+.booting {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  color: var(--c-ink-4);
+  font-size: var(--fs-base);
 }

@@ -8,11 +8,62 @@
 export const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
-/** Read-only, and only what the app actually uses. */
-export const DRIVE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.readonly',
+/**
+ * The one scope in this list that can change anything in her Drive.
+ *
+ * It is here rather than inline so the client can name it: a teacher who
+ * connected before commenting existed granted read-only, and the screen has to
+ * explain *why* she is being asked again rather than showing a bare failure.
+ */
+export const DRIVE_WRITE_SCOPE = 'https://www.googleapis.com/auth/drive';
+
+/**
+ * What the app asks Google for.
+ *
+ * ⚠️ This is no longer read-only, and the widening was not free.
+ *
+ * Posting a comment to a student's document requires `drive` or `drive.file`
+ * — Drive publishes no comment-only scope. `drive.file` is the narrower of the
+ * two and was the first choice, but it grants per-file access only to files
+ * the app created or the user explicitly picked, and Google is explicit that
+ * it does *not* extend to files inside a picked folder. Every submission here
+ * is discovered by enumerating a shared folder by id, so not one of them would
+ * be covered. That left `drive`, which is a restricted scope: fine in Testing
+ * mode with named test users, and subject to a CASA security assessment before
+ * any production verification.
+ *
+ * What the app does with it is narrower than what the scope permits, and that
+ * is enforced in code rather than promised in a comment: `DriveApi` refuses any
+ * request that is not a GET or a comment creation, so there is no path from
+ * here to modifying a student's writing. See `drive-api.ts`.
+ *
+ * `documents.readonly` stays read-only and stays separate — the Docs API is
+ * only ever read, and the Drive scope does not cover it.
+ */
+export const REQUIRED_SCOPES = [
+  DRIVE_WRITE_SCOPE,
   'https://www.googleapis.com/auth/documents.readonly',
-].join(' ');
+];
+
+export const DRIVE_SCOPES = REQUIRED_SCOPES.join(' ');
+
+/**
+ * Which of the scopes we asked for the teacher did not actually grant.
+ *
+ * Google's consent screen lets her untick individual permissions, and the
+ * grant then succeeds with fewer scopes than requested — no error, no warning.
+ * Drive answers a call made with a short token by refusing it as `403
+ * forbidden`, which reads exactly like a folder she has no access to. So the
+ * granted scope has to be checked here, where the difference is knowable,
+ * rather than guessed at from a status code later.
+ *
+ * Computed server-side so the required list has one home. The client is told
+ * what is missing and never has to keep its own copy of these strings.
+ */
+export function missingScopes(granted: string | null | undefined): string[] {
+  const held = new Set((granted ?? '').split(/\s+/).filter(Boolean));
+  return REQUIRED_SCOPES.filter((scope) => !held.has(scope));
+}
 
 export interface Env {
   supabaseUrl: string;

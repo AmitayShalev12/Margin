@@ -1,7 +1,122 @@
 <div class="page">
-  <app-page-header [title]="course().name" [subtitle]="subtitle()" />
+  <app-page-header [title]="title()" [subtitle]="subtitle()" />
 
-  <app-drive-folder />
+  @if (setupError(); as message) {
+    <p class="setup-error" role="alert">{{ message }}</p>
+  }
+
+  <!--
+    Nothing exists until she makes it.
+    Margin used to ship with a demonstration course, a class of invented
+    students and their marked-up papers. They rendered exactly like real
+    records, fed the AI its context, and were refused by the database the
+    moment anything wrote to one — so the first screen now builds the real
+    thing instead of standing in for it.
+  -->
+  @if (!course()) {
+    <div class="card setup">
+      <p class="setup-title">נתחיל מהקורס</p>
+      <div class="setup-fields">
+        <label class="field">
+          <span class="label">שם הקורס</span>
+          <input
+            class="control"
+            type="text"
+            placeholder="שיטות מחקר, כיתה יב׳"
+            [value]="courseName()"
+            (input)="courseName.set($any($event.target).value)"
+          />
+        </label>
+        <label class="field field-narrow">
+          <span class="label">שנה</span>
+          <input
+            class="control"
+            type="text"
+            placeholder="תשפ״ו"
+            [value]="courseYear()"
+            (input)="courseYear.set($any($event.target).value)"
+          />
+        </label>
+      </div>
+      <button type="button" class="btn btn-primary" (click)="createCourse()">יצירת הקורס</button>
+    </div>
+  } @else {
+    @if (!assignment()) {
+      <div class="card setup">
+        <p class="setup-title">ועכשיו העבודה שהן מגישות</p>
+        <p class="setup-note">כל עבודה שתיקלט מהדרייב מצורפת אליה, ובלעדיה אין לקבצים לאן להגיע.</p>
+        <label class="field">
+          <span class="label">שם העבודה</span>
+          <input
+            class="control"
+            type="text"
+            placeholder="עבודת גמר"
+            [value]="assignmentTitle()"
+            (input)="assignmentTitle.set($any($event.target).value)"
+          />
+        </label>
+        <button type="button" class="btn btn-primary" (click)="createAssignment()">
+          יצירת העבודה
+        </button>
+      </div>
+    }
+
+    <!--
+      The roster.
+      Work is attributed to a girl on this list — by the Drive account she
+      confirms, or failing that by the file name — so there has to be a way to
+      put a real one on it.
+    -->
+    <div class="card roster">
+      <p class="setup-title">התלמידות</p>
+
+      @if (students().length) {
+        <ul class="roster-list">
+          @for (student of students(); track student.id) {
+            <li class="roster-row">
+              <span class="roster-name">{{ student.full_name }}</span>
+              @if (student.drive_account_email) {
+                <span class="roster-account ltr">{{ student.drive_account_email }}</span>
+              } @else if (student.email) {
+                <span class="roster-account ltr">{{ student.email }}</span>
+              }
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="setup-note">
+          עדיין אין תלמידות ברשימה. בלי שם ברשימה אין למי לשייך את העבודות שמגיעות מהדרייב.
+        </p>
+      }
+
+      <div class="setup-fields">
+        <label class="field">
+          <span class="label">שם מלא</span>
+          <input
+            class="control"
+            type="text"
+            [value]="studentName()"
+            (input)="studentName.set($any($event.target).value)"
+          />
+        </label>
+        <label class="field">
+          <span class="label">מייל (לא חובה)</span>
+          <input
+            class="control ltr"
+            type="email"
+            dir="ltr"
+            [value]="studentEmail()"
+            (input)="studentEmail.set($any($event.target).value)"
+          />
+        </label>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="addStudent()">
+        הוספת תלמידה
+      </button>
+    </div>
+
+    <app-drive-folder />
+  }
 
   <div class="kb">
     @for (s of sections(); track s.id) {

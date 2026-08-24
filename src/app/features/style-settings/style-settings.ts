@@ -49,11 +49,14 @@ export class StyleSettings {
 
   /** What she did with the drafts, in the order the review screen offers it. */
   protected readonly tally = computed(() => {
-    const { accepted, edited, dismissed } = this.counts();
+    const { accepted, edited, dismissed, emailEdits } = this.counts();
     return [
       { label: 'אישרת כמו שהן', value: accepted },
       { label: 'ערכת', value: edited },
       { label: 'ויתרת', value: dismissed },
+      // Counted apart from the comments, and shown only once there is one —
+      // a message she rewrote teaches a different thing from a comment she did.
+      ...(emailEdits ? [{ label: 'מיילים שערכת', value: emailEdits }] : []),
     ];
   });
 

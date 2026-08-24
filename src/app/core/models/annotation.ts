@@ -1,4 +1,4 @@
-import { Timestamped, UUID } from './common';
+import { ISODateTime, Timestamped, UUID } from './common';
 
 /**
  * Where a comment sits on the document. Anchored to a block plus character
@@ -65,4 +65,24 @@ export interface Annotation extends Timestamped {
   resolved_in_round: number | null;
 
   sort_order: number;
+
+  /**
+   * The Drive comment id, once this has been posted to the student's document.
+   *
+   * Non-null is the record that it went out, and it is what stops a second
+   * send from posting the same comment twice — a re-send after further review
+   * posts only what is still null here. Nothing clears it: the comment exists
+   * in her Drive whether or not Margin still thinks it should.
+   */
+  posted_comment_id: string | null;
+  posted_at: ISODateTime | null;
+
+  /**
+   * The number of the marker Margin inserted in the document for this comment.
+   *
+   * Null when none was placed — the span could not be located, or the document
+   * has not been marked. Non-null is what makes a re-send leave an existing
+   * marker exactly as it is, and what gives removal something to find.
+   */
+  marker_number: number | null;
 }

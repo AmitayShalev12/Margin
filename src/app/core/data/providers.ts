@@ -6,9 +6,9 @@ import {
 } from '@angular/core';
 
 import { SupabaseService } from '../supabase/supabase';
-import { DataStore } from './data-store';
 import { LocalRepository } from './local-repository';
 import { Repository } from './repository';
+import { SessionData } from './session-data';
 import { SupabaseRepository } from './supabase-repository';
 
 /**
@@ -20,7 +20,9 @@ import { SupabaseRepository } from './supabase-repository';
  *
  * Hydration runs as an app initializer, so the first screen renders with the
  * durable records already in place rather than flashing the seed and then
- * correcting itself.
+ * correcting itself. `SessionData` holds it back until Supabase has restored
+ * the stored session — loading before that would ask Postgres for her rows
+ * with no JWT, and RLS answers that with silence rather than an error.
  */
 export function provideDataStore(): EnvironmentProviders {
   return makeEnvironmentProviders([
@@ -31,6 +33,6 @@ export function provideDataStore(): EnvironmentProviders {
       useFactory: (): Repository =>
         inject(SupabaseService).isConfigured ? inject(SupabaseRepository) : inject(LocalRepository),
     },
-    provideAppInitializer(() => inject(DataStore).hydrate()),
+    provideAppInitializer(() => inject(SessionData).start()),
   ]);
 }

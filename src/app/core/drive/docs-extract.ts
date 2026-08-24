@@ -40,6 +40,17 @@ interface RawBlock {
   id: string;
   type: DocumentBlock['type'];
   text: string;
+  /**
+   * The Docs index of each character of `text`, in order.
+   *
+   * Built here rather than computed later, and that is the whole point: a
+   * paragraph's characters are *not* contiguous from its start index. Inline
+   * objects, footnote references and page breaks each occupy an index and
+   * contribute no text, so `paragraphStart + offset` silently drifts past any
+   * of them — and a comment anchored on drifted indices lands on the wrong
+   * sentence. Every index here comes from the element Google reported it on.
+   */
+  indices: number[];
   /** Docs heading depth, before it is mapped onto Phase 2's levels. */
   rawLevel: number | null;
   /** True for TITLE/SUBTITLE, which are never section headings. */
@@ -51,7 +62,24 @@ function paragraphToBlock(
   startIndex: number | undefined,
   fallbackIndex: number,
 ): RawBlock | null {
-  const joined = (paragraph.elements ?? []).map((e) => e.textRun?.content ?? '').join('');
+  // Character by character, each carrying the Docs index it actually sits at.
+  const chars: string[] = [];
+  const indices: number[] = [];
+
+  for (const element of paragraph.elements ?? []) {
+    const content = element.textRun?.content;
+    if (!content) continue;
+
+    const base = element.startIndex;
+    for (let i = 0; i < content.length; i++) {
+      chars.push(content[i]);
+      // An element without a start index cannot be anchored against; -1 marks
+      // it unusable rather than inventing a position.
+      indices.push(base === undefined ? -1 : base + i);
+    }
+  }
+
+  const joined = chars.join('');
 
   // Every Docs paragraph ends with a newline; that terminator is structure,
   // not content. Nothing else is trimmed.
@@ -68,6 +96,8 @@ function paragraphToBlock(
     id: startIndex === undefined ? `b${fallbackIndex}` : `p${startIndex}`,
     type: isHeading ? 'heading' : paragraph.bullet ? 'list_item' : 'paragraph',
     text,
+    // Trimmed to match `text` exactly, so index N of one is index N of the other.
+    indices: indices.slice(0, text.length),
     rawLevel,
     titleStyle: named === 'TITLE' || named === 'SUBTITLE',
   };
@@ -136,18 +166,40 @@ function assignLevels(blocks: RawBlock[]): (number | undefined)[] {
  * straight onto a `SubmissionRound`.
  */
 export function extractDocumentBlocks(doc: DocsDocument): DocumentBlock[] {
+  return extractDocument(doc).blocks;
+}
+
+/**
+ * The blocks, plus where each character really sits in the document.
+ *
+ * One traversal produces both, deliberately. A second walk to build the index
+ * map would have to reproduce every decision this one makes — which paragraphs
+ * are skipped as empty, that a table of contents is ignored, that table cells
+ * are descended into — and the day the two disagreed, comments would anchor
+ * onto the wrong paragraph with nothing to show it had happened.
+ *
+ * `indices[i]` of block `n` is the Docs index of `blocks[n].text[i]`, or -1
+ * where Google reported no position for the element it came from.
+ */
+export function extractDocument(doc: DocsDocument): {
+  blocks: DocumentBlock[];
+  indices: number[][];
+} {
   const raw: RawBlock[] = [];
   walk(doc.body?.content ?? [], raw);
 
   const levels = assignLevels(raw);
 
-  return raw.map((b, index) => ({
-    id: b.id,
-    index,
-    type: b.type,
-    text: b.text,
-    ...(levels[index] === undefined ? {} : { level: levels[index] }),
-  }));
+  return {
+    blocks: raw.map((b, index) => ({
+      id: b.id,
+      index,
+      type: b.type,
+      text: b.text,
+      ...(levels[index] === undefined ? {} : { level: levels[index] }),
+    })),
+    indices: raw.map((b) => b.indices),
+  };
 }
 
 /**

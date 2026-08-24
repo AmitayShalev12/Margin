@@ -43,6 +43,9 @@ function annotation(id: string, kind: Annotation['kind']): Annotation {
     grading_category_id: null,
     resolved_in_round: null,
     sort_order: 0,
+    posted_comment_id: null,
+    posted_at: null,
+    marker_number: null,
     created_at: '2026-08-01T09:00:00.000Z',
     updated_at: '2026-08-01T09:00:00.000Z',
   };
@@ -235,6 +238,32 @@ describe('countDecisions', () => {
       edited: 1,
       dismissed: 1,
       examples: 0,
+      emailEdits: 0,
     });
+  });
+
+  /**
+   * The style screen says "מתוך N הערות שערכת". Once the email flow started
+   * writing to the same log, counting its rewrites in that N would have made
+   * the sentence quietly false — so they are counted, and counted apart.
+   */
+  it('does not count a rewritten email among the rewritten comments', () => {
+    const counts = countDecisions(
+      [log({ action: 'edited' }), log({ target_type: 'student_email', action: 'edited' })],
+      [],
+    );
+
+    expect(counts.edited).toBe(1);
+    expect(counts.emailEdits).toBe(1);
+  });
+
+  it('leaves a claim about her comments resting on her comments alone', () => {
+    // Six emails she shortened drastically, and nothing else: not evidence
+    // about how she writes a comment, so nothing is claimed.
+    const emails = Array.from({ length: 6 }, () =>
+      log({ target_type: 'student_email', action: 'edited', final_text: 'קצר.' }),
+    );
+
+    expect(deriveTraits(emails)).toEqual([]);
   });
 });

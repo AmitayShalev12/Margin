@@ -7,6 +7,13 @@ import { LocalRepository } from '../data/local-repository';
 import { Repository } from '../data/repository';
 import { seedId } from '../mock/seed-data';
 import { SupabaseService } from '../supabase/supabase';
+import { seedStore } from '../mock/seed-store';
+
+/** The app starts empty; a spec that reads records installs the fixtures. */
+function seeded(store: DataStore): DataStore {
+  seedStore(store);
+  return store;
+}
 
 /**
  * The loop, end to end: she decides, the decision is recorded, it survives a
@@ -41,7 +48,7 @@ function boot() {
     ],
   });
   return {
-    store: TestBed.inject(DataStore),
+    store: seeded(TestBed.inject(DataStore)),
     generator: TestBed.inject(AnnotationGenerator),
   };
 }
@@ -189,7 +196,7 @@ describe('the learning loop', () => {
     const roundId = first.store.roundFor(NOA)!.id;
 
     // A regenerated batch hard-deletes the round's comments.
-    first.store.replaceRoundAnnotations(roundId, []);
+    first.store.replaceDraftedAnnotations(roundId, []);
     await first.store.settled();
 
     expect(logFor(first.store, DISMISSED)?.action).toBe('dismissed');

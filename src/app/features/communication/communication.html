@@ -1,0 +1,334 @@
+<div class="page">
+  <app-page-header title="המייל לתלמידה" [subtitle]="subtitle()" />
+
+  @if (submissions().length > 1) {
+    <div class="picker" role="tablist" aria-label="בחירת עבודה">
+      @for (s of submissions(); track s.id) {
+        <button
+          type="button"
+          class="pick"
+          role="tab"
+          [class.is-active]="s.id === submission()?.id"
+          [attr.aria-selected]="s.id === submission()?.id"
+          (click)="select(s.id)"
+        >
+          <span class="pick-name">{{ s.name }}</span>
+          @if (s.sent) {
+            <span class="pick-sent">נשלח</span>
+          } @else if (s.ready) {
+            <span class="pick-count">{{ s.ready }}</span>
+          }
+        </button>
+      }
+    </div>
+  }
+
+  @if (!submission()) {
+    <div class="card empty">
+      <p class="hint">אין עדיין עבודות לכתוב עליהן.</p>
+      <a class="btn btn-primary" routerLink="/submissions">לרשימת העבודות</a>
+    </div>
+  } @else if (comments().length === 0 && !email()) {
+    <!-- Not an error: she simply hasn't finished the review yet. -->
+    <div class="card empty">
+      <p class="hint">
+        המייל נכתב מתוך ההערות שאישרת בבדיקה. בעבודה של {{ firstName() }} עוד לא אישרת אף אחת.
+      </p>
+      <a class="btn btn-primary" [routerLink]="['/review', submission()!.id]">
+        לבדיקה של {{ firstName() }}
+      </a>
+    </div>
+  } @else {
+    @if (generator.message(); as failure) {
+      <p class="failure" role="alert">
+        {{ failure }}
+        @if (generator.detail(); as detail) {
+          <!--
+            The raw line, in small print. Every wrong turn in diagnosing this
+            app has come from a message that named a cause it had guessed at;
+            this is the one that settles it.
+          -->
+          <span class="raw" dir="ltr">{{ detail }}</span>
+        }
+      </p>
+    }
+
+    @if (!email()) {
+      <div class="card empty">
+        <p class="hint">
+          שלושה ניסוחים לבחירה, כולם מתוך ההערות שאישרת ובסגנון שלך. שום דבר לא נשלח מכאן בלי
+          שתגידי.
+        </p>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="generator.isGenerating()"
+          (click)="draft()"
+        >
+          {{ generator.isGenerating() ? 'מנסחת…' : 'ניסוח המייל' }}
+        </button>
+      </div>
+    } @else {
+      @if (variants().length > 1 && !isSent()) {
+        <div class="picker variants" role="tablist" aria-label="בחירת ניסוח">
+          @for (v of variants(); track v.key) {
+            <button
+              type="button"
+              class="pick"
+              role="tab"
+              [class.is-active]="v.active"
+              [attr.aria-selected]="v.active"
+              (click)="choose(v.key)"
+            >
+              {{ v.label }}
+            </button>
+          }
+        </div>
+      }
+
+      <div class="card compose">
+        <label class="field">
+          <span class="label">אל</span>
+          <input
+            class="control"
+            type="email"
+            dir="ltr"
+            inputmode="email"
+            placeholder="כתובת המייל של {{ firstName() }}"
+            [value]="address()"
+            [disabled]="isSent()"
+            (input)="editAddress($any($event.target).value)"
+            (blur)="commitAddress()"
+          />
+        </label>
+
+        <label class="field">
+          <span class="label">נושא</span>
+          <input
+            class="control"
+            type="text"
+            [value]="subject()"
+            [disabled]="isSent()"
+            (input)="editSubject($any($event.target).value)"
+            (blur)="commit()"
+          />
+        </label>
+
+        <label class="field">
+          <span class="label">המייל</span>
+          <textarea
+            class="control body"
+            rows="14"
+            [value]="body()"
+            [disabled]="isSent()"
+            (input)="editBody($any($event.target).value)"
+            (blur)="commit()"
+          ></textarea>
+        </label>
+
+        @if (email()!.edited_by_teacher) {
+          <!-- Said out loud, because it is the thing that teaches the model. -->
+          <p class="learned">הניסוח שלך נשמר, והמייל הבא ייכתב קרוב יותר אליו.</p>
+        }
+      </div>
+
+      <!--
+        Its own step, and its own button. Posting comments into a student's
+        document is an outward act that cannot be taken back, so it is never a
+        side effect of confirming that an email went out.
+      -->
+      <div class="card post">
+        <div class="post-head">
+          <h2 class="post-title">ההערות במסמך של {{ firstName() }}</h2>
+          @if (hasDocument()) {
+            <span class="post-count">{{ postLabel() }}</span>
+          }
+        </div>
+
+        @if (!hasDocument()) {
+          <!--
+            Said rather than hidden. A card that silently disappears reads as a
+            feature that is broken; this is a submission with no Drive document
+            behind it, which is a fact about the submission.
+          -->
+          <p class="post-note">
+            העבודה הזו לא הגיעה מהדרייב, ולכן אין מסמך להוסיף לו הערות. עבודות שנסנכרנו מתיקיית
+            הקורס יקבלו את ההערות ישירות במסמך.
+          </p>
+        } @else if (auth.needsCommentConsent() || poster.needsReconnect()) {
+          <!--
+              Not a failure. She granted exactly what the app asked for when she
+              connected; the app is asking for more now, and owes her the reason.
+            -->
+          <!--
+            Either the server told us the grant is short, or Drive itself
+            refused. The second happens when the functions holding the required
+            scope list have not been redeployed, and she needs the same thing
+            in both cases.
+          -->
+          <p class="consent">
+            {{ auth.commentConsentMessage() ?? poster.message() }}
+          </p>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="auth.busy()"
+            (click)="reconnect()"
+          >
+            אישור ההרשאה בגוגל
+          </button>
+        } @else {
+          <p class="post-note">
+            ההערות נוספות בצד המסמך בשם החשבון שלך, ולצד כל משפט שהערתי עליו נוסף סימון קטן וממוספר
+            בצבע הקטגוריה — כי גוגל לא מאפשרת להצמיד הערה למשפט. חוץ מהסימונים האלה, שאפשר להסיר בכל
+            רגע, שום מילה בעבודה לא משתנה.
+          </p>
+          <div class="send-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="poster.isPosting() || toPost() === 0"
+              (click)="postComments()"
+            >
+              {{ poster.isPosting() ? 'מוסיפה למסמך…' : 'הוספת ההערות למסמך' }}
+            </button>
+            @if (hasMarkers()) {
+              <!--
+                Margin put characters into her student's paper. Undoing that
+                has to be one button she can find, not something she has to ask
+                for.
+              -->
+              <button
+                type="button"
+                class="btn btn-ghost"
+                [disabled]="poster.isPosting()"
+                (click)="clearMarkers()"
+              >
+                הסרת הסימונים מהמסמך
+              </button>
+            }
+          </div>
+        }
+
+        @if (poster.message(); as failure) {
+          <p class="failure" role="alert">{{ failure }}</p>
+        }
+
+        @if (postOutcome(); as outcome) {
+          <div class="outcome" role="status">
+            <p class="outcome-line">
+              {{ outcome.posted }}<span>.</span>
+              @if (outcome.markers) {
+                <span class="outcome-placement">{{ outcome.markers }}</span>
+              }
+              @if (outcome.unmarked) {
+                <span class="outcome-warn">{{ outcome.unmarked }}</span>
+              }
+              <span class="outcome-placement">{{ outcome.placement }}</span>
+              @if (outcome.failed) {
+                <span class="outcome-warn">חלק מההערות לא נשלחו — הפירוט בהודעה למעלה.</span>
+              }
+            </p>
+
+            @if (outcome.unplaced.length) {
+              <!--
+                  Listed in full, never summarised away. A wrong anchor is worse
+                  than a missing one, so these were deliberately not posted —
+                  and she can only act on that if she can see which.
+                -->
+              <p class="outcome-line">{{ outcome.unplacedLine }}</p>
+              <ul class="lines">
+                @for (item of outcome.unplaced; track item.id) {
+                  <li class="line">
+                    <div class="line-quote">״<app-bidi-text [value]="item.quote" />״</div>
+                    <div class="line-body"><app-bidi-text [value]="item.body" /></div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+
+      @if (isSent()) {
+        <div class="card sent">
+          <div class="sent-text">
+            <p class="sent-line">סימנת שהמייל נשלח ל{{ firstName() }}.</p>
+            <!--
+              The second delivery, said out loud. Marking the message sent
+              moves the whole submission to "notes sent", and without this line
+              a review with every comment still unsent looks finished.
+            -->
+            @if (deliveryNote(); as note) {
+              <p class="sent-note" [class.is-warn]="deliveryIncomplete()">{{ note }}</p>
+            }
+          </div>
+          <a class="btn btn-plain" routerLink="/submissions">לרשימת העבודות</a>
+        </div>
+      } @else {
+        <div class="card send">
+          <!--
+            Says exactly what happens, because it is not what the word "שליחה"
+            usually means: Margin has no mail account and opens hers.
+          -->
+          <p class="send-note">
+            הכפתור פותח את תוכנת המייל שלך עם ההודעה מוכנה. השליחה עצמה נעשית משם, מהחשבון שלך.
+          </p>
+          <div class="send-actions">
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="!canSend()"
+              (click)="openMail()"
+            >
+              פתיחת המייל ל{{ firstName() }}
+            </button>
+            <button type="button" class="btn btn-ghost" (click)="copy()">
+              {{ copied() ? 'הועתק' : 'העתקה' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-plain"
+              [disabled]="generator.isGenerating()"
+              (click)="draft()"
+            >
+              {{ generator.isGenerating() ? 'מנסחת…' : 'ניסוחים אחרים' }}
+            </button>
+          </div>
+
+          @if (!address().trim()) {
+            <p class="send-hint">צריך כתובת מייל למעלה כדי לפתוח את ההודעה.</p>
+          }
+
+          @if (handedOver()) {
+            <!--
+              The one thing Margin cannot know. Nothing is marked sent until she
+              answers, because a click on "open" is not delivery.
+            -->
+            <div class="confirm">
+              <span class="confirm-q">נשלח?</span>
+              <button type="button" class="btn btn-primary" (click)="confirmSent()">
+                כן, יצא ל{{ firstName() }}
+              </button>
+              <button type="button" class="btn btn-plain" (click)="handedOver.set(false)">
+                עדיין לא
+              </button>
+            </div>
+          }
+        </div>
+      }
+
+      <details class="source">
+        <summary>{{ comments().length }} ההערות שהמייל נכתב מתוכן</summary>
+        <ul class="lines">
+          @for (c of comments(); track c.id) {
+            <li class="line">
+              <div class="line-quote">״<app-bidi-text [value]="c.anchor.quote" />״</div>
+              <div class="line-body"><app-bidi-text [value]="c.body" /></div>
+            </li>
+          }
+        </ul>
+      </details>
+    }
+  }
+</div>

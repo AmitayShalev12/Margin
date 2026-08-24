@@ -1,0 +1,134 @@
+.picker {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-block-end: var(--s-2);
+  margin-block-end: var(--s-5);
+}
+
+.pick {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  border-radius: var(--r-full);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--c-accent-soft);
+    border-color: transparent;
+    color: var(--c-accent-strong);
+    font-weight: 600;
+  }
+}
+
+.pick-count {
+  unicode-bidi: isolate;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-4);
+}
+
+.empty {
+  text-align: center;
+
+  .btn {
+    margin-block-start: var(--s-4);
+  }
+}
+
+.group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  border-block-end: 1px solid var(--c-line);
+  padding-block-end: var(--s-2);
+}
+
+.group-name {
+  font-size: var(--fs-lg);
+  margin: 0;
+}
+
+.group-count {
+  margin-inline-start: auto;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+  unicode-bidi: isolate;
+}
+
+.group-desc {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.none {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+}
+
+.lines {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+// The category's own colour, on the leading edge — the same vocabulary the
+// review screen uses, so a line here is recognisably the comment it came from.
+.line {
+  border-inline-start: 3px solid var(--k-ink, var(--c-line-strong));
+  padding-inline-start: var(--s-3);
+}
+
+.line-quote {
+  font-family: var(--font-doc);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-4);
+  margin-block-end: 2px;
+}
+
+.line-body {
+  font-family: var(--font-doc);
+  font-size: var(--fs-md);
+  line-height: 1.65;
+}
+
+.line-meta {
+  display: flex;
+  gap: var(--s-2);
+  margin-block-start: 4px;
+}
+
+.tag {
+  font-size: var(--fs-xs);
+  color: var(--k-fg, var(--c-ink-3));
+  background: var(--k-wash, var(--c-surface-sunk));
+  border-radius: var(--r-full);
+  padding: 1px 8px;
+}
+
+.mine {
+  font-size: var(--fs-xs);
+  color: var(--c-ok);
+}
+
+// Said plainly, not as a warning: a starting set is a normal first year.
+.starting-note {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-surface-sunk);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+  line-height: 1.6;
+}

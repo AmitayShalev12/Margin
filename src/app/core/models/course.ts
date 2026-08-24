@@ -11,7 +11,23 @@ export interface Course extends Timestamped, OwnedByTeacher {
   /** School year, as the teacher writes it — e.g. `תשפ"ו`. */
   year: string;
   description: string | null;
-  /** Drive folder that submissions for this course arrive in (Phase 3). */
+  /**
+   * The course's root folder in Drive, holding one folder per year.
+   *
+   * Null for a course set up before the structure existed, and for one whose
+   * year folder was pointed at directly — neither is a fault, and neither is
+   * guessed at.
+   */
+  drive_course_folder_id: string | null;
+  /**
+   * Where submissions for *this year* arrive — the year folder inside the
+   * course folder.
+   *
+   * The teacher shares it with her students; each student moves her own
+   * document into it and keeps ownership of the file. So the work here is
+   * mostly not hers, which is the whole point of the change and the reason
+   * `matchStudent` can now trust the owner's address.
+   */
   drive_folder_id: string | null;
   archived: boolean;
 }

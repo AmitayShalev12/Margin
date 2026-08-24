@@ -38,17 +38,73 @@ export class Courses {
   private readonly data = inject(DataStore);
 
   protected readonly course = this.data.course;
+  protected readonly assignment = this.data.assignment;
+  protected readonly students = computed(() => this.data.students());
 
-  protected readonly subtitle = computed(
-    () =>
-      `${this.data.assignment().title}, ${this.course().year} · על סמך החומרים כאן נכתבות ההערות.`,
-  );
+  /** The page's own name before there is a course to name it after. */
+  protected readonly title = computed(() => this.course()?.name ?? 'הקורס שלך');
+
+  // -- first run --------------------------------------------------------
+  //
+  // The app used to open onto a fictional course with a fictional class in
+  // it. Nothing is invented now, which means the first screen has to be able
+  // to make the real thing — and each of these writes immediately, because a
+  // record that exists only on screen is refused by every foreign key that
+  // later points at it.
+
+  protected readonly courseName = signal('');
+  protected readonly courseYear = signal('');
+  protected readonly assignmentTitle = signal('');
+  protected readonly studentName = signal('');
+  protected readonly studentEmail = signal('');
+  protected readonly setupError = signal<string | null>(null);
+
+  protected createCourse() {
+    const created = this.data.createCourse(this.courseName(), this.courseYear());
+    if (!created) {
+      this.setupError.set('צריך שם קורס ושנה, ולהיות מחוברת לחשבון.');
+      return;
+    }
+    this.setupError.set(null);
+    this.courseName.set('');
+    this.courseYear.set('');
+  }
+
+  protected createAssignment() {
+    const created = this.data.createAssignment(this.assignmentTitle());
+    if (!created) {
+      this.setupError.set('צריך שם לעבודה.');
+      return;
+    }
+    this.setupError.set(null);
+    this.assignmentTitle.set('');
+  }
+
+  protected addStudent() {
+    const created = this.data.addStudent(this.studentName(), this.studentEmail());
+    if (!created) {
+      this.setupError.set('צריך שם מלא של התלמידה.');
+      return;
+    }
+    this.setupError.set(null);
+    this.studentName.set('');
+    this.studentEmail.set('');
+  }
+
+  protected readonly subtitle = computed(() => {
+    const course = this.course();
+    if (!course) return 'הקורס, העבודה והתלמידות — כאן מתחילים.';
+
+    const assignment = this.data.assignment();
+    const head = assignment ? `${assignment.title}, ${course.year}` : course.year;
+    return `${head} · על סמך החומרים כאן נכתבות ההערות.`;
+  });
 
   private readonly open = signal<Record<string, boolean>>({ rules: true });
 
   protected readonly sections = computed<KbSection[]>(() => {
-    const rules = this.data.courseRules;
-    const materials = this.data.courseMaterials;
+    const rules = this.data.courseRules();
+    const materials = this.data.courseMaterials();
 
     const myRules = rules.filter((r) => r.origin === 'teacher');
     const webRules = rules.filter((r) => r.origin === 'web');
@@ -67,7 +123,7 @@ export class Courses {
           id: r.id,
           text: r.body,
           tag: 'שלי',
-          note: this.data.learnedRuleNotes[r.id] ?? null,
+          note: null,
           muted: !r.active,
         })),
       },

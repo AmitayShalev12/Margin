@@ -1,0 +1,42 @@
+@if (failure(); as f) {
+  <!--
+    assertive, not polite: this is the one message in the app that must not
+    wait politely behind whatever else the screen is announcing.
+  -->
+  <div class="save-error" role="alert" aria-live="assertive">
+    <div class="save-error-inner">
+      <span class="dot" aria-hidden="true"></span>
+
+      <div class="text">
+        <strong class="headline">{{ headline() }}</strong>
+        <span class="body">{{ body() }}</span>
+        @if (retryFailed()) {
+          <!--
+            Deliberately names no cause. It guessed "check your connection"
+            once for a record Postgres was rejecting outright, which is the
+            same wrong turn the Drive errors kept taking — the reason is on
+            the line below, and it is the one that settles it.
+          -->
+          <span class="body">גם הניסיון החוזר נכשל. הסיבה מופיעה למטה.</span>
+        }
+        <!--
+          Every distinct failure, not the newest. One decision writes three
+          rows, and when they fail together it is the shared cause that
+          matters — showing one table sends the investigation to that table.
+        -->
+        @for (detail of f.details; track detail) {
+          <span class="detail" dir="ltr">{{ detail }}</span>
+        }
+      </div>
+
+      <div class="actions">
+        @if (isSave()) {
+          <button type="button" class="act" [disabled]="retrying()" (click)="retry()">
+            {{ retrying() ? 'שומרת…' : 'לנסות שוב' }}
+          </button>
+        }
+        <button type="button" class="act act-quiet" (click)="dismiss()">סגירה</button>
+      </div>
+    </div>
+  </div>
+}

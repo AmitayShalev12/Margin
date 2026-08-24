@@ -13,6 +13,7 @@ import {
 import { renderBlock, sectionsOf } from '../../core/presentation/document-render';
 import { Viewport } from '../../core/viewport';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
+import { ReliabilityPanel } from '../../shared/ui/reliability-panel/reliability-panel';
 
 /** A run of text as the template needs it, with its styling already decided. */
 interface ViewRun {
@@ -70,7 +71,7 @@ function commentCount(n: number): string {
 @Component({
   selector: 'app-review',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, BidiText],
+  imports: [RouterLink, BidiText, ReliabilityPanel],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -103,18 +104,34 @@ export class Review {
 
   protected readonly roundNumber = computed(() => this.submission().current_round);
 
-  protected readonly context = computed(
-    () => `סבב ${this.roundNumber()} · ${this.data.course().name}, ${this.data.assignment().title}`,
-  );
-
-  /** Comments on this submission that the teacher hasn't thrown away. */
-  private readonly live = computed(() =>
-    this.data
-      .annotations()
-      .filter((a) => a.submission_id === this.submission().id && a.status !== 'dismissed'),
-  );
+  protected readonly context = computed(() => {
+    const where = [this.data.course()?.name, this.data.assignment()?.title]
+      .filter(Boolean)
+      .join(', ');
+    return where ? `סבב ${this.roundNumber()} · ${where}` : `סבב ${this.roundNumber()}`;
+  });
 
   protected readonly round = computed(() => this.data.roundFor(this.submission().id));
+
+  /**
+   * Comments on the round being read, that the teacher hasn't thrown away.
+   *
+   * Scoped to the round, not the submission. Everything else on this screen
+   * already is — the document, the sections, the margin — and the mismatch had
+   * a specific consequence: on a submission whose earlier round carried
+   * comments, `hasComments()` was true while the list rendered nothing, because
+   * those comments anchor to block ids belonging to the previous document. The
+   * screen then showed the paper with no comments *and* no "draft me some",
+   * because that button only appears when there are none. Every count on the
+   * screen was describing a round the teacher wasn't looking at.
+   */
+  private readonly live = computed(() => {
+    const roundId = this.round()?.id;
+    if (!roundId) return [];
+    return this.data
+      .annotations()
+      .filter((a) => a.round_id === roundId && a.status !== 'dismissed');
+  });
 
   private readonly blocks = computed<readonly DocumentBlock[]>(
     () => this.round()?.document_blocks ?? [],
@@ -304,10 +321,16 @@ export class Review {
     if (round) this.generator.discardBatch(round.id);
   }
 
-  /** The one primary action on the screen. */
+  /**
+   * The one primary action on the screen.
+   *
+   * It used to mark the submission `notes_sent` and return to the list, which
+   * said the review had been sent when nothing had left the building. Now it
+   * goes to the message itself: the draft, the wording, and the one place
+   * anything is actually sent from.
+   */
   protected send() {
-    this.data.setSubmissionStatus(this.submission().id, 'notes_sent');
-    void this.router.navigate(['/submissions']);
+    void this.router.navigate(['/communication', this.submission().id]);
   }
 
   // -- helpers --------------------------------------------------------------

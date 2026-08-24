@@ -24,6 +24,7 @@ import {
   classifyRateLimit,
   isRetryable,
   parseAnnotationPayload,
+  responseSchema,
   retryDelayMs,
   type Interaction,
 } from '../_shared/gemini.ts';
@@ -258,7 +259,7 @@ async function generate(
     config: MODEL_CONFIG,
     systemInstruction: `${INSTRUCTIONS}\n\n${knowledgeBase(body)}`,
     input: documentMessage(body),
-    kinds: body.allowed_kinds,
+    schema: responseSchema(body.allowed_kinds),
   });
 
   let lastCode: AnnotateErrorCode = 'generation_failed';

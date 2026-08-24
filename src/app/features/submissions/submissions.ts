@@ -88,11 +88,23 @@ export class Submissions {
     return `סונכרן מהדרייב ${relativeDay(state.last_synced_at)}`;
   });
 
-  /** Files sitting in the folder that couldn't be attributed to a student. */
-  protected readonly unmatched = computed(() => this.data.sync().unmatched);
+  /**
+   * Files that arrived and couldn't be attributed to a student, by name.
+   *
+   * Names, not the records themselves: this line used to print the array
+   * straight into the template, which renders every entry as `[object
+   * Object]` — a count and a row of nonsense where the file names should be.
+   */
+  protected readonly unmatched = computed(() => this.data.sync().unmatched.map((f) => f.name));
 
+  /**
+   * Work reaches her two ways now, and either is enough to sync: files in the
+   * year folder, and documents students shared with her directly.
+   */
   protected readonly canSync = computed(
-    () => this.auth.isConnected() && !!this.data.watchedFolderId(),
+    () =>
+      this.auth.isConnected() &&
+      (!!this.data.watchedFolderId() || this.data.confirmedDriveAccounts().length > 0),
   );
 
   /**

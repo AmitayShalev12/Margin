@@ -3,9 +3,16 @@ import { TestBed } from '@angular/core/testing';
 import { DataStore } from '../data/data-store';
 import { LocalRepository } from '../data/local-repository';
 import { Repository } from '../data/repository';
-import { seedId } from '../mock/seed-data';
-import { DriveApi } from './drive-api';
-import { DocsDocument, DriveFile, DriveMetadataSnapshot, DriveRevision } from './drive-types';
+import { COURSE, seedId } from '../mock/seed-data';
+import { seedStore } from '../mock/seed-store';
+import { DriveApi, DriveError } from './drive-api';
+import {
+  DocsDocument,
+  DriveFile,
+  DriveMetadataSnapshot,
+  DriveRevision,
+  GOOGLE_DOC_MIME,
+} from './drive-types';
 import { GoogleDriveAuth } from './google-auth';
 import { SyncService } from './sync';
 
@@ -22,6 +29,22 @@ function docFile(overrides: Partial<DriveFile> = {}): DriveFile {
     owners: [{ emailAddress: 'noa@school.org.il', displayName: 'נועה' }],
     ...overrides,
   };
+}
+
+/**
+ * A file for a student whose seeded round carries no comments.
+ *
+ * Only נועה has seeded annotations, and a round with comments anchored to
+ * it is deliberately never overwritten — so the in-place-refresh behaviour has
+ * to be exercised on someone else.
+ */
+function shiraFile(overrides: Partial<DriveFile> = {}): DriveFile {
+  return docFile({
+    id: 'file-shira',
+    name: 'שירה אלמוג — סמינריון',
+    webViewLink: 'https://docs.google.com/document/d/file-shira/edit',
+    ...overrides,
+  });
 }
 
 const REVISIONS: DriveRevision[] = [
@@ -71,11 +94,35 @@ function document(bodyText: string): DocsDocument {
 
 class FakeDriveApi {
   files: DriveFile[] = [];
+  /** What Drive returns from the `sharedWithMe` corpus. */
+  shared: DriveFile[] = [];
+  /** The addresses each shared query was scoped to, in order. */
+  sharedQueries: string[][] = [];
+  /** Files reachable by id, for the attach-by-hand path. */
+  byId: Record<string, DriveFile> = {};
   revisions: DriveRevision[] = REVISIONS;
   body = 'הקשר בין המשתנים היה מובהק (r = .42, p < .01).';
   revisionsTruncated = false;
 
+  /** False when the shortcut's target is shared with nobody but its owner. */
+  targetReadable = true;
+
   listFolder = async () => this.files;
+
+  listSharedByOwners = async (emails: readonly string[]) => {
+    this.sharedQueries.push([...emails]);
+    // The real query returns only files owned by those addresses; this fake
+    // returns whatever the test set, so a test can hand back something the
+    // real query never would and prove the guard holds anyway.
+    return this.shared;
+  };
+
+  listSharedDocuments = async () => this.shared;
+
+  getFile = async (fileId: string) => {
+    if (!this.targetReadable) throw new DriveError('not_found', 'target not visible', 404);
+    return this.byId[fileId] ?? docFile({ id: fileId });
+  };
   getFolder = async () => ({ id: FOLDER, mimeType: 'application/vnd.google-apps.folder' });
   listRevisions = async () => ({
     revisions: this.revisions,
@@ -110,30 +157,266 @@ describe('SyncService', () => {
     });
 
     store = TestBed.inject(DataStore);
+    // The app starts empty now; a sync test needs a course, an
+    // assignment and a roster to attribute work to.
+    seedStore(store);
     sync = TestBed.inject(SyncService);
-    store.setDriveFolder(store.course().id, FOLDER);
+    store.setDriveFolder(COURSE.id, FOLDER);
   });
 
   afterEach(() => localStorage.clear());
 
-  it('refuses to sync before a folder is chosen', async () => {
-    store.setDriveFolder(store.course().id, null);
+  /**
+   * Both sources named, because either one alone would do.
+   *
+   * The old wording sent her to choose a folder, which is the wrong fix for a
+   * class that hands work in by sharing it: there the folder is beside the
+   * point and the missing piece is a confirmed account.
+   */
+  it('refuses to sync with neither a folder nor a confirmed account', async () => {
+    store.setDriveFolder(COURSE.id, null);
     const result = await sync.syncNow();
 
-    expect(result.error).toBe('עדיין לא הוגדרה תיקייה בדרייב.');
+    expect(result.error).toContain('עדיין לא הוגדרה תיקייה בדרייב');
+    expect(result.error).toContain('חשבון הדרייב');
     expect(store.sync().phase).toBe('error');
   });
 
-  it('creates a submission for a file it has not seen before', async () => {
-    api.files = [docFile()];
+  /**
+   * The whole point of the feature.
+   *
+   * A student who presses Share instead of moving her file into the folder
+   * produces a document with no parent the teacher can see — no folder query
+   * will ever find it. With her account confirmed it arrives anyway, and with
+   * no folder configured at all.
+   */
+  it('reads a document a confirmed student shared, with no folder set', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    store.setDriveFolder(COURSE.id, null);
+    api.shared = [docFile({ id: 'shared-noa' })];
+
     const result = await sync.syncNow();
 
-    expect(result.created).toBe(1);
+    expect(result.error).toBeNull();
+    expect(store.submissionByDriveFile('shared-noa')?.student_id).toBe(seedId('s1'));
+    // Asked about her account and nothing else.
+    expect(api.sharedQueries).toEqual([['noa@school.org.il']]);
+  });
+
+  /** Counted apart, so "the folder is empty" and "nobody shared" differ. */
+  it('reports how much of the sync arrived by sharing', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    api.shared = [docFile({ id: 'shared-noa' })];
+
+    const result = await sync.syncNow();
+
+    expect(result.shared).toBe(1);
+    expect(store.sync().shared).toBe(1);
+  });
+
+  /**
+   * The attribution rule that separates the two sources.
+   *
+   * A file in the year folder may be matched on its name: the folder is the
+   * teacher's own assertion that everything in it is work for this course.
+   * Her "Shared with me" asserts nothing — it holds memos, colleagues' drafts
+   * and years of unrelated paperwork — so a document named after a student but
+   * owned by a stranger must not become her submission and overwrite the text
+   * her comments are anchored to.
+   */
+  it('refuses to attribute a shared file by its name alone', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    api.shared = [
+      shiraFile({
+        id: 'shared-stranger',
+        name: 'שירה אלמוג — הערכת מורה',
+        owners: [{ emailAddress: 'rina@school.org.il' }],
+      }),
+    ];
+
+    const result = await sync.syncNow();
+
+    expect(store.submissionByDriveFile('shared-stranger')).toBeUndefined();
+    // And it is not reported as a problem either: nobody said it was coursework.
+    expect(result.unmatched).toEqual([]);
+  });
+
+  /**
+   * A student doing as she was asked, twice.
+   *
+   * Sharing the document *and* dropping it in the folder used to read as two
+   * files for one student, which is reported to the teacher as a clash she has
+   * to go and resolve.
+   */
+  it('treats a file that is both in the folder and shared as one document', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    api.files = [docFile()];
+    api.shared = [docFile()];
+
+    const result = await sync.syncNow();
+
+    expect(result.unmatched).toEqual([]);
+    const hers = store.submissions().filter((s) => s.student_id === seedId('s1'));
+    expect(hers.length).toBe(1);
+  });
+
+  /**
+   * The bootstrap, and the reason the automatic path is safe to keep strict.
+   *
+   * The very first document a girl shares comes from an account Margin has
+   * never seen, so nothing can attribute it. She says whose it is once; the
+   * address is recorded, and everything shared from it afterwards is found by
+   * the ordinary sync.
+   */
+  it('attaches a shared document she attributes herself, and remembers the account', async () => {
+    const file = shiraFile({
+      id: 'shared-shira',
+      name: 'עבודה סופית.docx',
+      owners: [{ emailAddress: 'shira.almog@gmail.com' }],
+    });
+    api.byId = { 'shared-shira': file };
+
+    const { error } = await sync.attachShared('shared-shira', seedId('s2'));
+
+    expect(error).toBeNull();
+    expect(store.submissionByDriveFile('shared-shira')?.student_id).toBe(seedId('s2'));
+    expect(store.students().find((s) => s.id === seedId('s2'))?.drive_account_email).toBe(
+      'shira.almog@gmail.com',
+    );
+
+    // And from now on it is automatic.
+    expect(store.confirmedDriveAccounts()).toContain('shira.almog@gmail.com');
+  });
+
+  /**
+   * An address already on file is left alone. Overwriting it silently would
+   * redirect every future match for that girl, and she may well be handing in
+   * from a second account.
+   */
+  it('does not overwrite an account she has already confirmed', async () => {
+    store.setStudentDriveAccount(seedId('s2'), 'shira@school.org.il');
+    api.byId = {
+      'shared-shira': shiraFile({
+        id: 'shared-shira',
+        owners: [{ emailAddress: 'shira.personal@gmail.com' }],
+      }),
+    };
+
+    await sync.attachShared('shared-shira', seedId('s2'));
+
+    expect(store.students().find((s) => s.id === seedId('s2'))?.drive_account_email).toBe(
+      'shira@school.org.il',
+    );
+    // The document is still hers, which is what she asked for.
+    expect(store.submissionByDriveFile('shared-shira')?.student_id).toBe(seedId('s2'));
+  });
+
+  /** Already a submission means nothing to attach; it is being synced. */
+  it('leaves documents that are already submissions out of the picker', async () => {
+    store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+    api.shared = [docFile({ id: 'shared-noa' })];
+    await sync.syncNow();
+
+    const { candidates } = await sync.listSharedWithMe();
+    expect(candidates.map((c) => c.id)).not.toContain('shared-noa');
+  });
+
+  /**
+   * The name match survives here and only here: as a pre-selection in a list
+   * she confirms, never as an attribution in its own right.
+   */
+  it('suggests a student for a shared file without attributing it', async () => {
+    api.shared = [
+      shiraFile({ id: 'shared-shira', owners: [{ emailAddress: 'unknown@gmail.com' }] }),
+    ];
+
+    const { candidates } = await sync.listSharedWithMe();
+
+    expect(candidates.length).toBe(1);
+    expect(candidates[0].suggestedStudentId).toBe(seedId('s2'));
+    // Suggested, not applied.
+    expect(store.submissionByDriveFile('shared-shira')).toBeUndefined();
+  });
+
+  it('attaches a new file to the row that student already has', async () => {
+    api.files = [docFile()];
+    await sync.syncNow();
+
     const submission = store.submissionByDriveFile('file-noa');
-    expect(submission?.status).toBe('new');
-    expect(submission?.current_round).toBe(1);
     expect(submission?.student_id).toBe(seedId('s1'));
     expect(submission?.drive_file_name).toBe('נועה ברקוביץ׳ — סמינריון');
+    // Adopted, not duplicated: the id is the one she already had.
+    expect(submission?.id).toBe(seedId('sub-noa'));
+  });
+
+  /**
+   * The bug this pins, in as many words.
+   *
+   * `submissions` is unique on `(assignment_id, student_id)`, and the sync used
+   * to look a file up by `drive_file_id` alone — which is null on every row
+   * provisioning writes. So it minted a second row for the same student, and
+   * Postgres refused it with `submissions_assignment_id_student_id_key`. The
+   * round then referenced a submission that did not exist, and its
+   * `owns_submission` check reported that absence as an RLS violation.
+   */
+  it('never opens a second submission for the same student and assignment', async () => {
+    api.files = [docFile()];
+    await sync.syncNow();
+
+    const hers = store
+      .submissions()
+      .filter((s) => s.student_id === seedId('s1') && s.assignment_id === store.assignment()!.id);
+
+    expect(hers.length).toBe(1);
+    expect(hers[0].drive_file_id).toBe('file-noa');
+
+    // And one round per number, which is the constraint one table down.
+    const rounds = store.rounds().filter((r) => r.submission_id === hers[0].id);
+    expect(new Set(rounds.map((r) => r.round_number)).size).toBe(rounds.length);
+  });
+
+  it('surfaces a second file naming the same student rather than fighting over her row', async () => {
+    // Both names match her: a transliterated second file would simply fail to
+    // match at all, and the guard under test would never be reached — which is
+    // how this test previously passed while asserting nothing about it.
+    api.files = [docFile(), docFile({ id: 'file-noa-2', name: 'נועה ברקוביץ׳ — סופי' })];
+    const result = await sync.syncNow();
+
+    const hers = store.submissions().filter((s) => s.student_id === seedId('s1'));
+    expect(hers.length).toBe(1);
+    // Named on screen with the reason, so she can rename one — not silently
+    // dropped and not silently swapped for the other on the next sync.
+    expect(result.unmatched.length).toBe(1);
+    expect(result.unmatched[0].reason).toBe('duplicate_student');
+  });
+
+  /** A re-upload gets a new Drive file id, and is still the same submission. */
+  it('follows a student who deleted the file and uploaded it again', async () => {
+    api.files = [docFile()];
+    await sync.syncNow();
+
+    api.files = [docFile({ id: 'file-noa-again', modifiedTime: '2026-08-09T08:00:00.000Z' })];
+    await sync.syncNow();
+
+    const hers = store.submissions().filter((s) => s.student_id === seedId('s1'));
+    expect(hers.length).toBe(1);
+    expect(hers[0].drive_file_id).toBe('file-noa-again');
+  });
+
+  /**
+   * The ids the sync mints have to be writable. `sub-<driveFileId>` was unique
+   * and readable and rejected by every insert — and since writes are
+   * fire-and-forget, the submission sat on screen as though it had saved.
+   */
+  it('gives the records ids Postgres will accept', async () => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+    api.files = [docFile()];
+    await sync.syncNow();
+
+    const submission = store.submissionByDriveFile('file-noa')!;
+    expect(submission.id).toMatch(uuid);
+    expect(store.roundFor(submission.id)!.id).toMatch(uuid);
   });
 
   it('captures the raw Drive metadata without interpreting it', async () => {
@@ -208,45 +491,87 @@ describe('SyncService', () => {
     expect(store.submissions().filter((s) => s.drive_file_id === 'file-noa').length).toBe(1);
   });
 
-  it('refreshes the current round in place while notes have not gone out', async () => {
-    api.files = [docFile()];
+  it('refreshes the current round in place while nothing is anchored to it', async () => {
+    api.files = [shiraFile()];
     await sync.syncNow();
-    const submission = store.submissionByDriveFile('file-noa')!;
+    const submission = store.submissionByDriveFile('file-shira')!;
     const roundId = store.roundFor(submission.id)!.id;
+    const before = store.rounds().filter((r) => r.submission_id === submission.id).length;
 
     api.body = 'הקשר נותר מובהק גם לאחר פיקוח.';
-    api.files = [docFile({ modifiedTime: '2026-08-05T08:00:00.000Z' })];
+    api.files = [shiraFile({ modifiedTime: '2026-08-05T08:00:00.000Z' })];
     await sync.syncNow();
 
     const rounds = store.rounds().filter((r) => r.submission_id === submission.id);
-    expect(rounds.length).toBe(1);
-    expect(rounds[0].id).toBe(roundId);
-    expect(rounds[0].document_blocks!.at(-1)!.text).toBe('הקשר נותר מובהק גם לאחר פיקוח.');
-    expect(store.submission(submission.id)!.status).toBe('new');
+    expect(rounds.length).toBe(before);
+    const current = store.roundFor(submission.id)!;
+    expect(current.id).toBe(roundId);
+    expect(current.document_blocks!.at(-1)!.text).toBe('הקשר נותר מובהק גם לאחר פיקוח.');
   });
 
-  it('opens a new round once notes have been sent, keeping the annotated one', async () => {
+  /**
+   * The second bug found while fixing the first, and the more dangerous one.
+   *
+   * Refreshing a round in place was justified by "nothing has been annotated
+   * against it yet" — an assumption, never a check, and false from the moment
+   * comments could be drafted before notes were sent. Overwriting the text does
+   * not delete those comments; it leaves them anchored to offsets in a document
+   * that no longer says that.
+   */
+  it('never moves the text under a comment that is already anchored to it', async () => {
     api.files = [docFile()];
     await sync.syncNow();
+
     const submission = store.submissionByDriveFile('file-noa')!;
+    const annotated = store
+      .annotations()
+      .filter((a) => a.submission_id === submission.id)
+      .map((a) => a.round_id);
+    expect(annotated.length).toBeGreaterThan(0);
+
+    const textBefore = new Map(
+      store
+        .rounds()
+        .filter((r) => annotated.includes(r.id))
+        .map((r) => [r.id, r.document_text]),
+    );
+
+    api.body = 'שיניתי את כל הפרק מחדש.';
+    api.files = [docFile({ modifiedTime: '2026-08-05T08:00:00.000Z' })];
+    await sync.syncNow();
+
+    for (const [roundId, text] of textBefore) {
+      expect(store.rounds().find((r) => r.id === roundId)!.document_text).toBe(text);
+    }
+    // The new text arrived, on a round of its own.
+    expect(store.roundFor(submission.id)!.document_blocks!.at(-1)!.text).toBe(
+      'שיניתי את כל הפרק מחדש.',
+    );
+  });
+
+  it('opens a new round once notes have been sent, keeping the reviewed one', async () => {
+    api.files = [shiraFile()];
+    await sync.syncNow();
+    const submission = store.submissionByDriveFile('file-shira')!;
     const firstRound = store.roundFor(submission.id)!;
     const originalText = firstRound.document_text;
+    const before = store.rounds().filter((r) => r.submission_id === submission.id).length;
 
     store.setSubmissionStatus(submission.id, 'notes_sent');
 
     api.body = 'תיקנתי את הניסוח לפי ההערות.';
-    api.files = [docFile({ modifiedTime: '2026-08-09T08:00:00.000Z' })];
+    api.files = [shiraFile({ modifiedTime: '2026-08-09T08:00:00.000Z' })];
     await sync.syncNow();
 
     const updated = store.submission(submission.id)!;
     const rounds = store.rounds().filter((r) => r.submission_id === submission.id);
 
     expect(updated.status).toBe('resubmitted');
-    expect(updated.current_round).toBe(2);
-    expect(rounds.length).toBe(2);
-    // The round she annotated is untouched.
+    expect(updated.current_round).toBe(firstRound.round_number + 1);
+    expect(rounds.length).toBe(before + 1);
+    // The round she reviewed is untouched.
     expect(rounds.find((r) => r.id === firstRound.id)!.document_text).toBe(originalText);
-    expect(store.roundFor(submission.id)!.round_number).toBe(2);
+    expect(store.roundFor(submission.id)!.round_number).toBe(firstRound.round_number + 1);
   });
 
   it('reports a file it cannot attribute rather than guessing a student', async () => {
@@ -254,9 +579,11 @@ describe('SyncService', () => {
     const result = await sync.syncNow();
 
     expect(result.created).toBe(0);
-    expect(result.unmatched).toEqual(['scan_0042']);
+    // Named with the reason, so she knows to rename it rather than to
+    // go looking for a permissions problem.
+    expect(result.unmatched).toEqual([{ name: 'scan_0042', reason: 'no_student' }]);
     expect(store.submissionByDriveFile('file-x')).toBeUndefined();
-    expect(store.sync().unmatched).toEqual(['scan_0042']);
+    expect(store.sync().unmatched).toEqual([{ name: 'scan_0042', reason: 'no_student' }]);
   });
 
   it('skips folders nested inside the watched folder', async () => {
@@ -276,5 +603,99 @@ describe('SyncService', () => {
     expect(store.sync().phase).toBe('idle');
     expect(store.sync().last_synced_at).toBeTruthy();
     expect(store.sync().message).toBeNull();
+  });
+});
+
+/**
+ * Work the teacher does not own.
+ *
+ * Each student keeps her own document and moves it into the year folder, so the
+ * listing is mostly other people's files — and a student can just as easily put
+ * a *shortcut* there instead, which looks identical in a listing and carries no
+ * text at all.
+ */
+describe('student-owned files', () => {
+  let api: FakeDriveApi;
+  let store: DataStore;
+  let sync: SyncService;
+
+  beforeEach(() => {
+    localStorage.clear();
+    api = new FakeDriveApi();
+
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DriveApi, useValue: api },
+        { provide: GoogleDriveAuth, useValue: new FakeAuth() },
+        { provide: Repository, useClass: LocalRepository },
+      ],
+    });
+
+    store = TestBed.inject(DataStore);
+    // The app starts empty now; a sync test needs a course, an
+    // assignment and a roster to attribute work to.
+    seedStore(store);
+    sync = TestBed.inject(SyncService);
+    store.setDriveFolder(COURSE.id, FOLDER);
+  });
+
+  afterEach(() => localStorage.clear());
+
+  it('takes in a document the teacher does not own', async () => {
+    api.files = [
+      docFile({
+        ownedByMe: false,
+        owners: [{ emailAddress: 'noa.b@school.org.il', displayName: 'נועה' }],
+      }),
+    ];
+
+    await sync.syncNow();
+
+    const submission = store.submissionByDriveFile('file-noa');
+    expect(submission).toBeTruthy();
+    expect(submission!.drive_owner_email).toBe('noa.b@school.org.il');
+  });
+
+  /**
+   * The hazard the new model introduces. A shortcut has its own mime type and
+   * no body — ingested as-is it becomes a submission with an empty document and
+   * nothing on screen to explain it.
+   */
+  it('follows a shortcut to the document it points at', async () => {
+    api.files = [
+      {
+        id: 'shortcut-1',
+        name: 'נועה ברקוביץ׳ — סמינריון',
+        mimeType: 'application/vnd.google-apps.shortcut',
+        shortcutDetails: { targetId: 'file-noa', targetMimeType: GOOGLE_DOC_MIME },
+      },
+    ];
+
+    await sync.syncNow();
+
+    // The target, not the pointer — and with its text extracted.
+    const submission = store.submissionByDriveFile('file-noa');
+    expect(submission).toBeTruthy();
+    expect(store.roundFor(submission!.id)?.document_blocks?.length).toBeGreaterThan(0);
+    expect(store.submissionByDriveFile('shortcut-1')).toBeUndefined();
+  });
+
+  it('reports a shortcut whose document it cannot read, rather than storing an empty one', async () => {
+    api.targetReadable = false;
+    api.files = [
+      {
+        id: 'shortcut-2',
+        name: 'נועה ברקוביץ׳ — סמינריון',
+        mimeType: 'application/vnd.google-apps.shortcut',
+        shortcutDetails: { targetId: 'file-hidden' },
+      },
+    ];
+
+    const result = await sync.syncNow();
+
+    expect(result.unmatched).toEqual([
+      { name: 'נועה ברקוביץ׳ — סמינריון', reason: 'shortcut_unreadable' },
+    ]);
+    expect(store.submissions().some((s) => s.drive_file_id === 'file-hidden')).toBe(false);
   });
 });

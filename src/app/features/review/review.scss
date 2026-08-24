@@ -424,6 +424,16 @@
   color: var(--c-danger);
 }
 
+.raw {
+  display: block;
+  margin-block-start: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-4);
+  unicode-bidi: isolate;
+  word-break: break-word;
+}
+
 // -- the batch restatement --------------------------------------------------
 // Deliberately the only thing on screen worth reading at this moment: the
 // comment column stays hidden until she has confirmed this.

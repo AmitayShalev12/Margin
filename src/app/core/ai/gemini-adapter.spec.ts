@@ -50,7 +50,7 @@ describe('buildRequestBody', () => {
     config: MODEL_CONFIG,
     systemInstruction: 'instructions + knowledge base',
     input: 'the paper',
-    kinds: [...GENERATED_KINDS],
+    schema: responseSchema([...GENERATED_KINDS]),
   });
 
   it('asks for JSON constrained by a schema rather than hoping for prose', () => {
@@ -59,13 +59,13 @@ describe('buildRequestBody', () => {
   });
 
   it('constrains the category to the kinds the client allows', () => {
-    const kind = body.response_format.schema.properties.annotations.items.properties.kind;
-    expect(kind.enum).toEqual([...GENERATED_KINDS]);
+    const item = body.response_format.schema.properties?.['annotations'].items;
+    expect(item?.properties?.['kind'].enum).toEqual([...GENERATED_KINDS]);
   });
 
   it('requires every field the client needs to anchor a comment', () => {
-    const item = body.response_format.schema.properties.annotations.items;
-    expect(item.required).toEqual(['block_id', 'quote', 'kind', 'body']);
+    const item = body.response_format.schema.properties?.['annotations'].items;
+    expect(item?.required).toEqual(['block_id', 'quote', 'kind', 'body']);
   });
 
   it('uses lowercase JSON Schema types, not the old OpenAPI-style casing', () => {
@@ -94,7 +94,8 @@ describe('buildRequestBody', () => {
 describe('responseSchema', () => {
   it('rejects nothing when given the full kind list', () => {
     const schema = responseSchema([...GENERATED_KINDS]);
-    expect(schema.properties.annotations.items.properties.kind.enum).toHaveLength(7);
+    const item = schema.properties?.['annotations'].items;
+    expect(item?.properties?.['kind'].enum).toHaveLength(7);
   });
 });
 

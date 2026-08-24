@@ -27,6 +27,7 @@ import {
   db,
   exchangeWithGoogle,
   json,
+  missingScopes,
   readEnv,
 } from '../_shared/google.ts';
 
@@ -146,19 +147,30 @@ async function handleCallback(request: Request, env: Env, url: URL) {
 
   const email = await fetchGoogleEmail(token.access_token);
 
+  // What Google says was granted, never what we asked for. The old fallback to
+  // DRIVE_SCOPES recorded the request as though it were the grant, so a
+  // teacher who unticked a permission on the consent screen was stored as
+  // fully connected and only found out when a sync failed with a 403 that
+  // blamed her folder.
+  const granted = token.scope ?? '';
+  const missing = missingScopes(granted);
+
   await db(env, 'google_credentials', {
     method: 'POST',
     prefer: 'resolution=merge-duplicates',
     body: JSON.stringify({
       teacher_id: row.teacher_id,
       refresh_token: token.refresh_token,
-      scope: token.scope ?? DRIVE_SCOPES,
+      scope: granted,
       google_email: email,
       updated_at: new Date().toISOString(),
     }),
   });
 
-  return redirect(row.redirect_to, null);
+  // Stored either way — a partial grant is still the state of the world, and
+  // the app has to be able to describe it. But she is told now, at the moment
+  // it happened, rather than at the next sync.
+  return redirect(row.redirect_to, missing.length ? 'missing_scopes' : null);
 }
 
 async function handleStatus(request: Request, env: Env, cors: Record<string, string>) {
@@ -179,6 +191,9 @@ async function handleStatus(request: Request, env: Env, cors: Record<string, str
           connected: true,
           google_email: row.google_email,
           scope: row.scope,
+          // "Connected" and "connected with everything it needs" are different
+          // states, and the screen has to be able to tell them apart.
+          missing_scopes: missingScopes(row.scope),
           connected_at: row.connected_at,
         }
       : { connected: false },

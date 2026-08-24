@@ -18,6 +18,8 @@ interface TokenResponse {
   access_token?: string;
   expires_in?: number;
   scope?: string;
+  /** Requested permissions Google says she did not grant. Computed server-side. */
+  missing_scopes?: string[];
   google_email?: string | null;
   reason?: string;
 }
@@ -26,7 +28,24 @@ interface StatusResponse {
   connected: boolean;
   google_email?: string | null;
   scope?: string;
+  missing_scopes?: string[];
 }
+
+/**
+ * The scope that lets Margin leave a comment on a document.
+ *
+ * Restated here rather than imported: the Edge Functions are Deno and share no
+ * module graph with the app. `supabase/functions/_shared/google.ts` is the
+ * source of truth and explains why this scope and not a narrower one.
+ */
+export const DRIVE_WRITE_SCOPE = 'https://www.googleapis.com/auth/drive';
+
+/** Teacher-facing names for the permissions, for when one is missing. */
+const SCOPE_LABEL: Record<string, string> = {
+  [DRIVE_WRITE_SCOPE]: 'הוספת הערות למסמכים',
+  'https://www.googleapis.com/auth/drive.readonly': 'צפייה בקבצים בדרייב',
+  'https://www.googleapis.com/auth/documents.readonly': 'קריאת תוכן המסמכים',
+};
 
 /**
  * The teacher's Drive connection.
@@ -56,12 +75,96 @@ export class GoogleDriveAuth {
   private readonly _connection = signal<DriveConnection>('unknown');
   private readonly _email = signal<string | null>(null);
   private readonly _busy = signal(false);
+  private readonly _missingScopes = signal<string[]>([]);
+  /** The scopes Google actually issued, as reported with the credential. */
+  private readonly _grantedScopes = signal<string[]>([]);
 
   readonly connection = this._connection.asReadonly();
   readonly googleEmail = this._email.asReadonly();
   readonly busy = this._busy.asReadonly();
 
+  /** Permissions she was asked for and did not grant. Empty is the good case. */
+  readonly missingScopes = this._missingScopes.asReadonly();
+
   readonly isConnected = computed(() => this._connection() === 'connected');
+
+  /**
+   * Connected, but short of a permission the app needs.
+   *
+   * Kept distinct from `isConnected` because Google reports a partial grant as
+   * a success: the connection is real, the token is valid, and Drive still
+   * refuses the calls that need what she unticked.
+   */
+  readonly isIncomplete = computed(
+    () =>
+      this._connection() === 'connected' &&
+      // The commenting permission is excluded on purpose. Missing it does not
+      // make the connection incomplete for syncing, which is what this flag
+      // drives — a teacher who only wants to pull work in should not be shown
+      // a warning about a screen she has not been to.
+      this._missingScopes().some((scope) => scope !== DRIVE_WRITE_SCOPE),
+  );
+
+  /**
+   * Connected, reading fine, but not allowed to comment.
+   *
+   * This is the ordinary state for every teacher who connected before Margin
+   * could write comments: she granted read-only, that grant is still valid, and
+   * the sync keeps working. Only posting is refused — so it is kept apart from
+   * `isIncomplete`, and the ask is made where it is relevant rather than as a
+   * standing warning on a screen she came to for something else.
+   */
+  readonly needsCommentConsent = computed(() => {
+    const granted = this._grantedScopes();
+
+    /**
+     * Read from the grant itself, not from the server's verdict on it.
+     *
+     * `missing_scopes` is computed inside the Edge Functions against their own
+     * copy of the required list — so between widening that list and deploying
+     * them, the server reports nothing missing while Google refuses every
+     * write. The grant string is a fact rather than a judgement, and it is
+     * already in the same response, so the check does not have to wait for a
+     * deployment to become true.
+     *
+     * Compared as whole tokens: `…/auth/drive.readonly` contains `…/auth/drive`
+     * as a substring, and a naive match would read a read-only grant as
+     * permission to write on a student's document.
+     */
+    if (granted.length) return !granted.includes(DRIVE_WRITE_SCOPE);
+
+    // No grant string to go on — fall back to whatever the server said.
+    return this._missingScopes().includes(DRIVE_WRITE_SCOPE);
+  });
+
+  /**
+   * Why she is being asked again, in her terms.
+   *
+   * It says what changed, what the new permission does, and — because this is
+   * the question anyone sensible asks of an app that wants write access to
+   * their students' work — what it will still never do.
+   */
+  readonly commentConsentMessage = computed(() =>
+    this.needsCommentConsent()
+      ? 'עד היום Margin רק קראה את המסמכים, ולכן ההרשאה שאישרת היא לקריאה בלבד. ' +
+        'כדי להוסיף הערות במסמך עצמו גוגל דורשת הרשאה רחבה יותר, וצריך לאשר אותה פעם אחת. ' +
+        'ההערות נכתבות בשם החשבון שלך, ו־Margin לא תשנה אף מילה בעבודה עצמה — רק תוסיף הערות בצד.'
+      : null,
+  );
+
+  /** Hebrew, naming the permissions rather than their URLs. */
+  readonly missingScopeMessage = computed(() => {
+    const missing = this._missingScopes();
+    if (!missing.length) return null;
+
+    // The write permission has its own explanation, and it is not a fault to
+    // be reported — she simply granted what the app asked for at the time.
+    if (missing.length === 1 && missing[0] === DRIVE_WRITE_SCOPE) return null;
+
+    const names = missing.map((scope) => SCOPE_LABEL[scope] ?? scope).join(' ו');
+    return `החיבור לגוגל לא כולל הרשאת ${names}. צריך להתחבר מחדש ולאשר את כל התיבות במסך של גוגל.`;
+  });
+
   readonly canConnect = this.supabase.isConfigured;
 
   constructor() {
@@ -91,6 +194,7 @@ export class GoogleDriveAuth {
       const status = await this.call<StatusResponse>('drive-auth/status', { method: 'POST' });
       this._connection.set(status?.connected ? 'connected' : 'disconnected');
       this._email.set(status?.google_email ?? null);
+      this.recordGrant(status?.scope, status?.missing_scopes);
     } catch {
       this._connection.set('disconnected');
     }
@@ -122,6 +226,7 @@ export class GoogleDriveAuth {
     } finally {
       this._connection.set('disconnected');
       this._email.set(null);
+      this.recordGrant(undefined, undefined);
     }
   }
 
@@ -142,6 +247,12 @@ export class GoogleDriveAuth {
   /** Drops the cached token after Drive rejects it, forcing a fresh mint. */
   invalidate() {
     this.token = null;
+  }
+
+  /** What Google issued, and what the server made of it. */
+  private recordGrant(scope: string | undefined, missing: string[] | undefined) {
+    this._grantedScopes.set((scope ?? '').split(/\s+/).filter(Boolean));
+    this._missingScopes.set(missing ?? []);
   }
 
   private async mint(): Promise<string | null> {
@@ -169,6 +280,10 @@ export class GoogleDriveAuth {
       access_token: response.access_token,
       expires_at: Date.now() + (response.expires_in ?? 600) * 1000,
     };
+    // Re-read on every mint rather than only at connect: she can withdraw a
+    // permission from her Google account page at any time, and the next token
+    // is the first place that shows.
+    this.recordGrant(response.scope, response.missing_scopes);
     this._connection.set('connected');
     if (response.google_email !== undefined) this._email.set(response.google_email);
 

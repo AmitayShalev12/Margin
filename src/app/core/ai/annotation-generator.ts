@@ -10,6 +10,7 @@ import {
   SubmissionRound,
   UUID,
 } from '../models';
+import { FunctionError, TRANSPORT_MESSAGES, callFunction } from '../supabase/function-call';
 import { SupabaseService } from '../supabase/supabase';
 import { resolveAnnotations } from './anchor-resolver';
 import { AnnotateRequest, AnnotateResponse, GENERATED_KINDS } from './contract';
@@ -20,11 +21,13 @@ export interface GenerationState {
   phase: GenerationPhase;
   /** Hebrew, teacher-facing. */
   message: string | null;
+  /** The raw failure, for the small print. Null when there is nothing to add. */
+  detail: string | null;
   /** Comments whose quote didn't resolve — worth surfacing, not hiding. */
   discarded: number;
 }
 
-const IDLE: GenerationState = { phase: 'idle', message: null, discarded: 0 };
+const IDLE: GenerationState = { phase: 'idle', message: null, detail: null, discarded: 0 };
 
 /**
  * What the teacher is told when a batch fails, by the code the Edge Function
@@ -94,14 +97,26 @@ export class AnnotationGenerator {
       return this.fail('צריך למלא את פרטי Supabase לפני שאפשר לנסח הערות.');
     }
 
-    this._state.set({ phase: 'generating', message: null, discarded: 0 });
+    this._state.set({ phase: 'generating', message: null, detail: null, discarded: 0 });
+
+    const request = this.buildRequest(submission, round, blocks);
+    if (!request) {
+      return this.fail('צריך קורס ועבודה לפני שאפשר לנסח הערות.');
+    }
 
     let response: AnnotateResponse;
     try {
-      response = await this.call(this.buildRequest(submission, round, blocks));
+      response = await callFunction<AnnotateResponse>(
+        this.supabase,
+        'annotate',
+        request,
+      );
     } catch (error) {
-      const code = error instanceof Error ? error.message : '';
-      return this.fail(FAILURE_MESSAGES[code] ?? FALLBACK_MESSAGE);
+      const code = error instanceof FunctionError ? error.code : '';
+      return this.fail(
+        FAILURE_MESSAGES[code] ?? TRANSPORT_MESSAGES[code] ?? FALLBACK_MESSAGE,
+        error instanceof FunctionError ? error.detail : String(error),
+      );
     }
 
     const { resolved, rejected } = resolveAnnotations(response.annotations ?? [], blocks);
@@ -124,18 +139,38 @@ export class AnnotationGenerator {
       grading_category_id: null,
       resolved_in_round: null,
       sort_order: index,
+      posted_comment_id: null,
+      posted_at: null,
+      marker_number: null,
       created_at: now,
       updated_at: now,
     }));
 
-    this.store.replaceRoundAnnotations(round.id, annotations);
+    /**
+     * A pass that anchored nothing must not touch the round.
+     *
+     * `replaceDraftedAnnotations` clears the round's undecided drafts and puts
+     * the new batch in their place, so calling it with nothing is a plain
+     * delete — every comment still waiting for her would go, and nothing would
+     * arrive. The screen would come back emptier with no error to explain it,
+     * because nothing failed: a delete succeeded.
+     */
+    if (!annotations.length) {
+      return this.fail(
+        rejected.length
+          ? `אף אחת מ־${rejected.length} ההערות שנוסחו לא נקשרה למקום מדויק בטקסט. מה שהיה כאן נשאר.`
+          : 'לא נוסחו הערות לעבודה הזו. מה שהיה כאן נשאר.',
+      );
+    }
+
+    this.store.replaceDraftedAnnotations(round.id, annotations);
     this.store.replaceRoundDocument(round.id, {
       ai_summary: response.summary?.trim() || null,
       ai_summary_confirmed_at: null,
     });
     this.store.setSubmissionStatus(submission.id, 'in_review');
 
-    this._state.set({ phase: 'idle', message: null, discarded: rejected.length });
+    this._state.set({ phase: 'idle', message: null, detail: null, discarded: rejected.length });
     return { created: annotations.length, discarded: rejected.length };
   }
 
@@ -148,7 +183,7 @@ export class AnnotationGenerator {
 
   /** She didn't recognise the pass — drop it rather than make her sift it. */
   discardBatch(roundId: UUID) {
-    this.store.replaceRoundAnnotations(roundId, []);
+    this.store.replaceDraftedAnnotations(roundId, []);
     this.store.replaceRoundDocument(roundId, {
       ai_summary: null,
       ai_summary_confirmed_at: null,
@@ -161,9 +196,13 @@ export class AnnotationGenerator {
     submission: Submission,
     round: SubmissionRound,
     blocks: readonly DocumentBlock[],
-  ): AnnotateRequest {
+  ): AnnotateRequest | null {
     const course = this.store.course();
     const assignment = this.store.assignment();
+    // Nothing to draft against: the prompt is built out of the course's own
+    // rules and the assignment's brief, and inventing either would put words
+    // in her mouth that no teacher ever wrote.
+    if (!course || !assignment) return null;
 
     return {
       allowed_kinds: [...GENERATED_KINDS],
@@ -178,10 +217,12 @@ export class AnnotationGenerator {
         ...(b.level === undefined ? {} : { level: b.level }),
         text: b.text,
       })),
-      rules: this.store.courseRules
+      rules: this.store
+        .courseRules()
         .filter((r) => r.active)
         .map((r) => ({ kind: r.kind, body: r.body, origin: r.origin })),
-      materials: this.store.courseMaterials
+      materials: this.store
+        .courseMaterials()
         .filter((m) => m.active)
         .map((m) => ({
           kind: m.kind,
@@ -226,29 +267,8 @@ export class AnnotationGenerator {
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
 
-  private async call(body: AnnotateRequest): Promise<AnnotateResponse> {
-    const { data } = await this.supabase.client.auth.getSession();
-    const jwt = data.session?.access_token;
-    if (!jwt) throw new Error('not_signed_in');
-
-    const response = await fetch(`${this.supabase.functionsUrl}/annotate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      // The function names the failure; rethrowing the code lets `generate`
-      // pick the wording without the HTTP status leaking into the UI layer.
-      const failure = (await response.json().catch(() => ({}))) as { error?: string };
-      throw new Error(failure.error ?? 'generation_failed');
-    }
-
-    return (await response.json()) as AnnotateResponse;
-  }
-
-  private fail(message: string): null {
-    this._state.set({ phase: 'error', message, discarded: 0 });
+  private fail(message: string, detail: string | null = null): null {
+    this._state.set({ phase: 'error', message, detail, discarded: 0 });
     return null;
   }
 }

@@ -7,6 +7,13 @@ import { seedId } from '../mock/seed-data';
 import { SupabaseService } from '../supabase/supabase';
 import { AnnotationGenerator } from './annotation-generator';
 import { AnnotateRequest } from './contract';
+import { seedStore } from '../mock/seed-store';
+
+/** The app starts empty; a spec that reads records installs the fixtures. */
+function seeded(store: DataStore): DataStore {
+  seedStore(store);
+  return store;
+}
 
 /**
  * The generator is exercised end to end against the real seeded course — its
@@ -16,6 +23,19 @@ import { AnnotateRequest } from './contract';
  */
 
 const NOA = seedId('sub-noa');
+
+/**
+ * A regeneration only replaces comments she has not yet decided on, so the
+ * round holds her surviving work as well as the new batch. These pick out the
+ * batch itself.
+ */
+function draftsOn(store: DataStore, roundId: string) {
+  return store.annotations().filter((a) => a.round_id === roundId && a.status === 'pending');
+}
+
+function decidedOn(store: DataStore, roundId: string) {
+  return store.annotations().filter((a) => a.round_id === roundId && a.status !== 'pending');
+}
 
 class FakeSupabase {
   isConfigured = true;
@@ -34,7 +54,7 @@ function boot() {
     ],
   });
   return {
-    store: TestBed.inject(DataStore),
+    store: seeded(TestBed.inject(DataStore)),
     generator: TestBed.inject(AnnotationGenerator),
   };
 }
@@ -101,7 +121,7 @@ describe('AnnotationGenerator', () => {
     const { store, generator } = boot();
     await generator.generate(NOA);
 
-    const inactiveRule = store.courseRules.find((r) => !r.active);
+    const inactiveRule = store.courseRules().find((r) => !r.active);
     expect(inactiveRule).toBeTruthy();
     expect(sent[0].rules.map((r) => r.body)).not.toContain(inactiveRule!.body);
   });
@@ -168,7 +188,7 @@ describe('AnnotationGenerator', () => {
     expect(result).toEqual({ created: 2, discarded: 0 });
 
     const round = store.roundFor(NOA)!;
-    const annotations = store.annotations().filter((a) => a.round_id === round.id);
+    const annotations = draftsOn(store, round.id);
     expect(annotations.length).toBe(2);
 
     const blocks = round.document_blocks!;
@@ -205,9 +225,115 @@ describe('AnnotationGenerator', () => {
     await store.settled();
 
     const round = store.roundFor(NOA)!;
-    const annotations = store.annotations().filter((a) => a.round_id === round.id);
+    const annotations = draftsOn(store, round.id);
     expect(annotations.length).toBe(1);
     expect(annotations[0].body).toBe('ב');
+  });
+
+  /**
+   * A second pass used to clear the round outright, taking every decision she
+   * had already made on the first with it — accepted, rewritten and dismissed
+   * alike, with no warning and no undo. Only what she has not yet looked at is
+   * the model's to replace.
+   */
+  it('leaves everything she has decided untouched by a regeneration', async () => {
+    const { store, generator } = boot();
+    const roundId = store.roundFor(NOA)!.id;
+
+    // Work through some of the round first: keep one, rewrite one, drop one.
+    store.setAnnotationStatus(seedId('an-4'), 'accepted');
+    store.editAnnotation(seedId('an-5'), 'האם באמת אקראי, או נוחות?');
+    store.setAnnotationStatus(seedId('an-7'), 'dismissed');
+    await store.settled();
+
+    const decidedBefore = decidedOn(store, roundId)
+      .map((a) => a.id)
+      .sort();
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [
+        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'חדש' },
+      ],
+    });
+    await generator.generate(NOA);
+    await store.settled();
+
+    // Her work is all still there, with her wording intact.
+    expect(
+      decidedOn(store, roundId)
+        .map((a) => a.id)
+        .sort(),
+    ).toEqual(decidedBefore);
+    expect(store.annotation(seedId('an-5'))!.body).toBe('האם באמת אקראי, או נוחות?');
+    expect(store.annotation(seedId('an-7'))!.status).toBe('dismissed');
+
+    // And the undecided drafts were replaced by the new pass.
+    expect(draftsOn(store, roundId).map((a) => a.body)).toEqual(['חדש']);
+  });
+
+  it('survives the reload with her decisions and the new batch both intact', async () => {
+    const first = boot();
+    const roundId = first.store.roundFor(NOA)!.id;
+    first.store.setAnnotationStatus(seedId('an-4'), 'accepted');
+    await first.store.settled();
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [
+        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'חדש' },
+      ],
+    });
+    await first.generator.generate(NOA);
+    await first.store.settled();
+
+    const second = boot();
+    await second.store.hydrate();
+
+    expect(second.store.annotation(seedId('an-4'))!.status).toBe('accepted');
+    expect(draftsOn(second.store, roundId).map((a) => a.body)).toEqual(['חדש']);
+  });
+
+  /**
+   * The empty batch was a delete. `replaceDraftedAnnotations` removes the round's
+   * comments and writes what it is handed, so calling it with nothing destroys
+   * the review already on the round — and reports no error, because nothing
+   * failed. The screen simply comes back empty.
+   */
+  it('leaves the round alone when not one comment could be anchored', async () => {
+    const { store, generator } = boot();
+    const round = store.roundFor(NOA)!;
+    const before = store.annotations().filter((a) => a.round_id === round.id);
+    expect(before.length).toBeGreaterThan(0);
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [
+        { block_id: 'b-intro', quote: 'ציטוט שלא קיים בטקסט', kind: 'content', body: 'א' },
+        { block_id: 'b-nope', quote: 'מחקרים רבים הוכיחו', kind: 'content', body: 'ב' },
+      ],
+    });
+
+    const result = await generator.generate(NOA);
+    await store.settled();
+
+    expect(result).toBeNull();
+    expect(generator.state().phase).toBe('error');
+    expect(generator.state().message).toContain('לא נקשרה');
+
+    const after = store.annotations().filter((a) => a.round_id === round.id);
+    expect(after.map((a) => a.id).sort()).toEqual(before.map((a) => a.id).sort());
+  });
+
+  it('does not overwrite the round’s restatement with an empty pass', async () => {
+    const { store, generator } = boot();
+    const roundId = store.roundFor(NOA)!.id;
+    store.replaceRoundDocument(roundId, { ai_summary: 'הסיכום הקודם' });
+
+    respondWith({ summary: 'סיכום חדש', annotations: [] });
+    await generator.generate(NOA);
+
+    expect(store.roundFor(NOA)!.ai_summary).toBe('הסיכום הקודם');
   });
 
   it('reports comments it had to discard instead of quietly shortening the batch', async () => {
@@ -260,8 +386,7 @@ describe('AnnotationGenerator', () => {
 
     expect(store.roundFor(NOA)!.ai_summary_confirmed_at).toBeTruthy();
     // Confirming is not a decision about any single comment.
-    const annotations = store.annotations().filter((a) => a.round_id === store.roundFor(NOA)!.id);
-    expect(annotations.every((a) => a.status === 'pending')).toBe(true);
+    expect(draftsOn(store, store.roundFor(NOA)!.id).length).toBe(2);
   });
 
   it('discarding a batch removes its comments and its restatement', async () => {
@@ -278,7 +403,10 @@ describe('AnnotationGenerator', () => {
     generator.discardBatch(roundId);
     await store.settled();
 
-    expect(store.annotations().filter((a) => a.round_id === roundId)).toEqual([]);
+    // Her own decisions are not part of the batch and are not thrown away
+    // with it — only the drafts still waiting for her.
+    expect(draftsOn(store, roundId)).toEqual([]);
+    expect(decidedOn(store, roundId).length).toBeGreaterThan(0);
     expect(store.roundFor(NOA)!.ai_summary).toBeNull();
   });
 
@@ -297,16 +425,14 @@ describe('AnnotationGenerator', () => {
     first.generator.confirmBatch(first.store.roundFor(NOA)!.id);
     await first.store.settled();
 
-    const before = first.store
-      .annotations()
-      .filter((a) => a.round_id === first.store.roundFor(NOA)!.id);
+    const before = draftsOn(first.store, first.store.roundFor(NOA)!.id);
 
     // --- reload ---
     const second = boot();
     await second.store.hydrate();
 
     const round = second.store.roundFor(NOA)!;
-    const after = second.store.annotations().filter((a) => a.round_id === round.id);
+    const after = draftsOn(second.store, round.id);
 
     expect(after.map((a) => a.id).sort()).toEqual(before.map((a) => a.id).sort());
     expect(after[0].ai_body).toBe('הערה');

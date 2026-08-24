@@ -35,6 +35,14 @@ export const routes: Routes = [
       import('./features/grading-forms/grading-forms').then((m) => m.GradingForms),
   },
   {
+    // Where the review screen's primary action lands, with the submission
+    // already chosen. The bare path is the same screen reached from the nav.
+    path: 'communication/:submissionId',
+    title: 'מייל לתלמידה · Margin',
+    loadComponent: () =>
+      import('./features/communication/communication').then((m) => m.Communication),
+  },
+  {
     path: 'communication',
     title: 'מיילים לתלמידות · Margin',
     loadComponent: () =>

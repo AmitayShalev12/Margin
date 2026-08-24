@@ -1,0 +1,97 @@
+// Above everything, including the review screen's action bar (50) and the
+// mobile sheet — nothing should be able to cover this.
+.save-error {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 200;
+  background: var(--c-danger-soft);
+  border-block-end: 1px solid rgba(140, 59, 59, 0.25);
+  box-shadow: var(--sh-2);
+  padding: 10px var(--s-4);
+  padding-block-start: max(10px, var(--safe-top, 10px));
+}
+
+.save-error-inner {
+  max-width: var(--content-max);
+  margin-inline: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-block-start: 6px;
+  border-radius: var(--r-full);
+  background: var(--c-danger);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.headline {
+  font-size: var(--fs-base);
+  color: var(--c-danger);
+}
+
+.body {
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  line-height: var(--lh-normal);
+}
+
+// The raw error. Latin and technical, so it gets its own direction and stays
+// out of the way of the sentence above it.
+.detail {
+  unicode-bidi: isolate;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-4);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--s-2);
+}
+
+.act {
+  border: 1px solid rgba(140, 59, 59, 0.35);
+  background: var(--c-surface);
+  color: var(--c-danger);
+  border-radius: var(--r-full);
+  padding: 5px 12px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+.act-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--c-ink-3);
+}
+
+@media (max-width: 40rem) {
+  .save-error-inner {
+    flex-wrap: wrap;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

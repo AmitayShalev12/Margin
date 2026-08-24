@@ -1,23 +1,34 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
+import { buildCategories } from '../grading/categories';
+import { buildEntries } from '../grading/entries';
 import { newId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
-import * as seed from '../mock/seed-data';
 import {
   Annotation,
   AnnotationStatus,
   Assignment,
   Course,
+  CourseMaterial,
+  CourseRule,
+  GradingFormCategory,
+  GradingFormEntry,
   LearningAction,
   LearningFeedbackLog,
+  LearningTargetType,
+  ReliabilityCheck,
   Submission,
   SubmissionRound,
   SubmissionStatus,
+  Student,
+  StudentEmail,
+  StudentGradingForm,
   TeacherStyleExample,
   UUID,
 } from '../models';
+import { UnmatchedFile } from '../drive/sync';
 import { SupabaseService } from '../supabase/supabase';
-import { PersistedSnapshot, Repository } from './repository';
+import { NOT_SIGNED_IN, PersistedSnapshot, Repository } from './repository';
 
 /**
  * The app's record store.
@@ -32,6 +43,33 @@ import { PersistedSnapshot, Repository } from './repository';
  * instead of being swallowed.
  */
 
+/**
+ * A read or write that did not reach Postgres.
+ *
+ * An object rather than a message string, and for a reason that bit: a signal
+ * holding the same string twice never emits, so dismissing a failure and then
+ * hitting the identical one again would tell her nothing. The count changes
+ * every time, so every failure surfaces.
+ */
+export interface PersistFailure {
+  /** `load` means her records never arrived; `save` means work is unsaved. */
+  kind: 'load' | 'save';
+  /** Failures since she was last told. */
+  count: number;
+  /** True when the cause is simply that nobody is signed in. */
+  signedOut: boolean;
+  /**
+   * Every distinct raw error since she was last told, not just the newest.
+   *
+   * One decision queues three writes — the comment, the learning log, the
+   * grading-form line — and they fail together when their shared parent is
+   * missing. Keeping only the last one to settle named whichever table came
+   * last in the queue, which sent a real investigation after the wrong table
+   * while the actual failure was one level up.
+   */
+  details: string[];
+}
+
 export type SyncPhase = 'idle' | 'syncing' | 'error';
 
 export interface SyncState {
@@ -41,8 +79,14 @@ export interface SyncState {
   message: string | null;
   created: number;
   updated: number;
-  /** Files in the folder that couldn't be attributed to a student. */
-  unmatched: string[];
+  /**
+   * How many of them a student shared directly, rather than dropping into the
+   * year folder. Kept apart because "the folder is empty" and "nobody shared
+   * anything" are different problems with different fixes.
+   */
+  shared: number;
+  /** Files that produced no submission, and why — never just how many. */
+  unmatched: UnmatchedFile[];
 }
 
 const IDLE: SyncState = {
@@ -51,6 +95,7 @@ const IDLE: SyncState = {
   message: null,
   created: 0,
   updated: 0,
+  shared: 0,
   unmatched: [],
 };
 
@@ -59,27 +104,60 @@ export class DataStore {
   private readonly repository = inject(Repository);
   private readonly supabase = inject(SupabaseService);
 
-  readonly students = seed.STUDENTS;
-  readonly courseRules = seed.COURSE_RULES;
-  readonly courseMaterials = seed.COURSE_MATERIALS;
-  readonly learnedRuleNotes = seed.LEARNED_RULE_NOTES;
-
   private readonly folders = signal<Record<UUID, string>>({});
-  private readonly _course = signal<Course>(seed.COURSE);
-  private readonly _assignment = signal<Assignment>(seed.ASSIGNMENT);
-  private readonly _submissions = signal<Submission[]>(seed.SUBMISSIONS);
-  private readonly _rounds = signal<SubmissionRound[]>(seed.ROUNDS);
-  private readonly _annotations = signal<Annotation[]>(seed.ANNOTATIONS);
-  private readonly _feedbackLogs = signal<LearningFeedbackLog[]>(seed.FEEDBACK_LOGS);
-  private readonly _styleExamples = signal<TeacherStyleExample[]>(seed.STYLE_EXAMPLES);
+  /**
+   * Empty until she makes something.
+   *
+   * There is no demonstration course any more, and nothing on any screen that
+   * she did not create or that did not come out of her Drive. The app used to
+   * start holding a fictional teacher's course, roster and marked-up papers,
+   * which read as real — the names rendered, the AI prompt quoted them, and
+   * the first write against one was refused by RLS for a reason that looked
+   * like a permissions bug rather than "this record was never yours".
+   */
+  private readonly _course = signal<Course | null>(null);
+  private readonly _assignment = signal<Assignment | null>(null);
+  private readonly _submissions = signal<Submission[]>([]);
+  private readonly _rounds = signal<SubmissionRound[]>([]);
+  private readonly _students = signal<Student[]>([]);
+  private readonly _courseRules = signal<CourseRule[]>([]);
+  private readonly _courseMaterials = signal<CourseMaterial[]>([]);
+  private readonly _gradingCategories = signal<GradingFormCategory[]>([]);
+  private readonly _gradingEntries = signal<GradingFormEntry[]>([]);
+  private readonly _studentForms = signal<StudentGradingForm[]>([]);
+  private readonly _studentEmails = signal<StudentEmail[]>([]);
+  private readonly _reliabilityChecks = signal<ReliabilityCheck[]>([]);
+  private readonly _annotations = signal<Annotation[]>([]);
+  private readonly _feedbackLogs = signal<LearningFeedbackLog[]>([]);
+  private readonly _styleExamples = signal<TeacherStyleExample[]>([]);
   private readonly _sync = signal<SyncState>(IDLE);
   private readonly _hydrated = signal(false);
-  private readonly _persistError = signal<string | null>(null);
+  private readonly _loadedHers = signal(false);
+  private readonly _persistError = signal<PersistFailure | null>(null);
 
   /** True once durable records have been layered in. */
   readonly hydrated = this._hydrated.asReadonly();
+
+  /**
+   * True when the records on screen came from her account.
+   *
+   * Distinct from `hydrated`, which only means startup finished. After a failed
+   * load the screens show the seeded demonstration course, and anything that
+   * writes one of those rows is refused — a seeded student carries the
+   * demonstration teacher's id, so `students_owner` rejects it every time. The
+   * app must not offer actions over records it knows are not hers.
+   */
+  readonly loadedHerRecords = this._loadedHers.asReadonly();
   readonly persistError = this._persistError.asReadonly();
 
+  readonly students = this._students.asReadonly();
+  readonly courseRules = this._courseRules.asReadonly();
+  readonly courseMaterials = this._courseMaterials.asReadonly();
+  readonly gradingCategories = this._gradingCategories.asReadonly();
+  readonly gradingEntries = this._gradingEntries.asReadonly();
+  readonly studentForms = this._studentForms.asReadonly();
+  readonly studentEmails = this._studentEmails.asReadonly();
+  readonly reliabilityChecks = this._reliabilityChecks.asReadonly();
   readonly submissions = this._submissions.asReadonly();
   readonly rounds = this._rounds.asReadonly();
   readonly annotations = this._annotations.asReadonly();
@@ -89,20 +167,54 @@ export class DataStore {
   readonly feedbackLogs = this._feedbackLogs.asReadonly();
   readonly styleExamples = this._styleExamples.asReadonly();
 
-  /** Folder ids come from the persisted map when set, else from the record. */
-  readonly course = computed<Course>(() => ({
-    ...this._course(),
-    drive_folder_id: this.folders()[this._course().id] ?? this._course().drive_folder_id,
-  }));
+  /**
+   * Her course, or null before she has made one.
+   *
+   * Nullable on purpose rather than standing in with a placeholder: a
+   * placeholder course would be shown, written to and reasoned about exactly
+   * as a real one, and every screen would have to know which it was holding
+   * without being told. Null makes "there is no course yet" a state the
+   * compiler asks about at each of the fourteen places that care.
+   *
+   * Folder ids come from the persisted map when set, else from the record.
+   */
+  readonly course = computed<Course | null>(() => {
+    const course = this._course();
+    if (!course) return null;
+    return { ...course, drive_folder_id: this.folders()[course.id] ?? course.drive_folder_id };
+  });
 
-  readonly assignment = computed<Assignment>(() => ({
-    ...this._assignment(),
-    drive_folder_id: this.folders()[this._assignment().id] ?? this._assignment().drive_folder_id,
-  }));
+  readonly assignment = computed<Assignment | null>(() => {
+    const assignment = this._assignment();
+    if (!assignment) return null;
+    return {
+      ...assignment,
+      drive_folder_id: this.folders()[assignment.id] ?? assignment.drive_folder_id,
+    };
+  });
+
+  /** True once she has a course. Everything else waits on it. */
+  readonly hasCourse = computed(() => !!this._course());
+  /** True once there is an assignment for work to attach to. */
+  readonly hasAssignment = computed(() => !!this._assignment());
+
+  /**
+   * Student Drive accounts she has confirmed.
+   *
+   * The whole input to the shared-with-me query: Margin asks Drive for
+   * documents owned by these addresses and by nobody else, so an ordinary sync
+   * never enumerates the rest of what has been shared with her. It is also
+   * what makes a sync possible with no folder chosen at all.
+   */
+  readonly confirmedDriveAccounts = computed(() =>
+    this._students()
+      .map((s) => s.drive_account_email?.trim().toLowerCase())
+      .filter((email): email is string => !!email),
+  );
 
   /** The folder the sync actually watches: the assignment's, else the course's. */
   readonly watchedFolderId = computed(
-    () => this.assignment().drive_folder_id ?? this.course().drive_folder_id,
+    () => this.assignment()?.drive_folder_id ?? this.course()?.drive_folder_id ?? null,
   );
 
   readonly liveAnnotations = computed(() =>
@@ -119,35 +231,18 @@ export class DataStore {
   async hydrate(): Promise<void> {
     let snapshot: PersistedSnapshot;
     try {
-      snapshot = await this.repository.load();
+      snapshot = await this.loadPastTokenSkew();
     } catch (error) {
-      this._persistError.set(errorText(error));
+      // Nothing loaded means the screens are about to show seeded records.
+      // She has to be told, or she reads a demonstration course as her own.
+      this.noteFailure('load', error);
       this._hydrated.set(true);
       return;
     }
 
-    this._submissions.update((list) => mergeById(list, snapshot.submissions));
-    this._rounds.update((list) => mergeById(list, snapshot.rounds));
-
-    // A round that has been written to owns its comments outright: whatever is
-    // persisted for it is the whole set. Merging by id instead would make a
-    // seeded comment un-removable — a drafted batch that replaced them would
-    // come back alongside them on the next load, and a discarded batch would
-    // resurrect them.
-    const rewrittenRounds = new Set(snapshot.rounds.map((r) => r.id));
-    this._annotations.update((list) =>
-      mergeById(
-        list.filter((a) => !rewrittenRounds.has(a.round_id)),
-        snapshot.annotations,
-      ),
-    );
-
-    // Merged by id, not round-authoritative: a decision is hers and stands on
-    // its own, so a persisted log never removes a seeded one.
-    this._feedbackLogs.update((list) => mergeById(list, snapshot.feedbackLogs));
-    this._styleExamples.update((list) => mergeById(list, snapshot.styleExamples));
-
-    this.folders.set(snapshot.driveFolders);
+    this.applySnapshot(snapshot);
+    // Reached only when the load came back — the catch above returns early.
+    this._loadedHers.set(true);
 
     // "Last synced" is not its own record — it is simply the most recent one
     // stamped on a submission, so it comes back with them.
@@ -161,8 +256,217 @@ export class DataStore {
     this._hydrated.set(true);
   }
 
+  /**
+   * Puts a loaded set of records on screen.
+   *
+   * Extracted from `hydrate` because it is also how a test installs fixtures:
+   * the demonstration records that used to be the app's starting state are now
+   * a fixture module nothing in `src/app` imports, and a spec that wants them
+   * hands them through this same path rather than through a door of its own.
+   * One code path, so a test cannot pass against rules the app does not use.
+   */
+  applySnapshot(snapshot: PersistedSnapshot): void {
+    if (snapshot.courses.length) this._course.set(snapshot.courses[0]);
+    if (snapshot.assignments.length) this._assignment.set(snapshot.assignments[0]);
+    if (snapshot.students.length) this._students.set(snapshot.students);
+    if (snapshot.courseRules.length) this._courseRules.set(snapshot.courseRules);
+    if (snapshot.courseMaterials.length) this._courseMaterials.set(snapshot.courseMaterials);
+
+    this._submissions.update((list) => mergeById(list, snapshot.submissions));
+    this._rounds.update((list) => mergeById(list, snapshot.rounds));
+
+    /**
+     * A round that has been written to owns its comments outright: whatever is
+     * persisted for it is the whole set. Merging by id instead would make a
+     * comment un-removable — a drafted batch that replaced them would come
+     * back alongside them on the next load, and a discarded batch would
+     * resurrect them.
+     */
+    const rewrittenRounds = new Set(snapshot.rounds.map((r) => r.id));
+    this._annotations.update((list) =>
+      mergeById(
+        list.filter((a) => !rewrittenRounds.has(a.round_id)),
+        snapshot.annotations,
+      ),
+    );
+
+    // Merged by id: a decision she made stands on its own.
+    this._feedbackLogs.update((list) => mergeById(list, snapshot.feedbackLogs));
+    this._styleExamples.update((list) => mergeById(list, snapshot.styleExamples));
+
+    // The grading form's headings come from her own past years when there are
+    // any; `buildCategories` falls back to the starting set only for a course
+    // with no history at all.
+    const courseId = this._course()?.id;
+    this._gradingCategories.set(
+      courseId ? buildCategories(courseId, snapshot.gradingCategories) : [],
+    );
+    this._gradingEntries.set(snapshot.gradingEntries);
+    this._studentForms.set(snapshot.studentForms);
+    this._studentEmails.set(snapshot.studentEmails);
+    this._reliabilityChecks.set(snapshot.reliabilityChecks);
+
+    this.folders.set(snapshot.driveFolders);
+  }
+
+  /**
+   * Loads, retrying once past a token that is momentarily too new.
+   *
+   * `JWT issued at future` is not a fault in her account or her clock — it is
+   * a race inside Supabase, between the service that mints the token and the
+   * one that validates it. A fraction of a second apart is enough, and it
+   * clears immediately.
+   *
+   * Worth retrying rather than reporting because of what giving up costs:
+   * hydration falls back to the seeded demonstration course, every screen then
+   * shows records that are not hers, and the first thing she touches is
+   * refused by RLS for an unrelated-looking reason. One retry avoids the whole
+   * cascade; a second failure is reported, because then it is not a race.
+   */
+  private async loadPastTokenSkew(): Promise<PersistedSnapshot> {
+    try {
+      return await this.repository.load();
+    } catch (error) {
+      if (!isTokenTooNew(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, TOKEN_SKEW_RETRY_MS));
+      return this.repository.load();
+    }
+  }
+
+  // -- the things she makes -------------------------------------------------
+
+  /**
+   * Her course. The first thing that has to exist.
+   *
+   * Written immediately rather than held in memory and saved later, because a
+   * course that exists only on screen is the exact shape of bug this app spent
+   * a phase chasing: everything else carries a foreign key to it, and RLS
+   * checks like `owns_submission` are `exists` clauses, so a parent that was
+   * never written reads as a permissions error rather than as an absence.
+   *
+   * Refused when nobody is signed in. `courses_owner` compares `teacher_id` to
+   * `auth.uid()`, so a course minted without her id is refused by Postgres —
+   * and it would sit on screen looking saved, because writes are
+   * fire-and-forget.
+   */
+  createCourse(name: string, year: string): Course | null {
+    const teacherId = this.supabase.teacherId;
+    if (!teacherId) return null;
+
+    const title = name.trim();
+    const term = year.trim();
+    if (!title || !term) return null;
+
+    const now = new Date().toISOString();
+    const course: Course = {
+      id: newId(),
+      teacher_id: teacherId,
+      name: title,
+      year: term,
+      description: null,
+      drive_course_folder_id: null,
+      drive_folder_id: null,
+      archived: false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._course.set(course);
+    this.persist(() => this.repository.saveCourse(course));
+    return course;
+  }
+
+  /** The assignment work attaches to. One per course, for now. */
+  createAssignment(title: string): Assignment | null {
+    const course = this._course();
+    const name = title.trim();
+    if (!course || !name) return null;
+
+    const now = new Date().toISOString();
+    const assignment: Assignment = {
+      id: newId(),
+      course_id: course.id,
+      title: name,
+      brief: null,
+      due_at: null,
+      drive_folder_id: null,
+      expected_min_words: null,
+      archived: false,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._assignment.set(assignment);
+    this.persist(() => this.repository.saveAssignment(assignment));
+    return assignment;
+  }
+
+  /**
+   * A student on the roster.
+   *
+   * The roster is what work is attributed to — by the Drive account she
+   * confirms, or failing that by the file name — so it has to be possible to
+   * put a real girl on it. It used to exist only because the app shipped with
+   * a fictional class already in it.
+   */
+  addStudent(fullName: string, email?: string): Student | null {
+    const teacherId = this.supabase.teacherId;
+    const name = fullName.trim();
+    if (!teacherId || !name) return null;
+
+    const now = new Date().toISOString();
+    const student: Student = {
+      id: newId(),
+      teacher_id: teacherId,
+      full_name: name,
+      email: email?.trim() || null,
+      class_name: null,
+      drive_account_email: null,
+      notes: null,
+      active: true,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._students.update((list) => [...list, student]);
+    this.persist(() => this.repository.saveStudent(student));
+    return student;
+  }
+
+  /**
+   * Drops everything loaded and returns to empty.
+   *
+   * Called on sign-out. Without it the next person to sign in on this machine
+   * would see the previous teacher's submissions until hydration finished
+   * replacing them — and would see hers permanently for any record the new
+   * account has none of.
+   */
+  reset(): void {
+    this._course.set(null);
+    this._assignment.set(null);
+    this._submissions.set([]);
+    this._rounds.set([]);
+    this._students.set([]);
+    this._courseRules.set([]);
+    this._courseMaterials.set([]);
+    this._gradingCategories.set([]);
+    this._gradingEntries.set([]);
+    this._studentForms.set([]);
+    this._studentEmails.set([]);
+    this._reliabilityChecks.set([]);
+    this._annotations.set([]);
+    this._feedbackLogs.set([]);
+    this._styleExamples.set([]);
+    this.folders.set({});
+    this._sync.set(IDLE);
+    this._hydrated.set(false);
+    this._loadedHers.set(false);
+    this._persistError.set(null);
+    this.failedWrites = [];
+  }
+
   studentName(studentId: UUID): string {
-    return this.students.find((s) => s.id === studentId)?.full_name ?? '—';
+    return this._students().find((s) => s.id === studentId)?.full_name ?? '—';
   }
 
   submission(id: UUID | null | undefined): Submission | undefined {
@@ -172,6 +476,33 @@ export class DataStore {
 
   submissionByDriveFile(fileId: string): Submission | undefined {
     return this._submissions().find((s) => s.drive_file_id === fileId);
+  }
+
+  /**
+   * The one submission a student can have on an assignment.
+   *
+   * `submissions` is unique on `(assignment_id, student_id)` — that constraint
+   * is the domain rule, not an implementation detail, and anything that writes
+   * a submission has to resolve against it. The sync used to look a file up by
+   * `drive_file_id` alone, so a student who already had a row with no file on
+   * it got a second insert that Postgres refused outright.
+   */
+  submissionFor(assignmentId: UUID, studentId: UUID): Submission | undefined {
+    return this._submissions().find(
+      (s) => s.assignment_id === assignmentId && s.student_id === studentId,
+    );
+  }
+
+  /** A specific round, for writers that must not mint a rival to an existing one. */
+  round(submissionId: UUID, roundNumber: number): SubmissionRound | undefined {
+    return this._rounds().find(
+      (r) => r.submission_id === submissionId && r.round_number === roundNumber,
+    );
+  }
+
+  /** True when anything is anchored to this round — so its text must not move. */
+  roundIsAnnotated(roundId: UUID): boolean {
+    return this._annotations().some((a) => a.round_id === roundId);
   }
 
   annotation(id: UUID): Annotation | undefined {
@@ -184,10 +515,18 @@ export class DataStore {
       .sort((a, b) => b.round_number - a.round_number)[0];
   }
 
+  /**
+   * Comments still waiting for a decision on the round she would open.
+   *
+   * The round rather than the submission, so the dashboard and the list agree
+   * with the review screen. Counting every round's leftovers promised her work
+   * that opening the submission would not show.
+   */
   annotationsPending(submissionId: UUID): number {
-    return this._annotations().filter(
-      (a) => a.submission_id === submissionId && a.status === 'pending',
-    ).length;
+    const roundId = this.roundFor(submissionId)?.id;
+    if (!roundId) return 0;
+    return this._annotations().filter((a) => a.round_id === roundId && a.status === 'pending')
+      .length;
   }
 
   // -- annotation review ----------------------------------------------------
@@ -209,6 +548,8 @@ export class DataStore {
     // it teaches nothing and is deliberately not logged.
     if (status === 'accepted') this.logDecision(before, 'accepted', before.body, null);
     if (status === 'dismissed') this.logDecision(before, 'dismissed', null, null);
+
+    this.rebuildGradingForm(before.submission_id);
   }
 
   /** The teacher rewrote a comment: her wording wins, the AI's is kept. */
@@ -236,6 +577,256 @@ export class DataStore {
       text,
       action === 'edited' ? describeEdit(before.ai_body ?? '', text) : null,
     );
+
+    this.rebuildGradingForm(before.submission_id);
+  }
+
+  /** The year-end form for one student, generated and then hers to edit. */
+  saveStudentForm(form: StudentGradingForm) {
+    this._studentForms.update((list) => [...list.filter((f) => f.id !== form.id), form]);
+    this.persist(() => this.repository.saveStudentForm(form));
+  }
+
+  // -- the message to the student -------------------------------------------
+
+  /** The drafted message for a submission, if one has been written. */
+  studentEmail(submissionId: UUID): StudentEmail | undefined {
+    return this._studentEmails().find((e) => e.submission_id === submissionId);
+  }
+
+  /** A freshly drafted message, replacing any earlier draft for the round. */
+  saveStudentEmail(email: StudentEmail) {
+    this.writeEmail(email);
+  }
+
+  /**
+   * She picked one of the options.
+   *
+   * The chosen text becomes both the working copy and `ai_body` — the baseline
+   * every later edit is measured against. Picking is not itself a decision
+   * worth logging: what she does to the text afterwards is.
+   */
+  chooseEmailVariant(emailId: UUID, key: string) {
+    const email = this._studentEmails().find((e) => e.id === emailId);
+    const variant = email?.variants.find((v) => v.key === key);
+    if (!email || !variant || email.selected_variant_key === key) return;
+
+    this.writeEmail({
+      ...email,
+      selected_variant_key: key,
+      subject: variant.subject,
+      body: variant.body,
+      ai_body: variant.body,
+      edited_by_teacher: false,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Her rewrite of the drafted message.
+   *
+   * Logged as it happens rather than at the point of sending, so the pair
+   * survives even if she never sends this one — and superseded in place, so a
+   * dozen small saves stay one record of where the message ended up.
+   */
+  editStudentEmail(emailId: UUID, patch: { subject?: string; body?: string }) {
+    const email = this._studentEmails().find((e) => e.id === emailId);
+    if (!email) return;
+
+    const subject = patch.subject?.trim() ?? email.subject;
+    const body = patch.body?.trim() ?? email.body;
+    if (subject === email.subject && body === email.body) return;
+
+    const next: StudentEmail = {
+      ...email,
+      subject,
+      body,
+      edited_by_teacher: body !== email.ai_body,
+      updated_at: new Date().toISOString(),
+    };
+    this.writeEmail(next);
+    this.logEmailDecision(next);
+  }
+
+  /**
+   * She confirmed the message went out.
+   *
+   * Confirmed, not assumed: Margin hands the message to her own mail client and
+   * has no way of knowing what happened next. Marking it sent because a button
+   * was pressed would be the same fiction the review screen used to tell.
+   */
+  markStudentEmailSent(emailId: UUID) {
+    const email = this._studentEmails().find((e) => e.id === emailId);
+    if (!email || email.status === 'sent') return;
+
+    const now = new Date().toISOString();
+    const next: StudentEmail = {
+      ...email,
+      status: 'sent',
+      sent_at: now,
+      error_message: null,
+      updated_at: now,
+    };
+    this.writeEmail(next);
+    // Supersedes the edit log with the text she actually stood behind.
+    this.logEmailDecision(next);
+    this.setSubmissionStatus(email.submission_id, 'notes_sent');
+  }
+
+  /** The authenticity observations for one round, replaced when re-run. */
+  saveReliabilityCheck(check: ReliabilityCheck) {
+    this._reliabilityChecks.update((list) => [...list.filter((c) => c.id !== check.id), check]);
+    this.persist(() => this.repository.saveReliabilityCheck(check));
+  }
+
+  reliabilityCheck(submissionId: UUID, roundId: UUID | null): ReliabilityCheck | undefined {
+    return this._reliabilityChecks().find(
+      (c) => c.submission_id === submissionId && c.round_id === roundId,
+    );
+  }
+
+  /**
+   * Accounts seen on submissions for students whose account is not yet known.
+   *
+   * The bridge between the two matching signals. A file matched by name still
+   * carries the address it was submitted from, and once the teacher confirms
+   * that address belongs to that girl, every later file from her is matched on
+   * the account instead — which cannot be typed wrong.
+   *
+   * Deliberately a suggestion rather than an inference: the app has just
+   * guessed at this student from a filename, and promoting that guess into a
+   * permanent identity without asking would make one bad match permanent.
+   */
+  observedAccounts(): { student: Student; email: string; submissionId: UUID }[] {
+    // Nothing to confirm against demonstration records: the write would be
+    // refused, and offering it invites her to hit an RLS error for a row that
+    // was never hers.
+    if (!this._loadedHers()) return [];
+
+    const seen = new Map<UUID, { student: Student; email: string; submissionId: UUID }>();
+
+    for (const submission of this._submissions()) {
+      const email = submission.drive_owner_email?.trim();
+      if (!email) continue;
+
+      const student = this._students().find((s) => s.id === submission.student_id);
+      // Nothing to confirm once she has an account on file.
+      if (!student || student.drive_account_email) continue;
+      if (seen.has(student.id)) continue;
+
+      seen.set(student.id, { student, email, submissionId: submission.id });
+    }
+
+    return [...seen.values()];
+  }
+
+  /**
+   * The teacher confirms an address belongs to a student.
+   *
+   * Refuses a student who is not hers. `students_owner` compares `teacher_id`
+   * to `auth.uid()`, and a seeded student carries the demonstration teacher's
+   * id — so writing one is refused every time, and the refusal reads as a
+   * permissions problem rather than as "these are not your records".
+   */
+  setStudentDriveAccount(studentId: UUID, email: string) {
+    const teacherId = this.supabase.teacherId;
+    const student = this._students().find((s) => s.id === studentId);
+    if (!student || (teacherId && student.teacher_id !== teacherId)) return;
+
+    const address = email.trim().toLowerCase() || null;
+    let written: Student | undefined;
+
+    this._students.update((list) =>
+      list.map((s) => {
+        if (s.id !== studentId || s.drive_account_email === address) return s;
+        written = { ...s, drive_account_email: address, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveStudent(written!));
+  }
+
+  /** Her address for the student, filled in when the roster had none. */
+  setStudentEmailAddress(studentId: UUID, address: string) {
+    const email = address.trim() || null;
+    let written: Student | undefined;
+    this._students.update((list) =>
+      list.map((s) => {
+        if (s.id !== studentId || s.email === email) return s;
+        written = { ...s, email, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveStudent(written!));
+  }
+
+  private writeEmail(email: StudentEmail) {
+    this._studentEmails.update((list) => [...list.filter((e) => e.id !== email.id), email]);
+    this.persist(() => this.repository.saveStudentEmail(email));
+  }
+
+  /**
+   * What she made of the drafted message.
+   *
+   * The same record the annotation loop writes, with the same one-per-target
+   * rule — so the email path teaches the model through exactly the channel the
+   * comments already do, and the next draft is conditioned on both.
+   */
+  private logEmailDecision(email: StudentEmail) {
+    if (!email.ai_body) return;
+
+    const edited = email.body.trim() !== email.ai_body.trim();
+    const label = email.variants.find((v) => v.key === email.selected_variant_key)?.label;
+
+    this.logLearning({
+      targetType: 'student_email',
+      targetId: email.id,
+      action: edited ? 'edited' : 'accepted',
+      aiText: email.ai_body,
+      finalText: email.body,
+      changeNote: edited ? describeEdit(email.ai_body, email.body) : null,
+      // Which register she asked for. For a message there is no student
+      // sentence to quote, and the option she started from is what makes the
+      // pair readable a year later.
+      contextExcerpt: label ? `ניסוח: ${label}` : null,
+    });
+  }
+
+  /**
+   * Rebuilds one submission's grading form from its comments.
+   *
+   * Recomputed rather than appended to, so the form follows her decisions in
+   * both directions: a comment she dismisses after resolving it leaves the
+   * form, and one she reinstates comes back. Lines she wrote herself are not
+   * derived from anything and are carried through untouched.
+   */
+  private rebuildGradingForm(submissionId: UUID) {
+    const categories = this._gradingCategories();
+    if (!categories.length) return;
+
+    // Each comment is categorised against the round it was written on. Using
+    // the current round for all of them put every earlier-round comment into
+    // the fallback heading, on a form that still looked complete.
+    const blocksFor = (roundId: UUID) =>
+      this._rounds().find((r) => r.id === roundId)?.document_blocks ?? [];
+    const mine = this._gradingEntries().filter(
+      (e) => e.submission_id === submissionId && e.origin === 'teacher',
+    );
+
+    const next = buildEntries(submissionId, this._annotations(), blocksFor, categories, mine);
+    const nextIds = new Set(next.map((e) => e.id));
+
+    const removed = this._gradingEntries()
+      .filter((e) => e.submission_id === submissionId && !nextIds.has(e.id))
+      .map((e) => e.id);
+
+    this._gradingEntries.update((list) => [
+      ...list.filter((e) => e.submission_id !== submissionId),
+      ...next,
+    ]);
+
+    if (removed.length) this.persist(() => this.repository.deleteGradingEntries(removed));
+    for (const entry of next) this.persist(() => this.repository.saveGradingEntry(entry));
   }
 
   /**
@@ -256,23 +847,65 @@ export class DataStore {
     // comment she wrote herself against.
     if (annotation.origin !== 'ai' || !annotation.ai_body) return;
 
+    this.logLearning({
+      targetType: 'annotation',
+      targetId: annotation.id,
+      action,
+      aiText: annotation.ai_body,
+      finalText,
+      changeNote,
+      // The student's own words, so the pair stays interpretable a year later
+      // and the model can see what kind of text drew which response.
+      contextExcerpt: annotation.anchor.quote,
+    });
+  }
+
+  /**
+   * Writes one decision, whatever it was about.
+   *
+   * Every kind of drafted text goes through here, and the supersede rule is
+   * the reason it is one function rather than one per screen: keyed on
+   * (`target_type`, `target_id`), so a second thought about the same comment —
+   * or the same message — replaces the first instead of stacking beside it.
+   * Two implementations of that rule would drift, and the drift would only
+   * show up a year later as a model learning phrasings she had abandoned.
+   */
+  private logLearning(input: {
+    targetType: LearningTargetType;
+    targetId: UUID;
+    action: LearningAction;
+    aiText: string;
+    finalText: string | null;
+    changeNote: string | null;
+    contextExcerpt: string | null;
+  }) {
+    /**
+     * Nothing to attribute the decision to, so it is not recorded.
+     *
+     * `learning_feedback_log` carries her id and her course, and both are
+     * checked by RLS. A log minted with a placeholder for either would be
+     * refused by Postgres — and because writes are fire-and-forget, it would
+     * look on screen exactly like a decision that had been remembered.
+     */
+    const teacherId = this.supabase.teacherId;
+    const course = this._course();
+    if (!teacherId || !course) return;
+
     const existing = this._feedbackLogs().find(
-      (l) => l.target_type === 'annotation' && l.target_id === annotation.id,
+      (l) => l.target_type === input.targetType && l.target_id === input.targetId,
     );
 
     const log: LearningFeedbackLog = {
       id: existing?.id ?? newId(),
-      teacher_id: this.supabase.teacherId ?? seed.TEACHER_ID,
-      course_id: this._course().id,
-      target_type: 'annotation',
-      target_id: annotation.id,
-      action,
-      ai_text: annotation.ai_body,
-      final_text: finalText,
-      change_note: changeNote,
-      // The student's own words, so the pair stays interpretable a year later
-      // and the model can see what kind of text drew which response.
-      context_excerpt: annotation.anchor.quote,
+      teacher_id: teacherId,
+      course_id: course.id,
+      target_type: input.targetType,
+      target_id: input.targetId,
+      action: input.action,
+      ai_text: input.aiText,
+      final_text: input.finalText,
+      change_note: input.changeNote,
+      context_excerpt: input.contextExcerpt,
       created_at: new Date().toISOString(),
     };
 
@@ -282,6 +915,61 @@ export class DataStore {
 
   setSubmissionStatus(id: UUID, status: SubmissionStatus) {
     this.updateSubmission(id, { status });
+  }
+
+  /**
+   * Records that a comment reached the student's document.
+   *
+   * Written the instant Drive confirms it, before anything else can fail. If
+   * the database write behind this one fails, the retry re-saves the record it
+   * already holds rather than posting a second comment — which is why the
+   * signal is updated first and the id comes from Drive rather than from us.
+   */
+  markAnnotationPosted(id: UUID, commentId: string) {
+    const now = new Date().toISOString();
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      posted_comment_id: commentId,
+      posted_at: now,
+      updated_at: now,
+    }));
+  }
+
+  /**
+   * Records the marker number placed in the document for a comment.
+   *
+   * Written the moment Drive accepts the insertion. Non-null is what makes a
+   * re-send leave that glyph alone: the alternative is a second number beside
+   * the same sentence, or the same sentence renumbered between rounds.
+   */
+  markAnnotationNumbered(id: UUID, markerNumber: number) {
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      marker_number: markerNumber,
+      updated_at: new Date().toISOString(),
+    }));
+  }
+
+  /** Forgets a marker, once it has been taken out of the document. */
+  clearAnnotationMarker(id: UUID) {
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      marker_number: null,
+      updated_at: new Date().toISOString(),
+    }));
+  }
+
+  /**
+   * Runs an outward action with the same failure handling as a database write.
+   *
+   * Posting a comment to Drive is a write like any other from the teacher's
+   * side — she pressed a button and expects it to have happened — so it earns
+   * the same banner and the same working "try again" rather than a private
+   * error on one screen. The queued thunk must be safe to run twice; the
+   * comment poster's is, because it re-checks `posted_comment_id` first.
+   */
+  queueWrite(work: () => Promise<void>) {
+    this.persist(work);
   }
 
   // -- Drive configuration --------------------------------------------------
@@ -322,20 +1010,33 @@ export class DataStore {
   }
 
   /**
-   * Swaps out every annotation on a round.
+   * Swaps out a round's *drafted, undecided* comments.
    *
-   * Used when a drafted batch lands, and when one is thrown away. The removed
-   * records are deleted rather than marked dismissed — a batch the teacher
-   * never accepted is not a decision she made, and keeping it would pollute
-   * the learning signal.
+   * Deliberately narrow. It used to clear the round outright, which meant a
+   * second pass destroyed every decision she had already made on the first —
+   * accepted, rewritten and dismissed alike — with no warning and nothing to
+   * undo. What a regeneration may replace is only what she has not yet looked
+   * at: comments the model drafted that are still `pending`.
+   *
+   * Anything she wrote herself, and anything she has decided, survives. So an
+   * empty list is no longer a way to wipe the round; it removes the untouched
+   * drafts and leaves her work standing.
+   *
+   * One consequence, deliberately left alone: a new pass can draft a comment
+   * on words she has already decided about, and both will be listed. Dropping
+   * the overlap would mean silently discarding model output, which is a
+   * judgement about her review rather than a mechanical de-duplication.
    */
-  replaceRoundAnnotations(roundId: UUID, annotations: readonly Annotation[]) {
+  replaceDraftedAnnotations(roundId: UUID, annotations: readonly Annotation[]) {
+    const isUntouchedDraft = (a: Annotation) =>
+      a.round_id === roundId && a.origin === 'ai' && a.status === 'pending';
+
     const removed = this._annotations()
-      .filter((a) => a.round_id === roundId)
+      .filter(isUntouchedDraft)
       .map((a) => a.id);
 
     this._annotations.update((list) => [
-      ...list.filter((a) => a.round_id !== roundId),
+      ...list.filter((a) => !isUntouchedDraft(a)),
       ...annotations,
     ]);
 
@@ -345,8 +1046,16 @@ export class DataStore {
     }
   }
 
+  /**
+   * Adds a round, or replaces the one already holding that id.
+   *
+   * Appending blindly would put two rows for the same round in the signal when
+   * the sync resolves an existing round rather than minting a rival id — the
+   * database upserts on the primary key and would have been right while the
+   * screen showed a duplicate.
+   */
   addRound(round: SubmissionRound) {
-    this._rounds.update((list) => [...list, round]);
+    this._rounds.update((list) => [...list.filter((r) => r.id !== round.id), round]);
     this.persist(() => this.repository.saveRound(round));
   }
 
@@ -375,9 +1084,39 @@ export class DataStore {
     this.pending = [];
   }
 
+  // -- failed writes --------------------------------------------------------
+
+  /**
+   * Re-runs everything that failed to save.
+   *
+   * The point of holding the failed writes rather than only their error: a
+   * banner she can only dismiss tells her the work is lost, which is a worse
+   * outcome than the one this exists to prevent. Reconnecting and pressing
+   * "try again" has to actually save the afternoon's review.
+   */
+  async retryFailedWrites(): Promise<boolean> {
+    const queued = this.failedWrites;
+    this.failedWrites = [];
+    this._persistError.set(null);
+
+    for (const write of queued) this.persist(write);
+    await this.settled();
+
+    return this._persistError() === null;
+  }
+
+  /** She has read it. A further failure raises it again. */
+  dismissPersistError() {
+    this._persistError.set(null);
+  }
+
+  /** How many changes are sitting unsaved. */
+  readonly unsavedCount = () => this.failedWrites.length;
+
   // -- plumbing -------------------------------------------------------------
 
   private pending: Promise<unknown>[] = [];
+  private failedWrites: (() => Promise<void>)[] = [];
 
   private writeAnnotation(id: UUID, apply: (a: Annotation) => Annotation) {
     let written: Annotation | undefined;
@@ -393,9 +1132,29 @@ export class DataStore {
 
   private persist(write: () => Promise<void>) {
     const promise = write().catch((error: unknown) => {
-      this._persistError.set(errorText(error));
+      // Kept, not dropped: this is the change she just made on screen, and it
+      // exists nowhere else once this promise settles.
+      this.failedWrites.push(write);
+      this.noteFailure('save', error);
     });
     this.pending.push(promise);
+  }
+
+  private noteFailure(kind: PersistFailure['kind'], error: unknown) {
+    const detail = errorText(error);
+
+    this._persistError.update((current) => {
+      const details = current?.details ?? [];
+      return {
+        // A failed load is the graver of the two and keeps the wording.
+        kind: current?.kind === 'load' ? 'load' : kind,
+        count: (current?.count ?? 0) + 1,
+        signedOut: current?.signedOut || detail.includes(NOT_SIGNED_IN),
+        // Distinct, and capped: three tables failing the same way is the
+        // useful signal, a hundred repeats of one is noise.
+        details: details.includes(detail) ? details : [...details, detail].slice(-4),
+      };
+    });
   }
 }
 
@@ -407,6 +1166,39 @@ function mergeById<T extends { id: string }>(base: T[], overrides: T[]): T[] {
   return [...byId.values()];
 }
 
+/**
+ * What the banner shows for one failed write.
+ *
+ * Some errors already know how to say themselves to a teacher — a Drive
+ * refusal can tell a permission she never granted apart from a folder she
+ * cannot see, and that wording exists precisely because the raw one is a wall
+ * of Google JSON. Lead with it and keep the raw line after, so the banner is
+ * readable without becoming less useful to whoever debugs it.
+ *
+ * Duck-typed rather than imported: the store has no business depending on the
+ * Drive layer, and anything that carries teacher-facing wording qualifies.
+ */
+/** How long to wait out a token the validator thinks is from the future. */
+const TOKEN_SKEW_RETRY_MS = 1500;
+
+/**
+ * A token rejected for being fractionally too new.
+ *
+ * Matched on the wording because there is no code for it: PostgREST answers
+ * with a message and nothing else. Deliberately narrow — an expired token, a
+ * malformed one and a missing one are all genuinely wrong and must not be
+ * retried into looking fine.
+ */
+function isTokenTooNew(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return /issued at future|iat.*future/i.test(text);
+}
+
 function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (!(error instanceof Error)) return String(error);
+
+  const hebrew = (error as { hebrew?: unknown }).hebrew;
+  return typeof hebrew === 'string' && hebrew.trim()
+    ? `${hebrew} — ${error.message}`
+    : error.message;
 }

@@ -1,0 +1,83 @@
+<div class="page">
+  <app-page-header title="טופס הערכה" [subtitle]="subtitle()" />
+
+  @if (startingHeadings()) {
+    <!--
+      Only while the headings are the default set. Once a year's form exists,
+      `buildCategories` carries her own headings over and this disappears.
+    -->
+    <p class="starting-note">
+      הכותרות כאן הן נקודת התחלה — עוד אין טפסים קודמים שלך ללמוד מהם. משנה שנייה ואילך הטופס ייבנה
+      מהכותרות שלך.
+    </p>
+  }
+
+  @if (submissions().length > 1) {
+    <div class="picker" role="tablist" aria-label="בחירת עבודה">
+      @for (s of submissions(); track s.id) {
+        <button
+          type="button"
+          class="pick"
+          role="tab"
+          [class.is-active]="s.id === submissionId()"
+          [attr.aria-selected]="s.id === submissionId()"
+          (click)="select(s.id)"
+        >
+          <span class="pick-name">{{ s.name }}</span>
+          @if (s.lines) {
+            <span class="pick-count">{{ s.lines }}</span>
+          }
+        </button>
+      }
+    </div>
+  }
+
+  @if (total() === 0) {
+    <div class="card empty">
+      <p class="hint">
+        כל הערה שתאשרי, תערכי או תסמני כטופלה נכנסת לכאן מעצמה, לקטגוריה שלה. אין מה למלא ידנית.
+      </p>
+      <a class="btn btn-primary" routerLink="/submissions">לרשימת העבודות</a>
+    </div>
+  } @else {
+    <div class="stack-lg">
+      @for (group of groups(); track group.id) {
+        <section class="group">
+          <div class="group-head">
+            <h2 class="group-name">{{ group.name }}</h2>
+            <span class="group-count">
+              {{ group.entries.length === 0 ? 'לא עלה' : group.entries.length }}
+            </span>
+          </div>
+          @if (group.description) {
+            <p class="group-desc">{{ group.description }}</p>
+          }
+
+          @if (group.entries.length === 0) {
+            <!-- Kept on the form: nothing raised here is itself worth seeing. -->
+            <p class="none">לא סימנת כאן שום דבר.</p>
+          } @else {
+            <ul class="lines">
+              @for (entry of group.entries; track entry.id) {
+                <li class="line" [class]="entry.kindClass">
+                  @if (entry.quote) {
+                    <div class="line-quote">״<app-bidi-text [value]="entry.quote" />״</div>
+                  }
+                  <div class="line-body"><app-bidi-text [value]="entry.body" /></div>
+                  <div class="line-meta">
+                    @if (entry.kindLabel) {
+                      <span class="tag">{{ entry.kindLabel }}</span>
+                    }
+                    @if (entry.fromTeacher) {
+                      <span class="mine">בניסוח שלך</span>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </section>
+      }
+    </div>
+  }
+</div>

@@ -21,15 +21,55 @@ The entire interface is Hebrew and right-to-left.
 | 2     | Core screens (dashboard, submissions, review, courses, style) | ✅ done     |
 | 3     | Google Drive integration                                      | ✅ done     |
 | 4     | AI feedback engine, learning loop, grading forms, email       | in progress |
-| 5     | Reliability / authenticity module                             | —           |
+| 5     | Reliability / authenticity module                             | ✅ done     |
 
-Phase 4 so far: **AI-drafted annotations** (below). The learning loop, grading
-forms and student email are still to come.
+Phase 4: **AI-drafted annotations**, the **learning loop** that conditions them
+on her own edits, the **grading forms**, the **student email**, and **posting
+her comments onto the student's document** (all below).
 
-`DataStore` starts out holding the seeded records in
-`src/app/core/mock/seed-data.ts`, layers anything durable over them on boot,
-and writes every change straight back out. Synced records and seeded ones are
-the same model types, so the screens can't tell them apart.
+Phase 5 ships **four** of the seven authenticity flags in the data model, and
+deliberately not the other three. `bulk_paste`, `few_revisions` and any
+editing-session analysis are refused outright — not hidden behind a setting,
+not with softer wording. Drive reports consolidated revisions rather than
+sessions, so a paper written honestly over three weeks is indistinguishable
+from one pasted in at midnight, and there is no phrasing that makes that
+comparison fair when a student carries the cost of being wrong. What ships
+rests on fields Drive reports accurately — who created the file, who owns it,
+which accounts edited it — plus text similarity against work submitted here.
+
+The panel states which checks it did not perform and why, because an
+authenticity report that lists only its findings reads as a clean bill of
+health. See `src/app/core/reliability/checks.ts`.
+
+### The app starts empty
+
+`DataStore` holds nothing until it is filled — by her, or by a sync. There is
+no demonstration course, no example roster and no marked-up sample papers.
+
+That is a deliberate reversal. Margin used to ship with a fictional course and
+class, and provision copies of them into every account on first sign-in, so
+that the screens had something to show and the foreign keys had something to
+point at. It read convincingly and it was wrong twice over: the records were
+indistinguishable from her own work while being nobody's, and the ones that
+lived only as constants were refused by every key that later pointed at them —
+which RLS reports as a permissions error rather than an absence, because
+`owns_submission` and its siblings are `exists` clauses. That cost four
+separate debugging sessions.
+
+So `course` and `assignment` are **nullable**, and the compiler asks about it
+at each of the fourteen places that care. `courses.html` is where the first
+course, the first assignment and the roster are made, and every one of them is
+written the instant it is made — never held in memory to be saved later.
+
+The fixtures still exist for tests, in `src/app/core/mock/seed-data.ts`.
+Nothing under `src/app` imports them: a spec that wants them calls
+`seedStore()`, which installs them through `applySnapshot` — the same path a
+real load takes, so a test cannot pass against merge rules the app does not
+use.
+
+An account that signed in before this change still holds the provisioned rows.
+`supabase/tools/remove-demo-records.sql` removes them, and says in its header
+what else goes with them.
 
 ### Persistence
 
@@ -44,9 +84,8 @@ Durable storage sits behind a `Repository` port with two adapters:
   non-destructive before it is configured. It holds records, never credentials.
 
 Hydration runs as an app initializer, so the first screen renders with durable
-records already in place rather than flashing the seed and correcting itself.
-Persisted records win by id, which means review work on a _seeded_ submission
-survives a reload exactly as work on a synced one does.
+records already in place rather than rendering empty and correcting itself.
+Persisted records win by id.
 
 Writes are fire-and-forget — the signal updates immediately so the screen never
 waits on the network — and a failure surfaces on `DataStore.persistError`
@@ -54,10 +93,9 @@ rather than being swallowed.
 
 Two consequences worth knowing:
 
-- Seed ids are real UUIDs, resolved through `seedId()`. The `id` columns are
-  `uuid`, so a demonstration record with a friendly id could never be
-  persisted; routing them through one function keeps the seed literals legible
-  anyway.
+- Fixture ids are real UUIDs, resolved through `seedId()`. The `id` columns are
+  `uuid`, so a fixture with a friendly id could never stand in for a real
+  record; routing them through one function keeps the literals legible anyway.
 - "Last synced" is not a record of its own. It is the most recent
   `last_synced_at` stamped on a submission, so it comes back with them.
 
@@ -65,8 +103,10 @@ Two consequences worth knowing:
 rebuilding it over the same storage — new `DataStore`, new signals — so
 anything that comes back did so because it was persisted.
 
-Grading forms and student email are still placeholders — they belong to
-Phase 4.
+Sending is two separate acts, deliberately. Comments are posted onto the
+student's Google Doc, and the covering message is handed to the teacher's own
+mail client — neither is a side effect of the other, and neither is recorded as
+having happened until it has.
 
 ---
 
@@ -129,12 +169,173 @@ the callback, not the app:
 https://<project-ref>.supabase.co/functions/v1/drive-auth/callback
 ```
 
-Both scopes are read-only:
+The scopes:
 
 ```
-https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/drive
 https://www.googleapis.com/auth/documents.readonly
 ```
+
+**These are no longer read-only, and the first one is worth understanding
+before you grant it — more so now that the work is not hers.**
+
+Drive is organised **course → year**: a course folder holds one folder per
+year, and `courses.drive_folder_id` points at the year folder where submissions
+arrive. Each student keeps her own document and moves it into that folder, so
+the file stays owned by her and the teacher holds it only as an editor. One
+`courses` row is one course-year, and a unique index on
+`(teacher_id, name, year)` stops the same year being set up twice and splitting
+its submissions between two rows.
+
+That makes the scope question sharper rather than softer. `drive.file` grants
+per-file access to files **the app created or the user explicitly picked**, and
+under this model the app creates nothing at all — every document belongs to a
+student and arrives by being moved into a folder. So `drive.file` would cover
+precisely none of it, and the broad `drive` scope is not a convenience here but
+the only scope under which the app can read a student's document or comment on
+it. It is stated rather than widened quietly, and what the app actually does
+with it is still enforced in code: `DriveApi` issues exactly one kind of
+non-GET request, and any other write target throws before a request is built.
+
+Margin posts the teacher's comments onto the student's document, and Drive
+publishes no comment-only scope: `comments.create` accepts `drive` or
+`drive.file` and nothing else. `drive.file` was the first choice and does not
+work here — it grants per-file access only to files the app created or the user
+picked, and Google is explicit that it does _not_ extend to files inside a
+picked folder. Every submission arrives by enumerating a shared folder by id, so
+`drive.file` would cover none of them. That leaves `drive`, which is a
+**restricted** scope: fine in Testing mode with named test users, and subject to
+a CASA security assessment before any production verification.
+
+So the token can do more than the app does, and the gap is closed in code rather
+than by assurance. `DriveApi` issues exactly one kind of non-GET request —
+creating a comment on a file — and any other write target throws
+`DriveWriteRefused` before a request is built. `comment-poster.spec.ts` asserts
+it, both directly and across a full send. Margin cannot edit a student's
+writing, suggest an edit to it, or change who can see it.
+
+`documents.readonly` stays read-only and stays separate: the Docs API is only
+ever read, and the Drive scope does not cover it.
+
+**Reading work students share directly needs no new scope.**
+
+Not every student moves her file into the year folder; some simply press Share
+and type the teacher's address. That document is in no folder of the teacher's
+at all — its parent is the student's own Drive, and Drive reports only parents
+the caller can see, so `'folderId' in parents` cannot find it however the
+folder is configured. Those files live in a separate corpus, reached with
+`q=sharedWithMe`.
+
+Reaching it required **no scope change**: `sharedWithMe` is covered by the
+`drive` scope already granted, and would also be covered by `drive.readonly`.
+`drive.file` cannot reach it — it sees only files the app created or the user
+picked — which is the same reason it does not work for the folder. So the
+grant is unchanged, and it is the narrowest that works for this too.
+
+What did change is how much of her Drive gets read, and the answer is
+deliberately as little as possible:
+
+- **A sync never lists "Shared with me".** It asks Drive for documents owned by
+  the specific addresses she has confirmed against students
+  (`'noa@…' in owners or 'shira@…' in owners`), chunked so the URL stays a sane
+  length. Everything else anyone has ever shared with her is never enumerated.
+- **The broad listing happens only when she asks for it**, from
+  **מסמכים ששותפו איתך** on the course screen, and is bounded to document mime
+  types and to five pages, newest first. It exists for the bootstrap case: the
+  first document a girl shares comes from an account Margin has never seen.
+- **A shared file may not be attributed by its name.** A file in the year
+  folder may, because putting it there is the teacher's own assertion that it
+  is coursework. Her shared list asserts nothing — it holds memos, colleagues'
+  drafts and years of paperwork — so a document called
+  `נועה ברקוביץ׳ — הערכת מורה` shared by a colleague must not take over that
+  student's submission and overwrite the text her comments are anchored to.
+  Shared files are matched on a confirmed account only; the name match survives
+  as a pre-selection in the list she confirms.
+
+`shared-with-me.spec.ts` pins the query shape — scoped by owner during a sync,
+never bare — and `sync-flow.spec.ts` pins the attribution rule and the case
+where a student both shares her document and drops it in the folder.
+
+**Comments anchor through the Docs API, not the Drive API.**
+
+`documents.batchUpdate` gained `InsertCommentRequest`, which takes a real
+`startIndex`/`endIndex` range and produces a comment the editor treats as its
+own. It is in **Developer Preview**, which needs a Google Workspace account
+(consumer Gmail is not eligible) and enrolment in the Workspace Developer
+Preview Program — so Margin tries it first and falls back to an unanchored
+Drive comment when the account is not enrolled. Both are successful sends; the
+send screen says which one happened, because the difference is the whole value
+to the student. It needs no new scope: `documents.batchUpdate` accepts the
+`drive` scope already granted.
+
+`documents.batchUpdate` is also the most dangerous endpoint this app could
+call — the request that inserts a comment sits in the same union as
+`deleteContentRange`, `replaceAllText`, `insertText` and every style change. So
+the write guard inspects the **body**, not just the URL: a batch is permitted
+only if every request in it is `insertComment` and nothing else. A student's
+writing cannot be altered through this path, and `docs-write-guard.spec.ts`
+asserts it against every destructive request type, including one smuggled in
+beside a legitimate insertion.
+
+Ranges are looked up, never computed. A paragraph's characters are not
+contiguous from its start index — inline objects and footnote references occupy
+an index and contribute no text — so `extractDocument` records the true index of
+every character as it reads them, in the same traversal that produces the
+blocks. A character Google reported no position for is refused rather than
+guessed at.
+
+**Margin inserts numbered markers into the student's document.** This is the
+one place it adds anything to her writing, and it reverses the rule the rest of
+this section describes — so the rule became a _shape_ that is enforced, rather
+than a prohibition.
+
+It exists because Google will not anchor a comment: the Drive endpoint ignores
+its own anchor field and labels the result "התוכן המקורי נמחק", and the Docs
+endpoint that anchors properly is behind a Developer Preview needing a
+Workspace account. Without either, a comment has no connection to the sentence
+it is about. So the connection is made the way a teacher with a red pen makes
+it — a small coloured number by the line, the same number on the note.
+
+What bounds it, all checked in `markers.spec.ts`:
+
+- **One character per marker.** `①`, not `[1]`. A single glyph is a single
+  index to insert, colour and remove, which is why the guard can refuse any
+  request touching more than one character. `isMarkerEditBatch` permits exactly
+  three request types — `insertText` whose text _is_ a marker glyph,
+  `updateTextStyle` over one character, `deleteContentRange` over one
+  character — and refuses `replaceAllText`, paragraph and table operations,
+  image replacement and suggestion handling outright.
+- **No digits.** A European digit inside right-to-left text forms its own
+  left-to-right run and drags the neutrals around it. The enclosed glyphs carry
+  a number without one, so `(r = .42, p < .01)` survives a marker beside it —
+  measured, not assumed.
+- **Back to front.** Every insertion shifts every index after it, so markers go
+  in descending order and the positions measured beforehand stay valid.
+- **Idempotent.** `annotations.marker_number` records what was placed. A
+  re-send after further review leaves existing glyphs untouched and continues
+  the numbering.
+- **Never at a guessed position.** A span whose quoted text has changed gets no
+  marker and is reported, the same rule the anchor resolver follows.
+- **Removable.** "הסרת הסימונים מהמסמך" strips them, and needs two independent
+  agreements before deleting a character: the recorded number, and the document
+  re-read to confirm that index holds that glyph. Neither alone is enough.
+
+**The Drive fallback is unanchored, and that is Google's limit, not a
+shortcut.** Drive's
+`comments.create` takes an `anchor`, but on a Google Doc it is a trap — the API
+stores it, and Workspace editors then treat the comment as unanchored and render
+it in the Docs UI as _"Original content deleted"_, which reads to a student as
+though her writing had been removed. Google documents the behaviour, it is open
+as [issuetracker 491884714](https://issuetracker.google.com/issues/491884714),
+and no public Drive or Docs endpoint produces a genuinely anchored comment. So
+Margin sends no anchor at all and carries the location where it survives: each
+comment opens with the section heading and the quoted sentence.
+
+**Existing connections need re-consent.** A teacher who connected before this
+granted `drive.readonly`; that grant stays valid and syncing keeps working, and
+only commenting is refused. `missingScopes()` notices, and the send screen
+explains what changed and what Margin still will not do — rather than letting
+Drive answer with a 403 that reads like a folder permission problem.
 
 **3. Deploy the functions with their secrets.**
 
@@ -173,25 +374,50 @@ Nothing credential-shaped is written to `localStorage` or `sessionStorage`, and
 `google-auth.spec.ts` holds that line by spying on `Storage.prototype.setItem`
 across a full mint and asserting nothing is written.
 
-Then, in the app: **קורסים** → **חיבור לגוגל**, and paste the folder's Drive URL
-into **בחירת תיקייה**. The folder is verified before it is saved, so a mistyped
+Then, in the app: **קורסים**, and make the course, the assignment and the
+roster — nothing exists until you do, and a sync with no assignment is refused
+outright rather than writing submissions with nowhere to attach. Then **חיבור
+לגוגל**, and paste the folder's Drive URL into **בחירת תיקייה** (or skip the
+folder entirely and let students share their documents with you). The folder is verified before it is saved, so a mistyped
 id says so rather than looking like an empty folder.
 
 ### How a file becomes a submission
 
-`SyncService` lists the watched folder and, for each file:
+Work arrives two ways, and either alone is enough — a course with no folder
+configured still syncs if a student's account has been confirmed, and the
+refusal names both sources rather than sending her to fix the wrong one:
+
+1. **The year folder**, listed by id, as before.
+2. **Shared with her directly**, fetched per confirmed account from the
+   `sharedWithMe` corpus (see the scope section above for what is and isn't
+   read).
+
+The folder is listed first, and a document reached both ways is handled once —
+a student who shares her paper _and_ drops it in the folder is doing as she was
+asked, twice, and used to be reported as a clash for the teacher to resolve.
+
+For each file:
 
 - **Works out whose it is.** The owning Google account is checked against
-  `Student.drive_account_email` first; failing that, the file name has to
-  contain every part of exactly one student's name. Anything matching neither
-  is _reported_, not guessed at — attributing a paper to the wrong student is
-  worse than asking. Unattributed files show up in the sync line.
+  `Student.drive_account_email` first; failing that — **and only for a file in
+  the folder** — the file name has to contain every part of exactly one
+  student's name. Anything matching neither is _reported_, not guessed at —
+  attributing a paper to the wrong student is worse than asking. Unattributed
+  files show up in the sync line. An unattributable document in her shared list
+  is reported nowhere, because nothing about it claimed to be coursework in the
+  first place.
 - **Captures the metadata verbatim.** Owner, creator, created and modified
   times, and the full revision list land on the submission, with the untouched
   API payloads in `drive_metadata_raw`. Phase 3 draws no conclusions from any
   of it; Phase 5 does. Worth knowing: Drive's revision list for a Google Doc is
   much coarser than the editor's own version history, so the snapshot carries a
   `revisions_truncated` flag rather than letting a short list read as evidence.
+- **Follows shortcuts.** A student can put her work in the folder two ways:
+  move the file in, or add a shortcut to it. Both look identical in a listing,
+  but a shortcut is its own file with its own mime type and no text — ingested
+  as-is it becomes a submission with an empty document and nothing to explain
+  why. The sync resolves the shortcut to its target; a target it cannot read is
+  reported as unattributed rather than stored empty.
 - **Extracts the text, for Google Docs only.** A `.docx` sitting in Drive keeps
   its metadata but gets `document_blocks: null` — a mangled approximation of
   the text would be worse than none.
@@ -233,7 +459,7 @@ supabase secrets set GEMINI_API_KEY=...
 ```
 
 ```bash
-supabase functions deploy annotate
+supabase functions deploy annotate student-form student-email
 ```
 
 ### The provider is a cost decision, and it lives in one file
@@ -368,7 +594,7 @@ src/
       ai/            drafting annotations: contract, anchor resolution, generator
       data/          the in-memory store the screens read from
       drive/         OAuth, the Drive/Docs clients, extraction, sync
-      mock/          seeded records the store starts out holding
+      mock/          fixture records — tests only, nothing in the app reads them
       presentation/  model records → what the screens actually show
       navigation.ts  the nav destinations, shared by rail and tab bar
       supabase/      the single Supabase client + auth signals

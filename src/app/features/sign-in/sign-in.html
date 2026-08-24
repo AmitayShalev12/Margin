@@ -1,0 +1,60 @@
+<div class="signin">
+  <div class="card signin-card">
+    <div class="brand">
+      <span class="wordmark" dir="ltr">Margin</span>
+      <span class="tag">הערות בשוליים</span>
+    </div>
+
+    @if (sent()) {
+      <h1>שלחתי לך קישור</h1>
+      <p class="lead">
+        פתחי את המייל שהגיע ל<span class="email" dir="ltr">{{ email() }}</span> ולחצי על הקישור. הוא
+        יפתח את מרג׳ין כאן, מחוברת.
+      </p>
+      <p class="hint">אם הוא לא הגיע תוך דקה, כדאי להציץ בתיקיית הספאם.</p>
+    } @else {
+      <h1>שלום</h1>
+      <p class="lead">כדי שהעבודות וההערות שלך יישמרו, צריך להתחבר. זה חד־פעמי במחשב הזה.</p>
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        [disabled]="busy()"
+        (click)="withGoogle()"
+      >
+        התחברות עם חשבון Google
+      </button>
+      <p class="hint">אותו חשבון שבו נמצאות העבודות ב־Drive. אין כאן עדיין גישה לקבצים.</p>
+
+      <div class="divider"><span>או</span></div>
+
+      <label class="field">
+        <span class="field-label">קישור למייל</span>
+        <input
+          type="email"
+          class="input"
+          dir="ltr"
+          autocomplete="email"
+          placeholder="you@school.org.il"
+          [value]="email()"
+          [disabled]="busy()"
+          (input)="email.set($any($event.target).value)"
+          (keydown.enter)="withLink()"
+        />
+      </label>
+
+      <button
+        type="button"
+        class="btn btn-ghost btn-block"
+        [disabled]="busy() || !canSendLink()"
+        (click)="withLink()"
+      >
+        שליחת קישור התחברות
+      </button>
+
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+    }
+  </div>
+</div>

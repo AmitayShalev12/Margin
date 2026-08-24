@@ -65,6 +65,7 @@ export const COURSE: Course = {
   name: 'שיטות מחקר כמותיות במדעי החינוך',
   year: 'תשפ״ו',
   description: 'סמינריון מחקרי, כיתות יב׳.',
+  drive_course_folder_id: null,
   drive_folder_id: null,
   archived: false,
   created_at: daysAgo(320),
@@ -472,6 +473,10 @@ function toAnnotation(seed: AnnotationSeed, sortOrder: number): Annotation {
     grading_category_id: null,
     resolved_in_round: seed.status === 'resolved' ? 2 : null,
     sort_order: sortOrder,
+    // Seeded comments have never been near a real Drive document.
+    posted_comment_id: null,
+    posted_at: null,
+    marker_number: null,
     created_at: daysAgo(1),
     updated_at: daysAgo(1),
   };

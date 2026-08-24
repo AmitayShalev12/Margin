@@ -61,6 +61,13 @@
       </div>
     }
 
+    <!--
+      Asked for, never volunteered, and collapsed until she opens it. It sits
+      above the document because that is where she decides what to make of the
+      paper — not buried at the end where it would read as a footnote.
+    -->
+    <app-reliability-panel [submissionId]="submission().id" [studentName]="firstName()" />
+
     <div class="layout">
       <!-- The document itself. Comments live on the text, not beside a copy of it. -->
       <article class="document">
@@ -250,7 +257,13 @@
             אין עדיין הערות על העבודה הזו. אנסח טיוטה ראשונה בסגנון שלך, ואת תעברי עליה.
           </p>
           @if (generator.state().message) {
-            <p class="gen-error">{{ generator.state().message }}</p>
+            <p class="gen-error">
+              {{ generator.state().message }}
+              @if (generator.state().detail; as detail) {
+                <!-- The raw line. It is what tells a deploy apart from a model. -->
+                <span class="raw" dir="ltr">{{ detail }}</span>
+              }
+            </p>
           }
           <button
             type="button"
@@ -283,8 +296,13 @@
       </button>
     } @else {
       <span class="send-hint">{{ sendHint() }}</span>
+      <!--
+        Says what it does. It used to read "שליחת ההערות ל…" and send nothing —
+        it marked the submission as sent and went back to the list, so a review
+        that never reached the student looked exactly like one that had.
+      -->
       <button type="button" class="btn btn-primary" (click)="send()">
-        שליחת ההערות ל{{ firstName() }}
+        כתיבת המייל ל{{ firstName() }}
       </button>
     }
   </div>
