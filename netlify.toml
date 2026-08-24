@@ -1,0 +1,24 @@
+# Netlify build settings.
+#
+# Committed so a deploy cannot depend on settings typed into a dashboard that
+# nobody can read back later.
+
+[build]
+  command = "npm run build"
+  # Angular's application builder splits its output: `dist/margin/browser` is
+  # the site, and `dist/margin/prerendered-routes.json` and the licence file
+  # sit beside it. Publishing `dist/margin` would serve the wrong directory.
+  publish = "dist/margin/browser"
+
+[build.environment]
+  # Angular 22 needs a current Node; pinned so a change to Netlify's default
+  # cannot break a build that works locally.
+  NODE_VERSION = "22"
+
+# Margin routes on the client — /review/:id, /courses, /submissions are not
+# files on disk. Without this, every one of them is a 404 on refresh or on a
+# link opened from an email, and only the home page works.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
