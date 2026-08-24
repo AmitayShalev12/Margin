@@ -1080,8 +1080,26 @@ export class DataStore {
 
   /** Waits for outstanding writes — used by tests, not by the UI. */
   async settled(): Promise<void> {
-    await Promise.allSettled(this.pending);
-    this.pending = [];
+    /**
+     * Drained in rounds, because a write can start another one.
+     *
+     * Posting a comment to Drive is queued like any other write, and when it
+     * comes back it records the comment id — a second write, added to the
+     * queue while the first is still running. A single `allSettled` snapshots
+     * the array as it was and returns without ever seeing it.
+     *
+     * That hole was invisible while writes were issued eagerly: the nested one
+     * started in the same microtask and had finished long before anyone
+     * looked. Ordering the queue moved it behind everything ahead of it, and
+     * `settled()` began returning while the id was still unwritten — which is
+     * "the reload forgot what it had already sent", and worse, a
+     * `retryFailedWrites` that reports success early.
+     */
+    while (this.pending.length) {
+      const batch = this.pending;
+      this.pending = [];
+      await Promise.allSettled(batch);
+    }
   }
 
   // -- failed writes --------------------------------------------------------
@@ -1116,6 +1134,8 @@ export class DataStore {
   // -- plumbing -------------------------------------------------------------
 
   private pending: Promise<unknown>[] = [];
+  /** The last write issued. The next one waits on it. Never rejects. */
+  private tail: Promise<unknown> = Promise.resolve();
   private failedWrites: (() => Promise<void>)[] = [];
 
   private writeAnnotation(id: UUID, apply: (a: Annotation) => Annotation) {
@@ -1130,13 +1150,43 @@ export class DataStore {
     if (written) this.persist(() => this.repository.saveAnnotation(written!));
   }
 
+  /**
+   * Fire-and-forget, but **in order**.
+   *
+   * The screen never waits on the network — that has not changed. What has is
+   * that each write leaves only after the one before it has come back, and
+   * that ordering is load-bearing rather than tidiness.
+   *
+   * Every caller here adds a parent before its children: the sync writes the
+   * submission and then its first round, the review writes the round and then
+   * its comments. Issued concurrently, those two requests race, and Postgres
+   * decides the winner. When the child wins, its RLS policy — `owns_submission`
+   * and its siblings are `exists` clauses — finds no parent and refuses the
+   * insert as a *permissions* violation:
+   *
+   *   new row violates row-level security policy for table "submission_rounds"
+   *
+   * which sends anyone reading it to check grants, roles and policies for a
+   * bug that is none of those things.
+   *
+   * The race was always here and was hidden by the demonstration data: the
+   * seed's submissions were written at startup, awaited in foreign-key order,
+   * so a sync nearly always *adopted* a row that already existed and never
+   * took the path that inserts a submission and its round together. An empty
+   * account takes that path for every paper that arrives.
+   *
+   * A failed write does not break the chain — the catch is inside it — so one
+   * refusal cannot strand every later save behind it.
+   */
   private persist(write: () => Promise<void>) {
-    const promise = write().catch((error: unknown) => {
+    const promise = this.tail.then(write).catch((error: unknown) => {
       // Kept, not dropped: this is the change she just made on screen, and it
       // exists nowhere else once this promise settles.
       this.failedWrites.push(write);
       this.noteFailure('save', error);
     });
+
+    this.tail = promise;
     this.pending.push(promise);
   }
 

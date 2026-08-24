@@ -9,7 +9,7 @@ import { COURSE } from '../mock/seed-data';
 import { seedStore } from '../mock/seed-store';
 import { DataStore } from './data-store';
 import { LocalRepository } from './local-repository';
-import { Repository } from './repository';
+import { EMPTY_SNAPSHOT, Repository } from './repository';
 
 /**
  * A reload is simulated by tearing the whole injector down and building a
@@ -96,6 +96,188 @@ function boot(api: FakeDriveApi) {
 
   return { store, sync: TestBed.inject(SyncService) };
 }
+
+/**
+ * A repository that answers slowly, and says when each write started.
+ *
+ * The bug this exists to catch is invisible against a fake that resolves
+ * immediately: two writes issued in the same tick both "succeed" in order
+ * because nothing ever interleaves. Real PostgREST does interleave, and the
+ * loser is refused.
+ */
+class OrderedRepository extends LocalRepository {
+  /** `start:table` and `end:table`, in the order they happened. */
+  readonly events: string[] = [];
+
+  /** Set to make every round insert fail, as RLS would. */
+  refuseRounds = false;
+
+  private async trace<T>(table: string, run: () => Promise<T>): Promise<T> {
+    this.events.push(`start:${table}`);
+    // Two microtask turns, so a second write issued in the same tick has every
+    // chance to slip in front if nothing is holding it back.
+    await Promise.resolve();
+    await Promise.resolve();
+    const result = await run();
+    this.events.push(`end:${table}`);
+    return result;
+  }
+
+  override saveSubmission(row: never) {
+    return this.trace('submission', () => super.saveSubmission(row));
+  }
+
+  override saveRound(row: never) {
+    return this.trace('round', async () => {
+      if (this.refuseRounds) {
+        throw new Error('new row violates row-level security policy');
+      }
+      return super.saveRound(row);
+    });
+  }
+}
+
+const COURSE_ID = 'c1111111-1111-4111-8111-111111111111';
+const ASSIGNMENT_ID = 'a1111111-1111-4111-8111-111111111111';
+
+/**
+ * What a real account actually holds: her course, one assignment, one student.
+ *
+ * Deliberately not the fixtures. Every fixture student already has a
+ * submission, so a sync adopts her row instead of inserting one — and the path
+ * that inserts a submission *and* its first round together, which is the one
+ * that raced, would never run. An empty account takes that path for every
+ * paper that arrives.
+ */
+function realAccount() {
+  return {
+    ...EMPTY_SNAPSHOT,
+    courses: [
+      { id: COURSE_ID, teacher_id: 'teacher-1', name: 'שיטות מחקר', year: 'תשפ״ו' } as never,
+    ],
+    assignments: [{ id: ASSIGNMENT_ID, course_id: COURSE_ID, title: 'עבודת גמר' } as never],
+    students: [
+      { id: 's1111111-1111-4111-8111-111111111111', full_name: 'מאיה לוין', active: true } as never,
+    ],
+  };
+}
+
+/**
+ * The parent has to land before the child, and the app is what guarantees it.
+ *
+ * `submission_rounds_owner` is `with check (owns_submission(submission_id))`,
+ * and `owns_submission` is an `exists` against `submissions`. A round that
+ * reaches Postgres before its submission commits is refused — and refused as a
+ * *permissions* error, "new row violates row-level security policy", which
+ * reads as a policy or grant problem rather than as a missing parent.
+ *
+ * It stayed hidden while the app shipped demonstration data: those submissions
+ * were written at startup and awaited in foreign-key order, so a sync almost
+ * always adopted a row that already existed instead of inserting a submission
+ * and its first round together. An empty account takes that path every time.
+ */
+describe('writes leave in the order they were made', () => {
+  let api: FakeDriveApi;
+  let repository: OrderedRepository;
+
+  function boot() {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: DriveApi, useValue: api },
+        { provide: GoogleDriveAuth, useValue: new FakeAuth() },
+        { provide: Repository, useValue: repository },
+      ],
+    });
+    return { store: TestBed.inject(DataStore), sync: TestBed.inject(SyncService) };
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    api = new FakeDriveApi();
+    repository = new OrderedRepository();
+    api.files = [driveFile({ id: 'file-maya', name: 'מאיה לוין — סמינריון' })];
+  });
+
+  afterEach(() => localStorage.clear());
+
+  it('never starts a round before its submission has come back', async () => {
+    const { store, sync } = boot();
+    store.applySnapshot(realAccount());
+    store.setDriveFolder(COURSE_ID, FOLDER);
+
+    await sync.syncNow();
+    await store.settled();
+
+    const submissionEnd = repository.events.indexOf('end:submission');
+    const roundStart = repository.events.indexOf('start:round');
+
+    expect(repository.events.indexOf('start:submission')).toBeGreaterThanOrEqual(0);
+    expect(roundStart).toBeGreaterThanOrEqual(0);
+    // The whole assertion: the round had not even been issued yet.
+    expect(roundStart).toBeGreaterThan(submissionEnd);
+  });
+
+  /**
+   * One refusal must not strand every later save behind it. The chain is built
+   * from the caught promise precisely so it cannot deadlock.
+   */
+  it('keeps writing after one write fails', async () => {
+    repository.refuseRounds = true;
+
+    const { store, sync } = boot();
+    store.applySnapshot(realAccount());
+    store.setDriveFolder(COURSE_ID, FOLDER);
+
+    await sync.syncNow();
+    await store.settled();
+
+    expect(store.persistError()).not.toBeNull();
+    // Attempted rather than left waiting on a chain that never resolved.
+    expect(repository.events).toContain('start:round');
+  });
+
+  /**
+   * The way back from a half-written paper.
+   *
+   * The submission and its first round are two writes, and the second can fail
+   * on its own. What is left is a submission stamped with the file's
+   * `modifiedTime` and no text — and the next sync used to read that stamp,
+   * call the file unchanged and skip it, so the paper stayed unreadable
+   * however many times she pressed sync.
+   */
+  it('fills in a round that failed to save, on the next sync', async () => {
+    repository.refuseRounds = true;
+
+    const first = boot();
+    first.store.applySnapshot(realAccount());
+    first.store.setDriveFolder(COURSE_ID, FOLDER);
+
+    await first.sync.syncNow();
+    await first.store.settled();
+    expect(first.store.persistError()).not.toBeNull();
+
+    // Reload: the submission came back, its round did not.
+    repository.refuseRounds = false;
+    const second = boot();
+    // The course and assignment are hers and persisted; this stands in for
+    // the rows a real account already holds.
+    second.store.applySnapshot(realAccount());
+    await second.store.hydrate();
+
+    const submission = second.store.submissionByDriveFile('file-maya');
+    expect(submission).toBeDefined();
+    expect(second.store.roundFor(submission!.id)).toBeUndefined();
+
+    // Drive reports the very same modifiedTime — nothing about the file moved.
+    await second.sync.syncNow();
+    await second.store.settled();
+
+    const round = second.store.roundFor(submission!.id);
+    expect(round).toBeDefined();
+    expect(round?.document_text ?? '').toContain('מובהק');
+  });
+});
 
 describe('durability across a reload', () => {
   let api: FakeDriveApi;

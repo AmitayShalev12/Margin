@@ -617,12 +617,24 @@ export class SyncService {
       return 'created';
     }
 
-    // Drive's `version` bumps on any change, including ones that don't touch
-    // the text; `modifiedTime` is the one the teacher would recognise.
+    /**
+     * Nothing has moved in Drive since the last look.
+     *
+     * Drive's `version` bumps on any change, including ones that don't touch
+     * the text; `modifiedTime` is the one the teacher would recognise.
+     *
+     * A row with no round is **not** up to date, though — it is half-written,
+     * and saying "unchanged" strands it that way for good. The submission and
+     * its first round are two separate writes, and the second can fail on its
+     * own: a refused round leaves a submission carrying the file's
+     * `modifiedTime` and no text at all, so every later sync would skip it
+     * here and the paper would never be readable. This is the only path back.
+     */
     const unchanged =
       !!existing.drive_modified_at &&
       !!file.modifiedTime &&
-      existing.drive_modified_at === file.modifiedTime;
+      existing.drive_modified_at === file.modifiedTime &&
+      !!this.store.roundFor(existing.id);
 
     if (unchanged) return 'unchanged';
 

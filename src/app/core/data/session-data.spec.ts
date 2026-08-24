@@ -256,6 +256,7 @@ describe('startup and the session', () => {
       await started;
 
       const course = store.createCourse('שיטות מחקר', 'תשפ״ו');
+      await store.settled();
 
       expect(course?.teacher_id).toBe('teacher-1');
       expect(repository.written).toEqual(['course']);
@@ -270,6 +271,7 @@ describe('startup and the session', () => {
 
       const course = store.createCourse('שיטות מחקר', 'תשפ״ו');
       const assignment = store.createAssignment('עבודת גמר');
+      await store.settled();
 
       expect(assignment?.course_id).toBe(course?.id);
       // The parent first, which is the order the foreign key demands.
@@ -284,6 +286,7 @@ describe('startup and the session', () => {
 
       store.createCourse('שיטות מחקר', 'תשפ״ו');
       const student = store.addStudent('נועה ברקוביץ׳', 'noa@example.org');
+      await store.settled();
 
       expect(student?.teacher_id).toBe('teacher-1');
       expect(store.students().map((s) => s.full_name)).toEqual(['נועה ברקוביץ׳']);
