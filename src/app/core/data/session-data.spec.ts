@@ -236,7 +236,12 @@ describe('startup and the session', () => {
       supabase.restore('teacher-1');
       await started;
 
-      expect(repository.written).toEqual([]);
+      // Nothing about her course, assignment or roster is touched. The grading
+      // headings are written, and are meant to be: they are a foreign key
+      // target that used to exist only as a calculation.
+      expect(repository.written).not.toContain('course');
+      expect(repository.written).not.toContain('assignment');
+      expect(repository.written).not.toContain('student');
       expect(store.course()?.name).toBe('הקורס שלי');
       expect(store.students().map((s) => s.full_name)).toEqual(['דנה']);
     });
@@ -259,7 +264,8 @@ describe('startup and the session', () => {
       await store.settled();
 
       expect(course?.teacher_id).toBe('teacher-1');
-      expect(repository.written).toEqual(['course']);
+      // First, and before anything that points at it.
+      expect(repository.written[0]).toBe('course');
       expect(store.hasCourse()).toBe(true);
     });
 
@@ -275,7 +281,9 @@ describe('startup and the session', () => {
 
       expect(assignment?.course_id).toBe(course?.id);
       // The parent first, which is the order the foreign key demands.
-      expect(repository.written).toEqual(['course', 'assignment']);
+      expect(repository.written.indexOf('course')).toBeLessThan(
+        repository.written.indexOf('assignment'),
+      );
     });
 
     it('puts a student she adds on the roster and writes her', async () => {
@@ -290,7 +298,7 @@ describe('startup and the session', () => {
 
       expect(student?.teacher_id).toBe('teacher-1');
       expect(store.students().map((s) => s.full_name)).toEqual(['נועה ברקוביץ׳']);
-      expect(repository.written).toEqual(['course', 'student']);
+      expect(repository.written).toContain('student');
     });
 
     /**
@@ -318,6 +326,54 @@ describe('startup and the session', () => {
       expect(store.createCourse('   ', 'תשפ״ו')).toBeNull();
       expect(store.createCourse('שיטות מחקר', '  ')).toBeNull();
       expect(repository.written).toEqual([]);
+    });
+
+    /**
+     * The bug this pins, in as many words.
+     *
+     * `grading_form_entries.category_id` is a foreign key. The headings were
+     * *derived* at load rather than written — provisioning used to write them
+     * and was removed with the demonstration data — so the first grading entry
+     * pointed at a heading Postgres had never heard of:
+     *
+     *   violates foreign key constraint "grading_form_entries_category_id_fkey"
+     *
+     * Deriving is not writing, and the gap was invisible until something
+     * pointed at the result.
+     */
+    it('writes the grading headings, not just calculates them', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+
+      store.createCourse('שיטות מחקר', 'תשפ״ו');
+      await store.settled();
+
+      expect(store.gradingCategories().length).toBeGreaterThan(0);
+      // The course lands before the headings that point at it.
+      expect(repository.written[0]).toBe('course');
+      expect(repository.written).toContain('grading-category');
+      expect(repository.written.filter((w) => w === 'grading-category').length).toBe(
+        store.gradingCategories().length,
+      );
+    });
+
+    /** An account made before the headings were ever written gets them now. */
+    it('writes the headings for a course that predates them', async () => {
+      repository.rows = {
+        ...EMPTY_SNAPSHOT,
+        courses: [{ id: 'c-hers', teacher_id: 'teacher-1', name: 'הקורס שלי' } as never],
+      };
+
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+      await store.settled();
+
+      expect(repository.written).toContain('grading-category');
+      expect(store.gradingCategories().every((c) => c.course_id === 'c-hers')).toBe(true);
     });
 
     /**

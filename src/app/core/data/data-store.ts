@@ -252,6 +252,12 @@ export class DataStore {
     }
 
     this.applySnapshot(snapshot);
+    /**
+     * An account that predates this, or one whose headings were only ever
+     * derived. Writing them is an upsert of rows it may already have.
+     */
+    if (this.supabase.teacherId && this._course()) this.persistGradingCategories();
+
     // Reached only when the load came back — the catch above returns early.
     this._loadedHers.set(true);
 
@@ -384,6 +390,9 @@ export class DataStore {
 
     this._course.set(course);
     this.persist(() => this.repository.saveCourse(course));
+    // The course row is enqueued first, so the headings that point at it
+    // cannot reach Postgres before their parent.
+    this.persistGradingCategories();
     return course;
   }
 
@@ -410,6 +419,36 @@ export class DataStore {
     this._assignment.set(assignment);
     this.persist(() => this.repository.saveAssignment(assignment));
     return assignment;
+  }
+
+  /**
+   * The grading form's headings, as rows rather than as a calculation.
+   *
+   * `buildCategories` derives them: her own from past years when there are
+   * any, and a starting set when there are none. Deriving is not writing, and
+   * that gap was a real bug — a grading entry carries `category_id`, so a
+   * heading that existed only in memory failed the foreign key:
+   *
+   *   insert or update on "grading_form_entries" violates foreign key
+   *   constraint "grading_form_entries_category_id_fkey"
+   *
+   * Provisioning used to write them at startup and no longer exists, so the
+   * write moved here, to the two moments a course first has headings: making
+   * the course, and loading one that predates this.
+   *
+   * The ids are derived from the course and the heading's key, so this is an
+   * upsert of the same rows every time rather than a second set.
+   */
+  private persistGradingCategories(): void {
+    const course = this._course();
+    if (!course || !this.supabase.teacherId) return;
+
+    const categories = buildCategories(course.id, this._gradingCategories());
+    this._gradingCategories.set(categories);
+
+    for (const category of categories) {
+      this.persist(() => this.repository.saveGradingCategory(category));
+    }
   }
 
   /**
