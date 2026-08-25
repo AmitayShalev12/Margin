@@ -1,5 +1,6 @@
 import { Annotation, DocumentBlock } from '../models';
 import { renderBlock, sectionsOf, splitLtrRuns } from './document-render';
+import { submittedAt } from './submission-status';
 
 function block(id: string, index: number, text: string, level?: number): DocumentBlock {
   return {
@@ -149,5 +150,31 @@ describe('sectionsOf', () => {
     const sections = sectionsOf([block('p0', 0, 'פסקה יתומה'), ...blocks.slice(1)]);
     expect(sections[0].title).toBe('פתיחה');
     expect(sections[0].block_indexes).toEqual([0]);
+  });
+});
+
+describe('submittedAt', () => {
+  /**
+   * The clock is the point. Work handed in at 23:58 on the night of a deadline
+   * and work handed in at 09:10 the next morning are both "אתמול", and they
+   * are not the same thing.
+   */
+  it('gives the day and the time', () => {
+    const stamp = submittedAt('2026-08-12T14:32:00.000Z');
+    expect(stamp).toMatch(/\d{1,2}\.\d{1,2}\.\d{4}, \d{2}:\d{2}/);
+  });
+
+  it('uses a 24-hour clock, so 23:58 is not 11:58', () => {
+    const late = new Date('2026-08-12T23:58:00');
+    expect(submittedAt(late.toISOString())).toContain('23:58');
+  });
+
+  /** Round 1 is a submission too — nothing here treats it differently. */
+  it('says nothing only when there is nothing to say', () => {
+    expect(submittedAt(null)).toBeNull();
+    expect(submittedAt(undefined)).toBeNull();
+    expect(submittedAt('')).toBeNull();
+    // A field that came back malformed must not render "Invalid Date".
+    expect(submittedAt('not a date')).toBeNull();
   });
 });

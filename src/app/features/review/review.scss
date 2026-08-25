@@ -51,9 +51,22 @@
 }
 
 .context,
+.submitted,
 .counter {
   font-size: 14px;
   color: var(--c-ink-3);
+}
+
+.submitted {
+  // Kept whole: a date that wraps between its day and its time reads as two
+  // different facts.
+  white-space: nowrap;
+}
+
+.stamp {
+  // European digits inside an RTL line. Isolated so the comma and the year
+  // stay where they were written.
+  unicode-bidi: isolate;
 }
 
 .counter {

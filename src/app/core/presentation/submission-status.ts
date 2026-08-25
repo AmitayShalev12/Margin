@@ -84,3 +84,39 @@ export function relativeDay(iso: string, now: Date = new Date()): string {
   const weeks = Math.round(days / 7);
   return weeks === 2 ? 'לפני שבועיים' : `לפני ${weeks} שבועות`;
 }
+
+/**
+ * When a round came in, to the minute.
+ *
+ * Every round carries one, including the first — "סבב 1" is a submission too,
+ * and a teacher looking at a paper wants to know when it arrived without
+ * having to work out whether "לפני 3 ימים" means Tuesday or Wednesday.
+ *
+ * The clock matters as much as the day here: work handed in at 23:58 on the
+ * night of a deadline and work handed in at 09:10 the next morning are the
+ * same "אתמול", and they are not the same thing.
+ *
+ * The value behind it is Drive's `modifiedTime` for the file as this round
+ * captured it — Margin has no submit button to stamp, and the last time she
+ * touched the document is the closest honest answer.
+ */
+export function submittedAt(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return null;
+
+  const date = new Intl.DateTimeFormat('he-IL', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  }).format(when);
+
+  const time = new Intl.DateTimeFormat('he-IL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(when);
+
+  return `${date}, ${time}`;
+}

@@ -20,6 +20,16 @@
     <header class="head">
       <h1>{{ student() }}</h1>
       <span class="context">{{ context() }}</span>
+      @if (submittedAt(); as when) {
+        <!--
+          `dir="ltr"` on the stamp itself: `12.8.2026, 14:32` is a run of
+          European digits inside an RTL line, and without isolation the
+          comma and the year swap sides.
+        -->
+        <span class="submitted">
+          הוגש <span class="stamp" dir="ltr">{{ when }}</span>
+        </span>
+      }
       <span class="spacer"></span>
       @if (hasComments()) {
         <span class="counter">{{ counterText() }}</span>

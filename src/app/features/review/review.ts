@@ -11,6 +11,7 @@ import {
   kindClass,
 } from '../../core/presentation/annotation-kind';
 import { renderBlock, sectionsOf } from '../../core/presentation/document-render';
+import { submittedAt } from '../../core/presentation/submission-status';
 import { Viewport } from '../../core/viewport';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 import { ReliabilityPanel } from '../../shared/ui/reliability-panel/reliability-panel';
@@ -110,6 +111,15 @@ export class Review {
       .join(', ');
     return where ? `סבב ${this.roundNumber()} · ${where}` : `סבב ${this.roundNumber()}`;
   });
+
+  /**
+   * When this round arrived, to the minute.
+   *
+   * Shown for every round including the first: a paper handed in at 23:58 on
+   * the night of a deadline and one handed in at 09:10 the next morning are
+   * both "אתמול", and the difference is exactly what she is looking for.
+   */
+  protected readonly submittedAt = computed(() => submittedAt(this.round()?.received_at));
 
   protected readonly round = computed(() => this.data.roundFor(this.submission().id));
 
