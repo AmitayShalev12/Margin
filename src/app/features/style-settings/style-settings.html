@@ -134,6 +134,107 @@
     }
   </div>
 
+  <!--
+    Where "correct" comes from.
+    Named, not fetched: nothing here opens the link, and the card says so —
+    a model told to "read from" a page it cannot open will cheerfully invent
+    what it found there.
+  -->
+  <div class="sources">
+    <div class="section-label">מקורות שאני סומכת עליהם</div>
+
+    @if (sources().length) {
+      <ul class="source-list">
+        @for (source of sources(); track source.id) {
+          <li class="source">
+            <span class="source-text">
+              <span class="source-title">{{ source.title }}</span>
+              @if (source.external_url) {
+                <a
+                  class="source-url ltr"
+                  [href]="source.external_url"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {{ source.external_url }}
+                </a>
+              }
+              @if (source.notes) {
+                <span class="source-notes">{{ source.notes }}</span>
+              }
+            </span>
+            <button type="button" class="link quiet" (click)="removeSource(source.id)">הסרה</button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="hint">
+        עדיין לא הוספת מקורות. בלעדיהם אני כותבת לפי הכללים שלך ולפי מה שמקובל בכתיבה אקדמית.
+      </p>
+    }
+
+    @if (addingSource()) {
+      <div class="source-form">
+        <label class="field">
+          <span class="label">שם המקור</span>
+          <input
+            class="control"
+            type="text"
+            placeholder="האקדמיה ללשון העברית"
+            [value]="sourceTitle()"
+            (input)="sourceTitle.set($any($event.target).value)"
+          />
+        </label>
+        <label class="field">
+          <span class="label">קישור (לא חובה)</span>
+          <input
+            class="control ltr"
+            type="url"
+            dir="ltr"
+            placeholder="https://hebrew-academy.org.il"
+            [value]="sourceUrl()"
+            (input)="sourceUrl.set($any($event.target).value)"
+          />
+        </label>
+        <label class="field">
+          <span class="label">מה לקחת ממנו</span>
+          <textarea
+            class="control"
+            rows="2"
+            placeholder="כללי הכתיב המלא, ופסיקים"
+            [value]="sourceNotes()"
+            (input)="sourceNotes.set($any($event.target).value)"
+          ></textarea>
+        </label>
+
+        @if (sourceError(); as message) {
+          <p class="import-error">{{ message }}</p>
+        }
+
+        <div class="found-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="addSource()">הוספה</button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="addingSource.set(false)">
+            ביטול
+          </button>
+        </div>
+      </div>
+    } @else {
+      <button type="button" class="btn btn-ghost btn-block" (click)="openSourceForm()">
+        הוספת מקור
+      </button>
+    }
+
+    <!--
+      Said plainly, because the alternative is a teacher believing the app
+      browses the web on her behalf.
+    -->
+    <p class="hint">
+      אני לא פותחת את הקישורים — הם בשבילך. מה שמגיע אליי הוא שם המקור ומה שכתבת עליו, ואני נשענת על
+      מה שאני כבר יודעת עליו. בשאלה שאף מקור כאן לא מכסה אכתוב לפי שיקול דעת, ולא אתלה את זה באף אחד
+      מהם.
+    </p>
+  </div>
+
   <div class="take">
     <button type="button" class="btn btn-ghost btn-block" (click)="exportProfile()">
       הורדת מה שנלמד ממני

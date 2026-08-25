@@ -116,6 +116,55 @@ describe('AnnotationGenerator', () => {
     );
   });
 
+  /**
+   * The authorities she named, sent as authorities.
+   *
+   * They used to arrive as one more piece of "reference material", which put
+   * them on the same footing as a syllabus — background rather than something
+   * to defer to. A source is the thing that decides what is *correct*, so it
+   * travels in its own field and the prompt treats it differently.
+   */
+  it('sends her sources apart from the reading material', async () => {
+    respondWith({ summary: 'סיכום', annotations: [] });
+    const { store, generator } = boot();
+
+    store.addSource('האקדמיה ללשון העברית', 'https://hebrew-academy.org.il', 'כללי הכתיב המלא');
+    await generator.generate(NOA);
+
+    const request = sent[0];
+    expect(request.sources).toEqual([
+      {
+        title: 'האקדמיה ללשון העברית',
+        url: 'https://hebrew-academy.org.il',
+        notes: 'כללי הכתיב המלא',
+      },
+    ]);
+
+    // And not a second time as background, which would put the same authority
+    // in the prompt twice under two different instructions.
+    expect(request.materials.some((m) => m.kind === 'reference')).toBe(false);
+  });
+
+  it('sends no sources at all when she has named none', async () => {
+    respondWith({ summary: 'סיכום', annotations: [] });
+    const { generator } = boot();
+    await generator.generate(NOA);
+
+    expect(sent[0].sources).toEqual([]);
+  });
+
+  /** Switched off is not deleted, but it does stop reaching the model. */
+  it('stops sending a source she switched off', async () => {
+    respondWith({ summary: 'סיכום', annotations: [] });
+    const { store, generator } = boot();
+
+    const source = store.addSource('מדריך ציטוט', '', 'APA');
+    store.setSourceActive(source!.id, false);
+    await generator.generate(NOA);
+
+    expect(sent[0].sources).toEqual([]);
+  });
+
   it('omits rules and materials she has switched off', async () => {
     respondWith({ summary: 'סיכום', annotations: [] });
     const { store, generator } = boot();

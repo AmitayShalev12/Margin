@@ -106,11 +106,7 @@ export class AnnotationGenerator {
 
     let response: AnnotateResponse;
     try {
-      response = await callFunction<AnnotateResponse>(
-        this.supabase,
-        'annotate',
-        request,
-      );
+      response = await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
     } catch (error) {
       const code = error instanceof FunctionError ? error.code : '';
       return this.fail(
@@ -221,15 +217,25 @@ export class AnnotationGenerator {
         .courseRules()
         .filter((r) => r.active)
         .map((r) => ({ kind: r.kind, body: r.body, origin: r.origin })),
+      // A reference is a source now, and goes in the other field — sending it
+      // in both would put the same authority in the prompt twice, once as
+      // background and once as something to defer to.
       materials: this.store
         .courseMaterials()
-        .filter((m) => m.active)
+        .filter((m) => m.active && m.kind !== 'reference')
         .map((m) => ({
           kind: m.kind,
           title: m.title,
           notes: m.notes,
           content: m.content,
         })),
+      sources: this.store.sources().map((s) => ({
+        title: s.title,
+        url: s.external_url,
+        // Her own words about what to take from it, and the pasted text when
+        // she gave one — both go through verbatim.
+        notes: [s.notes, s.content].filter(Boolean).join('\n') || null,
+      })),
       style_examples: this.store
         .styleExamples()
         .filter((e) => e.active)

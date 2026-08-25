@@ -170,6 +170,38 @@ export class StyleSettings {
     this.fileName.set(null);
   }
 
+  // -- the authorities she defers to ----------------------------------------
+
+  protected readonly sources = computed(() => this.data.sources());
+  protected readonly sourceTitle = signal('');
+  protected readonly sourceUrl = signal('');
+  protected readonly sourceNotes = signal('');
+  protected readonly sourceError = signal<string | null>(null);
+  protected readonly addingSource = signal(false);
+
+  protected openSourceForm() {
+    this.addingSource.set(true);
+    this.sourceError.set(null);
+  }
+
+  protected addSource() {
+    const added = this.data.addSource(this.sourceTitle(), this.sourceUrl(), this.sourceNotes());
+    if (!added) {
+      this.sourceError.set('צריך שם למקור, וקורס פתוח לשייך אליו.');
+      return;
+    }
+
+    this.sourceError.set(null);
+    this.sourceTitle.set('');
+    this.sourceUrl.set('');
+    this.sourceNotes.set('');
+    this.addingSource.set(false);
+  }
+
+  protected removeSource(id: string) {
+    this.data.setSourceActive(id, false);
+  }
+
   /**
    * Hands the learned style over as a file.
    *

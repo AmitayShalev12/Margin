@@ -199,6 +199,17 @@ export class DataStore {
   readonly hasAssignment = computed(() => !!this._assignment());
 
   /**
+   * The authorities she defers to.
+   *
+   * Stored as course materials of kind `reference`, because that is what they
+   * are and the table already holds them — a source with a URL needed no new
+   * table, no migration and no third RLS policy to keep in step.
+   */
+  readonly sources = computed(() =>
+    this._courseMaterials().filter((m) => m.kind === 'reference' && m.active),
+  );
+
+  /**
    * Student Drive accounts she has confirmed.
    *
    * The whole input to the shared-with-me query: Margin asks Drive for
@@ -399,6 +410,58 @@ export class DataStore {
     this._assignment.set(assignment);
     this.persist(() => this.repository.saveAssignment(assignment));
     return assignment;
+  }
+
+  /**
+   * An authority she wants the drafting to follow.
+   *
+   * `url` is a pointer for her, not a fetch instruction: nothing in Margin
+   * opens it. What reaches the model is the name and whatever she wrote in
+   * `notes` — which is why the field beside it asks what to take from the
+   * source rather than treating the link as self-explanatory.
+   */
+  addSource(title: string, url: string, notes: string): CourseMaterial | null {
+    const course = this._course();
+    const name = title.trim();
+    if (!course || !name) return null;
+
+    const now = new Date().toISOString();
+    const source: CourseMaterial = {
+      id: newId(),
+      course_id: course.id,
+      kind: 'reference',
+      title: name,
+      notes: notes.trim() || null,
+      content: null,
+      drive_file_id: null,
+      external_url: url.trim() || null,
+      active: true,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._courseMaterials.update((list) => [...list, source]);
+    this.persist(() => this.repository.saveCourseMaterial(source));
+    return source;
+  }
+
+  /**
+   * Switches a source off without losing it.
+   *
+   * Deactivated rather than deleted: a source she turns off mid-year is a
+   * decision she may reverse, and the comments already written under it stay
+   * explicable if the thing they deferred to is still on record.
+   */
+  setSourceActive(id: UUID, active: boolean) {
+    let written: CourseMaterial | undefined;
+    this._courseMaterials.update((list) =>
+      list.map((m) => {
+        if (m.id !== id || m.active === active) return m;
+        written = { ...m, active };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveCourseMaterial(written!));
   }
 
   /**

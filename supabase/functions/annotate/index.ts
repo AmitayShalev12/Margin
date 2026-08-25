@@ -56,6 +56,17 @@ interface AnnotateRequest {
   blocks: RequestBlock[];
   rules: { kind: string; body: string; origin: string }[];
   materials: { kind: string; title: string; notes: string | null; content: string | null }[];
+  /**
+   * The authorities she defers to — the Hebrew Academy, a style guide, a
+   * departmental standard. Where "correct" comes from for this course.
+   *
+   * Sent as names and notes, not as fetched pages: nothing here opens a URL,
+   * and the prompt says so, because a model told to "read from" a link it
+   * cannot open will cheerfully invent what it found there. What it does have
+   * is its own knowledge of a named authority, which for something like the
+   * Academy is substantial — and her note beside it, which is verbatim.
+   */
+  sources: { title: string; url: string | null; notes: string | null }[];
   style_examples: { source: string; student_text: string | null; teacher_text: string }[];
   /** Past accept/edit/dismiss decisions — the strongest signal of her voice. */
   style_edits: {
@@ -145,6 +156,35 @@ function knowledgeBase(body: AnnotateRequest): string {
             : 'Reference material';
     const notes = material.notes ? ` (${material.notes})` : '';
     parts.push(`# ${heading}: ${material.title}${notes}\n${material.content ?? ''}`.trim());
+  }
+
+  /**
+   * The authorities, and the honest limits on them.
+   *
+   * Two instructions matter here and they pull in opposite directions, so both
+   * are stated. Prefer these where they apply — that is the whole point of her
+   * naming them. And where none of them covers the question, answer anyway
+   * from ordinary academic judgement rather than staying silent, but do not
+   * dress that answer up as coming from an authority that never said it.
+   */
+  if (body.sources?.length) {
+    parts.push(
+      `# Authorities she trusts\n` +
+        `Where one of these covers the question, follow it over your own judgement — this is ` +
+        `where "correct" comes from for this course.\n` +
+        `You cannot open these pages. Use what you already know of each named authority, plus ` +
+        `her note beside it. Never quote or cite a specific rule, page or wording as coming ` +
+        `from one of them unless you are certain of it.\n` +
+        `Where none of them covers the question, use ordinary academic judgement and say the ` +
+        `comment plainly — but do not attribute it to any of these.\n` +
+        body.sources
+          .map((s) => {
+            const url = s.url ? ` (${s.url})` : '';
+            const note = s.notes ? ` — ${s.notes}` : '';
+            return `- ${s.title}${url}${note}`;
+          })
+          .join('\n'),
+    );
   }
 
   if (body.style_examples.length) {

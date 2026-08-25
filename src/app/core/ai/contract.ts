@@ -35,6 +35,17 @@ export interface AnnotateRequest {
   blocks: Pick<DocumentBlock, 'id' | 'type' | 'level' | 'text'>[];
   rules: { kind: string; body: string; origin: string }[];
   materials: { kind: string; title: string; notes: string | null; content: string | null }[];
+  /**
+   * The authorities she defers to — the Hebrew Academy, a style guide, a
+   * departmental standard. Where "correct" comes from for this course.
+   *
+   * Sent as names and notes, not as fetched pages: nothing here opens a URL,
+   * and the prompt says so, because a model told to "read from" a link it
+   * cannot open will cheerfully invent what it found there. What it does have
+   * is its own knowledge of a named authority, which for something like the
+   * Academy is substantial — and her note beside it, which is verbatim.
+   */
+  sources: { title: string; url: string | null; notes: string | null }[];
   style_examples: { source: string; student_text: string | null; teacher_text: string }[];
   /**
    * Her decisions on comments that were drafted for her, from

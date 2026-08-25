@@ -27,6 +27,44 @@ Phase 4: **AI-drafted annotations**, the **learning loop** that conditions them
 on her own edits, the **grading forms**, the **student email**, and **posting
 her comments onto the student's document** (all below).
 
+### Two shortcuts into the learning loop
+
+The loop learns her voice one review at a time, which takes a year. **הסגנון
+שלי** holds two ways of getting there faster.
+
+**Importing the papers she marked up before this existed.** A teacher with a
+decade behind her already has hundreds of comments in her own words, sitting in
+Word documents. `core/import/` reads them out — a `.docx` is a ZIP of XML
+parts, so it carries a small ZIP reader (`DecompressionStream` does the
+inflating; ZIP64 and encryption are refused rather than half-read) and a
+comment extractor. The fiddly half is the anchor: Word marks a commented span
+with `commentRangeStart`/`End` as _siblings_, not as a wrapper, so the range
+cannot be read off the tree shape — the document is walked in order with a set
+of open ids, and overlapping anchors fall out of that for free. Pairing each
+note with the sentence that provoked it is what makes it a style example rather
+than a tone sample.
+
+It asks which authors are hers, because a paper can carry a colleague's
+comments or the student's own replies, and learning to write in someone else's
+voice is worse than learning nothing. Re-importing the same document adds
+nothing — the id is derived from the pair's own text. The file is read in the
+browser and dropped; nothing about the student's document is stored.
+`docx-comments.spec.ts` builds real ZIP bytes rather than mocking the parse.
+
+**Sources.** The authorities she defers to — the Hebrew Academy, a style guide
+— stored as `course_materials` of kind `reference`, which needed no new table.
+They reach the prompt in their own field rather than as background reading,
+because a source decides what is _correct_ while a syllabus is context.
+
+Worth being exact about what that does and does not mean: **nothing opens the
+link.** What reaches the model is the name and her note beside it, and the
+prompt says so in as many words — a model told to "read from" a page it cannot
+open will cheerfully invent what it found there. It leans on what it already
+knows of a named authority, is told never to attribute a specific rule or
+wording to one unless it is certain, and where no source covers the question it
+is told to use ordinary judgement and _not_ dress it up as coming from one. The
+card says the same thing to the teacher.
+
 Phase 5 ships **four** of the seven authenticity flags in the data model, and
 deliberately not the other three. `bulk_paste`, `few_revisions` and any
 editing-session analysis are refused outright — not hidden behind a setting,

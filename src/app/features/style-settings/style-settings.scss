@@ -225,3 +225,85 @@
   gap: var(--s-2);
   margin-block-start: var(--s-3);
 }
+
+// -- the authorities she defers to -------------------------------------------
+
+.sources {
+  margin-block-start: var(--s-5);
+}
+
+.source-list {
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+}
+
+.source {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-3);
+
+  & + & {
+    border-block-start: 1px solid var(--c-line);
+  }
+}
+
+.source-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.source-title {
+  font-size: var(--fs-sm);
+  color: var(--c-ink);
+}
+
+.source-url {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  // A URL is a Latin run inside a Hebrew card, and it can be long.
+  unicode-bidi: isolate;
+  overflow-wrap: anywhere;
+}
+
+.source-notes {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  line-height: 1.6;
+}
+
+.source-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  margin-block-end: var(--s-3);
+}
+
+.source-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.source-form .label {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+}
+
+.source-form .control {
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  inline-size: 100%;
+}
