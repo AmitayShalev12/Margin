@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../../core/data/data-store';
+import { DocxError, ImportedComment, readDocxComments } from '../../core/import/docx-comments';
 import { buildStyleProfile, countDecisions, deriveTraits } from '../../core/learning/style-profile';
 import { kindClass } from '../../core/presentation/annotation-kind';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
@@ -76,6 +77,98 @@ export class StyleSettings {
         note: l.change_note,
       })),
   );
+
+  // -- her old marked-up papers ---------------------------------------------
+  //
+  // The button here used to do nothing. What it does now is read the comments
+  // out of a Word document she marked up years ago — a decade of her voice
+  // that would otherwise take a year to relearn one review at a time.
+
+  protected readonly reading = signal(false);
+  protected readonly importError = signal<string | null>(null);
+  /** What was found in the file, waiting for her to confirm it is hers. */
+  protected readonly found = signal<ImportedComment[]>([]);
+  protected readonly authors = signal<{ name: string; count: number }[]>([]);
+  /** Which authors she has ticked. Empty means she has not chosen yet. */
+  protected readonly chosenAuthors = signal<Set<string>>(new Set());
+  protected readonly imported = signal<number | null>(null);
+  protected readonly fileName = signal<string | null>(null);
+
+  /** The comments belonging to the authors she has ticked. */
+  protected readonly selected = computed(() => {
+    const authors = this.chosenAuthors();
+    return this.found().filter((c) => authors.has(c.author));
+  });
+
+  /** A few, to show what is about to be learned rather than only how many. */
+  protected readonly preview = computed(() => this.selected().slice(0, 4));
+
+  protected async chooseFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // Cleared straight away so picking the same file twice still fires.
+    input.value = '';
+    if (!file) return;
+
+    this.reading.set(true);
+    this.importError.set(null);
+    this.imported.set(null);
+    this.found.set([]);
+    this.authors.set([]);
+    this.fileName.set(file.name);
+
+    try {
+      const { comments, authors } = await readDocxComments(await file.arrayBuffer());
+
+      this.found.set(comments);
+      this.authors.set(authors);
+      // One author is not a choice; tick her and let the teacher press save.
+      this.chosenAuthors.set(new Set(authors.length === 1 ? [authors[0].name] : []));
+
+      if (!comments.length) {
+        this.importError.set(
+          'לא מצאתי הערות בקובץ הזה. יכול להיות שסימנת על נייר, או שזה קובץ אחר.',
+        );
+      }
+    } catch (error) {
+      this.importError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
+    } finally {
+      this.reading.set(false);
+    }
+  }
+
+  protected toggleAuthor(name: string) {
+    this.chosenAuthors.update((current) => {
+      const next = new Set(current);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  protected isChosen(name: string): boolean {
+    return this.chosenAuthors().has(name);
+  }
+
+  /** She has said which comments are hers. Only those are learned from. */
+  protected save() {
+    const added = this.data.importStyleExamples(
+      this.selected().map((c) => ({ quote: c.quote, body: c.body })),
+    );
+
+    this.imported.set(added);
+    this.found.set([]);
+    this.authors.set([]);
+    this.chosenAuthors.set(new Set());
+  }
+
+  protected discard() {
+    this.found.set([]);
+    this.authors.set([]);
+    this.chosenAuthors.set(new Set());
+    this.importError.set(null);
+    this.fileName.set(null);
+  }
 
   /**
    * Hands the learned style over as a file.

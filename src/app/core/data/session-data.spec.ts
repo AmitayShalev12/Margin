@@ -320,6 +320,48 @@ describe('startup and the session', () => {
       expect(repository.written).toEqual([]);
     });
 
+    /**
+     * Her old marked-up papers, read in twice.
+     *
+     * A teacher who is not sure whether the import worked will run it again —
+     * and a second copy of every comment does not teach the model twice as
+     * well, it teaches it that she repeats herself. The id is derived from the
+     * pair's own text, so the same document is a no-op.
+     */
+    it('learns from an imported comment once, however many times it is imported', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+
+      store.createCourse('שיטות מחקר', 'תשפ״ו');
+
+      const pairs = [
+        { quote: 'הקשר בין המשתנים היה מובהק', body: 'לנסח מחדש, המשפט ארוך מדי.' },
+        { quote: null, body: 'עבודה יפה בסך הכול.' },
+      ];
+
+      expect(store.importStyleExamples(pairs)).toBe(2);
+      expect(store.importStyleExamples(pairs)).toBe(0);
+      expect(store.styleExamples().length).toBe(2);
+
+      // The pairing survives, which is what makes it a style example rather
+      // than a tone sample.
+      const anchored = store.styleExamples().find((e) => e.student_text);
+      expect(anchored?.student_text).toBe('הקשר בין המשתנים היה מובהק');
+      expect(anchored?.teacher_text).toBe('לנסח מחדש, המשפט ארוך מדי.');
+      expect(anchored?.teacher_id).toBe('teacher-1');
+    });
+
+    it('refuses to import with nobody signed in', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore(null);
+      await started;
+
+      expect(store.importStyleExamples([{ quote: null, body: 'הערה' }])).toBe(0);
+    });
+
     /** An assignment with no course would point at nothing. */
     it('refuses an assignment before there is a course', async () => {
       const { store, session } = boot(supabase, repository);

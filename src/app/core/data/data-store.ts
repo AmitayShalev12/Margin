@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { buildCategories } from '../grading/categories';
 import { buildEntries } from '../grading/entries';
-import { newId } from '../ids';
+import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
 import {
   Annotation,
@@ -399,6 +399,60 @@ export class DataStore {
     this._assignment.set(assignment);
     this.persist(() => this.repository.saveAssignment(assignment));
     return assignment;
+  }
+
+  /**
+   * Comments she wrote by hand, years before this app existed.
+   *
+   * A teacher who has been marking papers for a decade already has what Margin
+   * otherwise spends a year learning: hundreds of notes in her own words, in
+   * old Word documents. Read back in, each one paired with the sentence it was
+   * written about, they are style examples of exactly the kind the drafting
+   * prompt already takes — so nothing downstream has to know they came from a
+   * file rather than from this year's review screen.
+   *
+   * The id is derived from the pair's own text, which makes re-importing the
+   * same document a no-op instead of a second copy of her voice. Returns how
+   * many were new, because "0 added" and "48 added" are different answers to
+   * the same click and she should not have to guess which happened.
+   */
+  importStyleExamples(pairs: readonly { quote: string | null; body: string }[]): number {
+    const teacherId = this.supabase.teacherId;
+    if (!teacherId) return 0;
+
+    const courseId = this._course()?.id ?? null;
+    const seen = new Set(this._styleExamples().map((e) => e.id));
+    const now = new Date().toISOString();
+    const written: TeacherStyleExample[] = [];
+
+    for (const pair of pairs) {
+      const teacherText = pair.body.trim();
+      if (!teacherText) continue;
+
+      const studentText = pair.quote?.trim() || null;
+      const id = derivedId('style-example', `${studentText ?? ''}\u00bb${teacherText}`);
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      written.push({
+        id,
+        teacher_id: teacherId,
+        course_id: courseId,
+        source: 'past_feedback',
+        student_text: studentText,
+        teacher_text: teacherText,
+        tags: [],
+        active: true,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    if (!written.length) return 0;
+
+    this._styleExamples.update((list) => [...list, ...written]);
+    for (const row of written) this.persist(() => this.repository.saveStyleExample(row));
+    return written.length;
   }
 
   /**

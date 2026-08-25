@@ -128,3 +128,100 @@
     margin: 10px 2px 0;
   }
 }
+
+// -- importing her old marked-up papers --------------------------------------
+
+.file-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.file-input {
+  // The control is the label; the input itself is only the file dialog.
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.import-error {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+.import-done {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+
+.found {
+  margin-block-start: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+}
+
+.found-title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.found-note {
+  margin: var(--s-3) 0 var(--s-2);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-3);
+}
+
+.authors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.author {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+  cursor: pointer;
+}
+
+.preview {
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.preview-item {
+  padding-block: var(--s-2);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.preview-quote {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  margin-block-end: 2px;
+}
+
+.preview-body {
+  font-size: var(--fs-sm);
+  color: var(--c-ink);
+  line-height: 1.6;
+}
+
+.found-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}

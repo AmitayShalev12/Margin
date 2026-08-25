@@ -46,9 +46,92 @@
     </div>
   }
 
+  <!--
+    Her own back catalogue. A teacher who has marked papers for years already
+    has the thing this screen otherwise spends a year assembling.
+  -->
   <div class="add">
-    <button type="button" class="btn btn-primary btn-block">הוספת דוגמאות מהכתיבה שלי</button>
-    <p class="hint">הערות משנים קודמות, מיילים שכתבת, או טקסט שתדביקי כאן.</p>
+    <label class="btn btn-primary btn-block file-button">
+      {{ reading() ? 'קוראת את הקובץ…' : 'הוספת דוגמאות מהכתיבה שלי' }}
+      <input
+        type="file"
+        accept=".docx"
+        class="file-input"
+        [disabled]="reading()"
+        (change)="chooseFile($event)"
+      />
+    </label>
+    <p class="hint">
+      קובץ Word ‎(.docx)‎ מעבודה שכבר בדקת — אני קוראת משם את ההערות שכתבת ואת המשפטים שעליהם כתבת
+      אותן. הקובץ עצמו לא נשמר בשום מקום.
+    </p>
+
+    @if (importError(); as message) {
+      <p class="import-error" role="alert">{{ message }}</p>
+    }
+
+    @if (imported(); as count) {
+      <p class="import-done" role="status">
+        @if (count) {
+          נוספו {{ count }} דוגמאות מהכתיבה שלך. מעכשיו הטיוטות ייכתבו קרוב יותר אליהן.
+        } @else {
+          כל ההערות בקובץ הזה כבר היו אצלי — לא נוסף כפל.
+        }
+      </p>
+    }
+
+    @if (found().length) {
+      <div class="found">
+        <p class="found-title">נמצאו {{ found().length }} הערות ב{{ fileName() }}</p>
+
+        <!--
+          Asked, not assumed. A paper can carry a colleague's comments, or the
+          student's own replies, and learning to write in someone else's voice
+          is worse than learning nothing.
+        -->
+        <p class="found-note">מי מהן שלך?</p>
+        <div class="authors">
+          @for (author of authors(); track author.name) {
+            <label class="author">
+              <input
+                type="checkbox"
+                [checked]="isChosen(author.name)"
+                (change)="toggleAuthor(author.name)"
+              />
+              <span>{{ author.name }} ({{ author.count }})</span>
+            </label>
+          }
+        </div>
+
+        @if (preview().length) {
+          <ul class="preview">
+            @for (item of preview(); track item.id) {
+              <li class="preview-item">
+                @if (item.quote) {
+                  <div class="preview-quote">״{{ item.quote }}״</div>
+                }
+                <div class="preview-body">{{ item.body }}</div>
+              </li>
+            }
+          </ul>
+          @if (selected().length > preview().length) {
+            <p class="hint">ועוד {{ selected().length - preview().length }}.</p>
+          }
+        }
+
+        <div class="found-actions">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            [disabled]="!selected().length"
+            (click)="save()"
+          >
+            ללמוד מ{{ selected().length }} הערות
+          </button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="discard()">ביטול</button>
+        </div>
+      </div>
+    }
   </div>
 
   <div class="take">
