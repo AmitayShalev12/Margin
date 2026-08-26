@@ -165,6 +165,130 @@ describe('AnnotationGenerator', () => {
     expect(sent[0].sources).toEqual([]);
   });
 
+  /**
+   * The rubric reaches the model only when the round may be scored, and
+   * without the criteria she alone judges.
+   *
+   * Absence rather than instruction: a model that cannot see 2.2 cannot score
+   * 2.2. "Do not score this one" is a request, and requests are followed most
+   * of the time.
+   */
+  it('sends the rubric, minus the criteria only she may score', async () => {
+    respondWith({ summary: 'סיכום', annotations: [] });
+    const { store, generator } = boot();
+
+    store.importRubric({
+      criteria: [
+        { code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 },
+        { code: '2.2', section: 'פרק תאורטי', name: 'מקורות חב"ד', maxPoints: 3 },
+      ],
+      weights: [],
+    });
+    const hers = store.gradingCategories().find((c) => c.name.startsWith('2.2'))!;
+    store.setCategoryManualOnly(hers.id, true);
+    // Said outright: this test is about which criteria are sent, not about
+    // where the threshold sits.
+    store.setRoundScoring(store.roundFor(NOA)!.id, 'scored');
+
+    await generator.generate(NOA);
+
+    const request = sent[0];
+    expect(request.rubric.map((c) => c.key)).toEqual(['2.1']);
+    expect(request.rubric[0].max_points).toBe(8);
+  });
+
+  /**
+   * The refusal. Her first submission is a paragraph, and a paragraph gets
+   * comments and no number.
+   */
+  it('sends no rubric at all for a round that may not be scored', async () => {
+    respondWith({ summary: 'סיכום', annotations: [] });
+    const { store, generator } = boot();
+
+    store.importRubric({
+      criteria: [{ code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 }],
+      weights: [],
+    });
+    const round = store.roundFor(NOA)!;
+    store.setRoundScoring(round.id, 'comments_only');
+
+    await generator.generate(NOA);
+
+    expect(sent[0].scoring).toBe('comments_only');
+    expect(sent[0].rubric).toEqual([]);
+  });
+
+  it('records the scores it gets back, clamped to the criterion', async () => {
+    const { store, generator } = boot();
+
+    store.importRubric({
+      criteria: [{ code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 }],
+      weights: [],
+    });
+    const round = store.roundFor(NOA)!;
+    store.setRoundScoring(round.id, 'scored');
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [],
+      // Nine out of eight: the model has misread the rubric, and storing it
+      // would put the form over 100 with nothing on screen looking wrong.
+      scores: [{ key: '2.1', points: 9, note: 'סקירה רחבה' }],
+    });
+    await generator.generate(NOA);
+
+    const scores = store.criterionScores(NOA);
+    expect(scores.length).toBe(1);
+    expect(scores[0].points).toBe(8);
+    expect(scores[0].change_note).toBe('סקירה רחבה');
+    expect(scores[0].status).toBe('draft');
+  });
+
+  /** Null is an answer, and the common one early on. It is never a zero. */
+  it('records "cannot judge this yet" as no score rather than zero', async () => {
+    const { store, generator } = boot();
+
+    store.importRubric({
+      criteria: [{ code: '3.1', section: 'פרק מחקרי', name: 'טיב המדגם', maxPoints: 8 }],
+      weights: [],
+    });
+    store.setRoundScoring(store.roundFor(NOA)!.id, 'scored');
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [],
+      scores: [{ key: '3.1', points: null, note: 'עוד אין פרק מחקרי' }],
+    });
+    await generator.generate(NOA);
+
+    expect(store.criterionScores(NOA)[0].points).toBeNull();
+  });
+
+  /** Her hand on a score ends the conversation about it. */
+  it('never overwrites a score she has set herself', async () => {
+    const { store, generator } = boot();
+
+    store.importRubric({
+      criteria: [{ code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 }],
+      weights: [],
+    });
+    const category = store.gradingCategories().find((c) => c.active)!;
+    store.setRoundScoring(store.roundFor(NOA)!.id, 'scored');
+    store.setCriterionScore(NOA, category.id, 7, 'החלטתי');
+
+    respondWith({
+      summary: 'סיכום',
+      annotations: [],
+      scores: [{ key: '2.1', points: 3, note: 'חלש' }],
+    });
+    await generator.generate(NOA);
+
+    const score = store.criterionScores(NOA)[0];
+    expect(score.points).toBe(7);
+    expect(score.change_note).toBe('החלטתי');
+    expect(score.edited_by_teacher).toBe(true);
+  });
+
   it('omits rules and materials she has switched off', async () => {
     respondWith({ summary: 'סיכום', annotations: [] });
     const { store, generator } = boot();

@@ -6,6 +6,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
   LearningFeedbackLog,
@@ -84,6 +85,12 @@ export class LocalRepository extends Repository {
   async saveGradingCategory(category: GradingFormCategory): Promise<void> {
     this.mutate((snapshot) => {
       snapshot.gradingCategories = replaceById(snapshot.gradingCategories, category);
+    });
+  }
+
+  async saveCriterionScore(score: GradingCriterionScore): Promise<void> {
+    this.mutate((snapshot) => {
+      snapshot.criterionScores = replaceById(snapshot.criterionScores, score);
     });
   }
 
@@ -187,6 +194,7 @@ function read(): PersistedSnapshot {
       courseRules: parsed.courseRules ?? [],
       courseMaterials: parsed.courseMaterials ?? [],
       gradingCategories: parsed.gradingCategories ?? [],
+      criterionScores: parsed.criterionScores ?? [],
       gradingEntries: parsed.gradingEntries ?? [],
       studentForms: parsed.studentForms ?? [],
       studentEmails: parsed.studentEmails ?? [],
@@ -212,6 +220,7 @@ function clone(snapshot: PersistedSnapshot): PersistedSnapshot {
     courseRules: [...snapshot.courseRules],
     courseMaterials: [...snapshot.courseMaterials],
     gradingCategories: [...snapshot.gradingCategories],
+    criterionScores: [...snapshot.criterionScores],
     gradingEntries: [...snapshot.gradingEntries],
     studentForms: [...snapshot.studentForms],
     studentEmails: [...snapshot.studentEmails],

@@ -46,6 +46,32 @@ export interface AnnotateRequest {
    * Academy is substantial — and her note beside it, which is verbatim.
    */
   sources: { title: string; url: string | null; notes: string | null }[];
+  /**
+   * Whether this round may carry scores at all.
+   *
+   * `comments_only` and the model returns none — her first submission is a
+   * single paragraph and gets comments and no number. Sent rather than decided
+   * server-side, because the decision may be hers and the reason lives with the
+   * round.
+   */
+  scoring: 'comments_only' | 'scored';
+  /**
+   * Her rubric, as the model is allowed to see it.
+   *
+   * Criteria she alone judges are **absent from this list**, not flagged
+   * within it. A model that cannot see 2.2 cannot score 2.2; an instruction
+   * not to score it is a request, and requests are followed most of the time.
+   *
+   * `key` is her own criterion number where she has one — she says "2.1" out
+   * loud, and a uuid echoed back through a model is a uuid that comes back
+   * subtly wrong.
+   */
+  rubric: { key: string; name: string; section: string | null; max_points: number | null }[];
+  /**
+   * What each criterion stood at before this round, so the model can say what
+   * changed rather than only what the score now is.
+   */
+  previous_scores: { key: string; points: number | null }[];
   style_examples: { source: string; student_text: string | null; teacher_text: string }[];
   /**
    * Her decisions on comments that were drafted for her, from
@@ -72,10 +98,29 @@ export interface DraftAnnotation {
   body: string;
 }
 
+/** One criterion, scored or explicitly not. */
+export interface DraftScore {
+  key: string;
+  /**
+   * Null is a real answer and the common one: the submitted text does not
+   * support a judgement on this criterion yet. It is never a zero, and the
+   * `note` says what is missing.
+   */
+  points: number | null;
+  /**
+   * Why this score, or what changed since the round before. She asked for
+   * this by name — a number that moved with no account of why is the part of
+   * an automated grade that cannot be defended to a student.
+   */
+  note: string;
+}
+
 export interface AnnotateResponse {
   /** The plain-language restatement the teacher confirms, once per batch. */
   summary: string;
   annotations: DraftAnnotation[];
+  /** Absent when the round is comments-only. */
+  scores?: DraftScore[];
   usage?: {
     input_tokens: number;
     output_tokens: number;

@@ -141,9 +141,7 @@ function internalForm(body: StudentFormRequest): string {
       if (!lines.length) return null;
       return (
         `<category id="${category.id}" name="${category.name}">\n` +
-        lines
-          .map((l) => `- ${l.body}${l.quote ? `\n  (on: "${l.quote}")` : ''}`)
-          .join('\n') +
+        lines.map((l) => `- ${l.body}${l.quote ? `\n  (on: "${l.quote}")` : ''}`).join('\n') +
         `\n</category>`
       );
     })
@@ -273,7 +271,10 @@ Deno.serve(async (request: Request) => {
     }
 
     return json(
-      { summary: typeof payload.summary === 'string' ? payload.summary : '', sections: payload.sections },
+      {
+        summary: typeof payload.summary === 'string' ? payload.summary : '',
+        sections: payload.sections,
+      },
       200,
       { ...headers, 'Cache-Control': 'no-store' },
     );

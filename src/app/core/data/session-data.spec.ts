@@ -35,6 +35,8 @@ class RecordingRepository extends Repository {
   saveCourseMaterial = async () => void this.written.push('course-material');
   saveStyleExample = async () => void this.written.push('style-example');
   saveGradingCategory = async () => void this.written.push('grading-category');
+
+  saveCriterionScore = async () => void this.written.push('criterion-score');
   saveGradingEntry = async () => undefined;
   deleteGradingEntries = async () => undefined;
   saveStudentForm = async () => undefined;

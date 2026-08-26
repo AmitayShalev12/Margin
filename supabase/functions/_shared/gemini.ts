@@ -31,13 +31,44 @@ export interface JsonSchema {
   items?: JsonSchema;
   required?: string[];
   enum?: string[];
+  /**
+   * Gemini's structured output takes the OpenAPI subset, where a nullable
+   * field is a flag rather than `type: ['integer', 'null']`. It matters here:
+   * "the text does not support a judgement yet" has to be expressible, and a
+   * schema that cannot say null forces the model to invent a number.
+   */
+  nullable?: boolean;
 }
 
-export function responseSchema(kinds: string[]): JsonSchema {
+/**
+ * The shape the model must answer in.
+ *
+ * `scored` decides whether the scores array is part of the schema at all.
+ * Leaving it out of the shape is stronger than instructing the model to send
+ * an empty one: a round that may not be scored cannot come back scored, so the
+ * paragraph submission has no path to a number even if the prompt is misread.
+ */
+export function responseSchema(kinds: string[], scored = false): JsonSchema {
+  const scores: JsonSchema = {
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        // Nullable on purpose: "the text does not support a judgement yet" is
+        // an answer, and a required number would force a guess instead.
+        points: { type: 'integer', nullable: true },
+        note: { type: 'string' },
+      },
+      required: ['key', 'points', 'note'],
+    },
+  };
+
   return {
     type: 'object',
     properties: {
       summary: { type: 'string' },
+      ...(scored ? { scores } : {}),
       annotations: {
         type: 'array',
         items: {
@@ -52,7 +83,7 @@ export function responseSchema(kinds: string[]): JsonSchema {
         },
       },
     },
-    required: ['summary', 'annotations'],
+    required: scored ? ['summary', 'annotations', 'scores'] : ['summary', 'annotations'],
   };
 }
 

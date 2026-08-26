@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../data/data-store';
+import { criterionKey, resolveScores, scoringMode } from '../grading/scoring';
 import { newId } from '../ids';
 import {
   Annotation,
@@ -117,6 +118,29 @@ export class AnnotationGenerator {
 
     const { resolved, rejected } = resolveAnnotations(response.annotations ?? [], blocks);
 
+    /**
+     * The rubric scores, when the round carried any.
+     *
+     * Applied before the comments are written, so a failure here surfaces as a
+     * save error rather than as a form that is silently a round behind. Scores
+     * she has already settled are left alone inside the store.
+     */
+    if (response.scores?.length) {
+      const scored = resolveScores(
+        this.store.gradingCategories().filter((c) => c.active),
+        response.scores,
+      );
+      this.store.applyCriterionScores(
+        submission.id,
+        round.round_number,
+        scored.map((item) => ({
+          categoryId: item.category.id,
+          points: item.points,
+          note: item.note,
+        })),
+      );
+    }
+
     const now = new Date().toISOString();
     const annotations: Annotation[] = resolved.map((item, index) => ({
       id: newId(),
@@ -200,6 +224,10 @@ export class AnnotationGenerator {
     // in her mouth that no teacher ever wrote.
     if (!course || !assignment) return null;
 
+    // Decided here rather than in the prompt: whether a round may be scored is
+    // her rule about the work, not a judgement about the text.
+    const mode = scoringMode(round);
+
     return {
       allowed_kinds: [...GENERATED_KINDS],
       student_name: this.store.studentName(submission.student_id),
@@ -229,6 +257,39 @@ export class AnnotationGenerator {
           notes: m.notes,
           content: m.content,
         })),
+      /**
+       * The rubric the model may score, and the two things kept out of it.
+       *
+       * Criteria she alone judges are *absent* rather than flagged: a model
+       * that cannot see 2.2 cannot score 2.2, whereas an instruction not to
+       * score it is a request. And when the round is comments-only the list is
+       * empty, so there is nothing to score against at all.
+       */
+      scoring: mode,
+      rubric:
+        mode === 'scored'
+          ? this.store
+              .gradingCategories()
+              .filter((c) => c.active && !c.manual_only)
+              .map((c) => ({
+                key: criterionKey(c),
+                name: c.name,
+                section: c.section,
+                max_points: c.max_points,
+              }))
+          : [],
+      previous_scores:
+        mode === 'scored'
+          ? this.store
+              .criterionScores(submission.id)
+              .map((score) => {
+                const category = this.store
+                  .gradingCategories()
+                  .find((c) => c.id === score.category_id);
+                return category ? { key: criterionKey(category), points: score.points } : null;
+              })
+              .filter((entry): entry is { key: string; points: number | null } => !!entry)
+          : [],
       sources: this.store.sources().map((s) => ({
         title: s.title,
         url: s.external_url,

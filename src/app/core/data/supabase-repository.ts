@@ -6,6 +6,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
   LearningFeedbackLog,
@@ -109,6 +110,7 @@ export class SupabaseRepository extends Repository {
       styleExamples,
       students,
       gradingCategories,
+      criterionScores,
       gradingEntries,
       studentForms,
       studentEmails,
@@ -125,6 +127,7 @@ export class SupabaseRepository extends Repository {
       client.from(TABLES.teacherStyleExamples).select('*'),
       client.from(TABLES.students).select('*'),
       client.from(TABLES.gradingFormCategories).select('*'),
+      client.from(TABLES.criterionScores).select('*'),
       client.from(TABLES.gradingFormEntries).select('*'),
       client.from(TABLES.studentGradingForms).select('*'),
       client.from(TABLES.studentEmails).select('*'),
@@ -146,6 +149,7 @@ export class SupabaseRepository extends Repository {
       [TABLES.teacherStyleExamples, styleExamples],
       [TABLES.students, students],
       [TABLES.gradingFormCategories, gradingCategories],
+      [TABLES.criterionScores, criterionScores],
       [TABLES.gradingFormEntries, gradingEntries],
       [TABLES.studentGradingForms, studentForms],
       [TABLES.studentEmails, studentEmails],
@@ -172,6 +176,7 @@ export class SupabaseRepository extends Repository {
       assignments: (assignments.data ?? []) as Assignment[],
       students: (students.data ?? []) as Student[],
       gradingCategories: (gradingCategories.data ?? []) as GradingFormCategory[],
+      criterionScores: (criterionScores.data ?? []) as GradingCriterionScore[],
       gradingEntries: (gradingEntries.data ?? []) as GradingFormEntry[],
       studentForms: (studentForms.data ?? []) as StudentGradingForm[],
       studentEmails: (studentEmails.data ?? []) as StudentEmail[],
@@ -210,6 +215,10 @@ export class SupabaseRepository extends Repository {
 
   async saveGradingCategory(category: GradingFormCategory): Promise<void> {
     await this.upsert(TABLES.gradingFormCategories, category, 'id');
+  }
+
+  async saveCriterionScore(score: GradingCriterionScore): Promise<void> {
+    await this.upsert(TABLES.criterionScores, score, 'id');
   }
 
   async saveGradingEntry(entry: GradingFormEntry): Promise<void> {

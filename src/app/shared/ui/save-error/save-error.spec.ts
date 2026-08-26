@@ -60,6 +60,8 @@ class FailingRepository extends Repository {
   saveCourseMaterial = () => this.write('course-material');
   saveStyleExample = () => this.write('style-example');
   saveGradingCategory = () => this.write('grading-category');
+
+  saveCriterionScore = () => this.write('criterion-score');
   saveGradingEntry = () => this.write('grading-entry');
   deleteGradingEntries = () => this.write('grading-delete');
   saveStudentForm = () => this.write('student-form');

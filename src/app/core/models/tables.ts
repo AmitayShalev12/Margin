@@ -13,6 +13,7 @@ export const TABLES = {
   submissionRounds: 'submission_rounds',
   annotations: 'annotations',
   gradingFormCategories: 'grading_form_categories',
+  criterionScores: 'grading_criterion_scores',
   gradingFormEntries: 'grading_form_entries',
   studentGradingForms: 'student_grading_forms',
   teacherStyleExamples: 'teacher_style_examples',

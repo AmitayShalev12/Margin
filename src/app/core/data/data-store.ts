@@ -11,6 +11,8 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  GradingCriterionScore,
+  ScoringMode,
   GradingFormCategory,
   GradingFormEntry,
   LearningAction,
@@ -124,6 +126,7 @@ export class DataStore {
   private readonly _courseMaterials = signal<CourseMaterial[]>([]);
   private readonly _gradingCategories = signal<GradingFormCategory[]>([]);
   private readonly _gradingEntries = signal<GradingFormEntry[]>([]);
+  private readonly _criterionScores = signal<GradingCriterionScore[]>([]);
   private readonly _studentForms = signal<StudentGradingForm[]>([]);
   private readonly _studentEmails = signal<StudentEmail[]>([]);
   private readonly _reliabilityChecks = signal<ReliabilityCheck[]>([]);
@@ -155,6 +158,7 @@ export class DataStore {
   readonly courseMaterials = this._courseMaterials.asReadonly();
   readonly gradingCategories = this._gradingCategories.asReadonly();
   readonly gradingEntries = this._gradingEntries.asReadonly();
+  readonly allCriterionScores = this._criterionScores.asReadonly();
   readonly studentForms = this._studentForms.asReadonly();
   readonly studentEmails = this._studentEmails.asReadonly();
   readonly reliabilityChecks = this._reliabilityChecks.asReadonly();
@@ -197,6 +201,140 @@ export class DataStore {
   readonly hasCourse = computed(() => !!this._course());
   /** True once there is an assignment for work to attach to. */
   readonly hasAssignment = computed(() => !!this._assignment());
+
+  /** Every criterion score on one submission. */
+  criterionScores(submissionId: UUID): GradingCriterionScore[] {
+    return this._criterionScores().filter((s) => s.submission_id === submissionId);
+  }
+
+  /**
+   * Records what the model scored, and leaves her alone.
+   *
+   * Two rules, and both are refusals.
+   *
+   * A criterion she has touched is never overwritten. Her hand on a score is
+   * the end of the conversation about it — a generated number replacing hers
+   * on the next resubmission would undo a decision she made deliberately, and
+   * she would have no way to know it had happened.
+   *
+   * And `previous_points` is only moved when the score actually changes, so
+   * "עלה ב־3" survives a re-run that produced the same number. A round that
+   * re-scored everything identically would otherwise wipe every delta on the
+   * form and report no progress at all.
+   */
+  applyCriterionScores(
+    submissionId: UUID,
+    roundNumber: number,
+    scored: readonly { categoryId: UUID; points: number | null; note: string }[],
+  ): number {
+    if (!scored.length) return 0;
+
+    const now = new Date().toISOString();
+    const existing = new Map(
+      this._criterionScores()
+        .filter((s) => s.submission_id === submissionId)
+        .map((s) => [s.category_id, s]),
+    );
+
+    const written: GradingCriterionScore[] = [];
+
+    for (const item of scored) {
+      const before = existing.get(item.categoryId);
+      if (before?.edited_by_teacher) continue;
+
+      const moved = !before || before.points !== item.points;
+
+      written.push({
+        id: before?.id ?? derivedId('criterion-score', `${submissionId}:${item.categoryId}`),
+        submission_id: submissionId,
+        category_id: item.categoryId,
+        points: item.points,
+        previous_points: moved ? (before?.points ?? null) : (before?.previous_points ?? null),
+        // Provisional until she settles it. Nothing generated is ever final.
+        status: 'draft',
+        change_note: item.note,
+        round_number: roundNumber,
+        origin: 'ai',
+        edited_by_teacher: false,
+        scored_at: now,
+        created_at: before?.created_at ?? now,
+        updated_at: now,
+      });
+    }
+
+    if (!written.length) return 0;
+
+    const ids = new Set(written.map((w) => w.id));
+    this._criterionScores.update((list) => [...list.filter((s) => !ids.has(s.id)), ...written]);
+    for (const row of written) this.persist(() => this.repository.saveCriterionScore(row));
+
+    return written.length;
+  }
+
+  /**
+   * Her score on a criterion, which settles it.
+   *
+   * Marked `edited_by_teacher` so no later generation touches it again, and
+   * `final` because a number she typed is not a draft of anything.
+   */
+  setCriterionScore(submissionId: UUID, categoryId: UUID, points: number | null, note?: string) {
+    const now = new Date().toISOString();
+    const before = this._criterionScores().find(
+      (s) => s.submission_id === submissionId && s.category_id === categoryId,
+    );
+
+    const written: GradingCriterionScore = {
+      id: before?.id ?? derivedId('criterion-score', `${submissionId}:${categoryId}`),
+      submission_id: submissionId,
+      category_id: categoryId,
+      points,
+      previous_points:
+        before && before.points !== points ? before.points : (before?.previous_points ?? null),
+      status: 'final',
+      change_note: note ?? before?.change_note ?? null,
+      round_number: before?.round_number ?? 1,
+      origin: 'teacher',
+      edited_by_teacher: true,
+      scored_at: now,
+      created_at: before?.created_at ?? now,
+      updated_at: now,
+    };
+
+    this._criterionScores.update((list) => [...list.filter((s) => s.id !== written.id), written]);
+    this.persist(() => this.repository.saveCriterionScore(written));
+  }
+
+  /**
+   * Marks a criterion as one only she may score.
+   *
+   * Her 2.2 and 4.2 are hers permanently. Recorded rather than inferred: her
+   * rubric is not the only rubric, and the next teacher's 2.2 is something
+   * else entirely.
+   */
+  setCategoryManualOnly(id: UUID, manualOnly: boolean) {
+    let written: GradingFormCategory | undefined;
+    this._gradingCategories.update((list) =>
+      list.map((c) => {
+        if (c.id !== id || c.manual_only === manualOnly) return c;
+        written = { ...c, manual_only: manualOnly, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveGradingCategory(written!));
+  }
+
+  /** She decides whether a round carries scores, overriding the estimate. */
+  setRoundScoring(roundId: UUID, scoring: ScoringMode | null) {
+    let written: SubmissionRound | undefined;
+    this._rounds.update((list) =>
+      list.map((r) => {
+        if (r.id !== roundId || r.scoring === scoring) return r;
+        written = { ...r, scoring, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveRound(written!));
+  }
 
   /**
    * The authorities she defers to.
@@ -319,6 +457,7 @@ export class DataStore {
       courseId ? buildCategories(courseId, snapshot.gradingCategories) : [],
     );
     this._gradingEntries.set(snapshot.gradingEntries);
+    this._criterionScores.set(snapshot.criterionScores);
     this._studentForms.set(snapshot.studentForms);
     this._studentEmails.set(snapshot.studentEmails);
     this._reliabilityChecks.set(snapshot.reliabilityChecks);
@@ -674,6 +813,7 @@ export class DataStore {
     this._courseMaterials.set([]);
     this._gradingCategories.set([]);
     this._gradingEntries.set([]);
+    this._criterionScores.set([]);
     this._studentForms.set([]);
     this._studentEmails.set([]);
     this._reliabilityChecks.set([]);

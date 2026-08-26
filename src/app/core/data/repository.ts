@@ -4,6 +4,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
   LearningFeedbackLog,
@@ -43,6 +44,8 @@ export interface PersistedSnapshot {
 
   /** The internal grading form: her headings, and the lines under them. */
   gradingCategories: GradingFormCategory[];
+  /** One score per rubric criterion per submission, filled in as work arrives. */
+  criterionScores: GradingCriterionScore[];
   gradingEntries: GradingFormEntry[];
   /** The year-end forms the students receive. */
   studentForms: StudentGradingForm[];
@@ -79,6 +82,7 @@ export const EMPTY_SNAPSHOT: PersistedSnapshot = {
   courseRules: [],
   courseMaterials: [],
   gradingCategories: [],
+  criterionScores: [],
   gradingEntries: [],
   studentForms: [],
   studentEmails: [],
@@ -117,6 +121,7 @@ export abstract class Repository {
   abstract saveStyleExample(example: TeacherStyleExample): Promise<void>;
 
   abstract saveGradingCategory(category: GradingFormCategory): Promise<void>;
+  abstract saveCriterionScore(score: GradingCriterionScore): Promise<void>;
   abstract saveGradingEntry(entry: GradingFormEntry): Promise<void>;
   /** Entries whose annotation she has since dismissed leave the form. */
   abstract deleteGradingEntries(ids: readonly UUID[]): Promise<void>;

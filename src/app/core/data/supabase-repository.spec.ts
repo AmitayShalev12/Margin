@@ -99,6 +99,7 @@ describe('SupabaseRepository', () => {
       'teacher_style_examples',
       'students',
       'grading_form_categories',
+      'grading_criterion_scores',
       'grading_form_entries',
       'student_grading_forms',
       'student_emails',

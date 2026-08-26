@@ -183,3 +183,50 @@ export function finalGrade(input: {
 
   return Math.round(total * 10) / 10;
 }
+
+/**
+ * How a criterion is named to the model, and matched back afterwards.
+ *
+ * Her own number where the rubric has one — she says "2.1" out loud, and it is
+ * what she will look for in a note. A uuid round-tripped through a language
+ * model is a uuid that comes back subtly wrong, and a score attached to the
+ * wrong criterion is worse than no score: it is a defensible-looking number in
+ * the wrong row.
+ *
+ * Falls back to the id for a form with no numbering, where there is nothing
+ * more readable to use.
+ */
+export function criterionKey(category: GradingFormCategory): string {
+  const numbered = /^(\d+(?:\.\d+)*)\s/.exec(category.name);
+  return numbered ? numbered[1] : category.id;
+}
+
+/**
+ * Matches what the model sent back to the criteria it was given.
+ *
+ * Anything it could not be matched to is dropped rather than guessed at, and
+ * a score outside its criterion's range is clamped — a model that answers 9
+ * out of 8 has misread the rubric, and storing 9 would put the form over 100
+ * without anything on screen looking wrong.
+ */
+export function resolveScores(
+  categories: readonly GradingFormCategory[],
+  drafted: readonly { key: string; points: number | null; note: string }[],
+): { category: GradingFormCategory; points: number | null; note: string }[] {
+  const byKey = new Map(categories.map((c) => [criterionKey(c), c]));
+
+  return drafted.flatMap((draft) => {
+    const category = byKey.get(draft.key);
+    // Her own criteria were never sent, so a score for one is a model that
+    // invented a row. Dropped rather than stored against her judgement.
+    if (!category || category.manual_only) return [];
+
+    const max = category.max_points;
+    const points =
+      draft.points === null
+        ? null
+        : Math.max(0, max === null ? draft.points : Math.min(draft.points, max));
+
+    return [{ category, points, note: draft.note }];
+  });
+}

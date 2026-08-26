@@ -67,6 +67,32 @@ interface AnnotateRequest {
    * Academy is substantial — and her note beside it, which is verbatim.
    */
   sources: { title: string; url: string | null; notes: string | null }[];
+  /**
+   * Whether this round may carry scores at all.
+   *
+   * `comments_only` and the model returns none — her first submission is a
+   * single paragraph and gets comments and no number. Sent rather than decided
+   * server-side, because the decision may be hers and the reason lives with the
+   * round.
+   */
+  scoring: 'comments_only' | 'scored';
+  /**
+   * Her rubric, as the model is allowed to see it.
+   *
+   * Criteria she alone judges are **absent from this list**, not flagged
+   * within it. A model that cannot see 2.2 cannot score 2.2; an instruction
+   * not to score it is a request, and requests are followed most of the time.
+   *
+   * `key` is her own criterion number where she has one — she says "2.1" out
+   * loud, and a uuid echoed back through a model is a uuid that comes back
+   * subtly wrong.
+   */
+  rubric: { key: string; name: string; section: string | null; max_points: number | null }[];
+  /**
+   * What each criterion stood at before this round, so the model can say what
+   * changed rather than only what the score now is.
+   */
+  previous_scores: { key: string; points: number | null }[];
   style_examples: { source: string; student_text: string | null; teacher_text: string }[];
   /** Past accept/edit/dismiss decisions — the strongest signal of her voice. */
   style_edits: {
@@ -167,6 +193,54 @@ function knowledgeBase(body: AnnotateRequest): string {
    * from ordinary academic judgement rather than staying silent, but do not
    * dress that answer up as coming from an authority that never said it.
    */
+  /**
+   * The rubric, and the two refusals that go with it.
+   *
+   * Criteria she alone judges never reach this list, so there is nothing here
+   * to disobey about them. What is left needs saying plainly: a criterion the
+   * submitted text cannot support gets `points: null`, not a low number. The
+   * failure mode of a scoring model is not refusing to score — it is scoring
+   * everything, generously and immediately, off half a chapter.
+   */
+  if (body.scoring === 'scored' && body.rubric?.length) {
+    parts.push(
+      `# The rubric you are scoring against
+` +
+        `Score each criterion out of the points beside it, using the paper as submitted.
+` +
+        `This paper is unfinished and will be resubmitted. Where the text does not yet ` +
+        `support a judgement — the chapter is not written, the data are not in — return ` +
+        `"points": null and say in the note what is missing. Null is the expected answer ` +
+        `for most criteria early on. A low score and "not written yet" are opposite ` +
+        `claims, and a student reads the first as a verdict.
+` +
+        `Never exceed a criterion's maximum. Never invent a criterion that is not listed.
+` +
+        body.rubric
+          .map((c) => {
+            const section = c.section ? `${c.section} · ` : '';
+            const outOf = c.max_points === null ? '' : ` (מתוך ${c.max_points})`;
+            return `- [${c.key}] ${section}${c.name}${outOf}`;
+          })
+          .join('
+'),
+    );
+
+    const previous = body.previous_scores?.filter((s) => s.points !== null) ?? [];
+    if (previous.length) {
+      parts.push(
+        `# Where each criterion stood after the previous round
+` +
+          `Say what changed, in the note, for anything that moved: what she added or ` +
+          `improved. A score that moved with no account of why cannot be defended to a ` +
+          `student. Where nothing changed, keep the score and say so briefly.
+` +
+          previous.map((s) => `- [${s.key}] ${s.points}`).join('
+'),
+      );
+    }
+  }
+
   if (body.sources?.length) {
     parts.push(
       `# Authorities she trusts\n` +
@@ -299,7 +373,7 @@ async function generate(
     config: MODEL_CONFIG,
     systemInstruction: `${INSTRUCTIONS}\n\n${knowledgeBase(body)}`,
     input: documentMessage(body),
-    schema: responseSchema(body.allowed_kinds),
+    schema: responseSchema(body.allowed_kinds, body.scoring === 'scored'),
   });
 
   let lastCode: AnnotateErrorCode = 'generation_failed';
