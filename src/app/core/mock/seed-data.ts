@@ -67,6 +67,7 @@ export const COURSE: Course = {
   description: 'סמינריון מחקרי, כיתות יב׳.',
   drive_course_folder_id: null,
   drive_folder_id: null,
+  grade_weights: null,
   archived: false,
   created_at: daysAgo(320),
   updated_at: daysAgo(30),

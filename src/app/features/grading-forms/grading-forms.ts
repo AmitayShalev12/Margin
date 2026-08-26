@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RouterLink } from '@angular/router';
 
 import { DataStore } from '../../core/data/data-store';
+import { ParsedRubric, RubricError, readRubric } from '../../core/import/rubric';
 import { isStartingSet } from '../../core/grading/categories';
 import { groupByCategory } from '../../core/grading/entries';
 import { UUID } from '../../core/models';
@@ -32,6 +33,100 @@ export class GradingForms {
 
   /** Which submission's form is on screen. Defaults to the first with work on it. */
   private readonly selected = signal<UUID | null>(null);
+
+  // -- her rubric -----------------------------------------------------------
+  //
+  // Seventeen criteria and their point values, read out of the form she
+  // already marks against. Typing them by hand is seventeen chances to be
+  // quietly wrong, and a rubric that is nearly hers scores every paper off by
+  // an amount nobody notices.
+
+  protected readonly reading = signal(false);
+  protected readonly rubricError = signal<string | null>(null);
+  protected readonly rubric = signal<ParsedRubric | null>(null);
+  protected readonly importedCount = signal<number | null>(null);
+  protected readonly rubricFile = signal<string | null>(null);
+
+  /** The criteria grouped under her section headings, for the preview. */
+  protected readonly rubricSections = computed(() => {
+    const parsed = this.rubric();
+    if (!parsed) return [];
+
+    const order: string[] = [];
+    const bySection = new Map<string, { name: string; points: number }[]>();
+
+    for (const criterion of parsed.criteria) {
+      const key = criterion.section || 'ללא פרק';
+      if (!bySection.has(key)) {
+        bySection.set(key, []);
+        order.push(key);
+      }
+      bySection.get(key)!.push({
+        name: `${criterion.code} ${criterion.name}`,
+        points: criterion.maxPoints,
+      });
+    }
+
+    return order.map((name) => ({
+      name,
+      criteria: bySection.get(name)!,
+      points: bySection.get(name)!.reduce((sum, c) => sum + c.points, 0),
+    }));
+  });
+
+  /** The rubric the course is actually scored against, once one is saved. */
+  protected readonly savedRubric = computed(() =>
+    this.data.gradingCategories().filter((c) => c.active && c.max_points !== null),
+  );
+
+  protected readonly savedTotal = computed(() =>
+    this.savedRubric().reduce((sum, c) => sum + (c.max_points ?? 0), 0),
+  );
+
+  protected readonly weights = computed(() => this.data.course()?.grade_weights ?? []);
+
+  protected async chooseRubric(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    this.reading.set(true);
+    this.rubricError.set(null);
+    this.importedCount.set(null);
+    this.rubric.set(null);
+    this.rubricFile.set(file.name);
+
+    try {
+      this.rubric.set(await readRubric(await file.arrayBuffer()));
+    } catch (error) {
+      this.rubricError.set(
+        error instanceof RubricError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.',
+      );
+    } finally {
+      this.reading.set(false);
+    }
+  }
+
+  protected saveRubric() {
+    const parsed = this.rubric();
+    if (!parsed) return;
+
+    const added = this.data.importRubric({ criteria: parsed.criteria, weights: parsed.weights });
+    if (!added) {
+      this.rubricError.set('צריך קורס פתוח לשייך אליו את הטופס.');
+      return;
+    }
+
+    this.importedCount.set(added);
+    this.rubric.set(null);
+  }
+
+  protected discardRubric() {
+    this.rubric.set(null);
+    this.rubricError.set(null);
+    this.rubricFile.set(null);
+  }
 
   protected readonly submissions = computed(() =>
     this.data.submissions().map((s) => ({

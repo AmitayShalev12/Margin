@@ -18,7 +18,21 @@ export interface GradingFormCategory extends Timestamped {
    * learn from — kept distinct from `learned` so the screen can say which it
    * is looking at rather than implying a history that does not exist.
    */
-  origin: 'learned' | 'teacher' | 'starting';
+  origin: 'learned' | 'teacher' | 'starting' | 'imported';
+  /**
+   * The section this criterion sits under on her rubric — `פרק תאורטי`.
+   *
+   * Null for a flat list of learned headings, which is what a form assembled
+   * from past years looks like. Section totals are the sum of their children
+   * and are never stored, so they cannot disagree with them.
+   */
+  section: string | null;
+  /**
+   * What this criterion is worth. Null when the form carries no point values
+   * at all — a real state, and one the screen has to say rather than show a
+   * zero for.
+   */
+  max_points: number | null;
   sort_order: number;
   active: boolean;
 }

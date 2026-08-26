@@ -132,3 +132,126 @@
   color: var(--c-ink-3);
   line-height: 1.6;
 }
+
+// -- her rubric, read out of her own form -------------------------------------
+
+.rubric {
+  margin-block-end: var(--s-4);
+  padding: var(--s-4);
+}
+
+.rubric-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.rubric-title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.file-label {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rubric-error {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+.rubric-done {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+
+.rubric-preview {
+  margin-block-start: var(--s-3);
+}
+
+.rubric-found {
+  margin: 0 0 var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+
+.rubric-section {
+  margin-block-end: var(--s-3);
+}
+
+.rubric-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block-end: var(--s-1);
+  border-block-end: 1px solid var(--c-line);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.rubric-criteria {
+  margin: var(--s-1) 0 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding-block: 3px;
+    font-size: var(--fs-sm);
+    color: var(--c-ink-2);
+  }
+}
+
+.criterion-name {
+  min-inline-size: 0;
+}
+
+// Point values are European digits in an RTL line; isolated so they stay put.
+.rubric-points {
+  unicode-bidi: isolate;
+  color: var(--c-ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.rubric-weights {
+  margin: var(--s-3) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+}
+
+.weight {
+  unicode-bidi: isolate;
+}
+
+.rubric-warnings {
+  margin: var(--s-3) 0 0;
+  padding-inline-start: var(--s-4);
+  font-size: var(--fs-xs);
+  color: var(--c-danger);
+  line-height: 1.7;
+}
+
+.rubric-actions {
+  display: flex;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}

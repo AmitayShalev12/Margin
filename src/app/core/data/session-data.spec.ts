@@ -377,6 +377,94 @@ describe('startup and the session', () => {
     });
 
     /**
+     * Her rubric replaces the form, it does not join it.
+     *
+     * A course cannot be graded against two rubrics at once, so the starting
+     * headings are deactivated rather than left to compete. Deactivated and
+     * not deleted: entries already written against them still point there, and
+     * a grade whose heading vanished cannot be explained.
+     */
+    it('replaces the starting headings with her own rubric', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+
+      store.createCourse('סמינריון', 'תשפ״ז');
+      await store.settled();
+      const startingCount = store.gradingCategories().length;
+      expect(startingCount).toBeGreaterThan(0);
+
+      const added = store.importRubric({
+        criteria: [
+          { code: '1.1', section: 'נושא העבודה', name: 'נושא ממוקד', maxPoints: 3 },
+          { code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 },
+        ],
+        weights: [
+          { name: 'פרזנטציה', percent: 10 },
+          { name: 'ציון העבודה', percent: 65 },
+          { name: 'מטלות שוטפות', percent: 25 },
+        ],
+      });
+      await store.settled();
+
+      expect(added).toBe(2);
+
+      const active = store.gradingCategories().filter((c) => c.active);
+      expect(active.length).toBe(2);
+      expect(active.map((c) => c.name)).toEqual(['1.1 נושא ממוקד', '2.1 סקירת מחקר']);
+      expect(active.map((c) => c.max_points)).toEqual([3, 8]);
+      expect(active.map((c) => c.section)).toEqual(['נושא העבודה', 'פרק תאורטי']);
+      expect(active.every((c) => c.origin === 'imported')).toBe(true);
+
+      // The old headings are still on record, switched off.
+      const retired = store.gradingCategories().filter((c) => !c.active);
+      expect(retired.length).toBe(startingCount);
+
+      // And the weighting came with it.
+      expect(store.course()?.grade_weights).toEqual([
+        { name: 'פרזנטציה', percent: 10 },
+        { name: 'ציון העבודה', percent: 65 },
+        { name: 'מטלות שוטפות', percent: 25 },
+      ]);
+    });
+
+    /**
+     * She corrects a point value in Word and imports again. That has to fix the
+     * rubric, not double it — the ids derive from her own criterion numbers.
+     */
+    it('updates the same criteria when the form is imported twice', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+
+      store.createCourse('סמינריון', 'תשפ״ז');
+      const first = { code: '2.1', section: 'פרק תאורטי', name: 'סקירת מחקר', maxPoints: 8 };
+      store.importRubric({ criteria: [first], weights: [] });
+      store.importRubric({ criteria: [{ ...first, maxPoints: 9 }], weights: [] });
+      await store.settled();
+
+      const active = store.gradingCategories().filter((c) => c.active);
+      expect(active.length).toBe(1);
+      expect(active[0].max_points).toBe(9);
+    });
+
+    it('refuses an empty rubric rather than wiping the form', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+
+      store.createCourse('סמינריון', 'תשפ״ז');
+      await store.settled();
+      const before = store.gradingCategories().filter((c) => c.active).length;
+
+      expect(store.importRubric({ criteria: [], weights: [] })).toBe(0);
+      expect(store.gradingCategories().filter((c) => c.active).length).toBe(before);
+    });
+
+    /**
      * Her old marked-up papers, read in twice.
      *
      * A teacher who is not sure whether the import worked will run it again —

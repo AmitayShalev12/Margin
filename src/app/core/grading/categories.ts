@@ -120,6 +120,11 @@ export function buildCategories(
     // Not 'learned'. Nothing was learned — there was no history to learn
     // from, and saying otherwise is the fixture-as-insight failure again.
     origin: 'starting' as const,
+    // The starting set is a list of headings, not a rubric: no sections and
+    // nothing to score out of. Said as null rather than as zero, so a screen
+    // cannot render "0 נקודות" for a criterion that was never worth points.
+    section: null,
+    max_points: null,
     sort_order: index,
     active: true,
     created_at: now,

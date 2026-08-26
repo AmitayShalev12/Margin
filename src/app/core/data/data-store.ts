@@ -383,6 +383,7 @@ export class DataStore {
       description: null,
       drive_course_folder_id: null,
       drive_folder_id: null,
+      grade_weights: null,
       archived: false,
       created_at: now,
       updated_at: now,
@@ -501,6 +502,71 @@ export class DataStore {
       }),
     );
     if (written) this.persist(() => this.repository.saveCourseMaterial(written!));
+  }
+
+  /**
+   * Her rubric, replacing whatever the form was scored against before.
+   *
+   * The seventeen criteria she actually marks against, with her point values
+   * and her numbering, read out of her own document. This is a *replacement*
+   * rather than an addition: a course cannot be graded against two rubrics at
+   * once, so anything the form previously carried — the starting set, or
+   * headings learned from past years — is deactivated rather than left to
+   * compete. Deactivated and not deleted, because entries already written
+   * against those headings still point at them, and a grade whose heading
+   * vanished is unexplainable.
+   *
+   * Ids derive from the course and her own criterion number, so re-importing
+   * the same form updates the same rows. Correcting a point value in Word and
+   * importing again therefore fixes the rubric instead of doubling it.
+   */
+  importRubric(rubric: {
+    criteria: readonly { code: string; section: string; name: string; maxPoints: number }[];
+    weights: readonly { name: string; percent: number }[];
+  }): number {
+    const course = this._course();
+    if (!course || !rubric.criteria.length) return 0;
+
+    const now = new Date().toISOString();
+    const imported: GradingFormCategory[] = rubric.criteria.map((criterion, index) => ({
+      id: derivedId('grading-category', `${course.id}:${criterion.code}`),
+      course_id: course.id,
+      // Her numbering leads, because she refers to criteria by it out loud.
+      name: `${criterion.code} ${criterion.name}`,
+      description: criterion.section || null,
+      origin: 'imported' as const,
+      section: criterion.section || null,
+      max_points: criterion.maxPoints,
+      sort_order: index,
+      active: true,
+      created_at: now,
+      updated_at: now,
+    }));
+
+    const importedIds = new Set(imported.map((c) => c.id));
+    const retired = this._gradingCategories()
+      .filter((c) => c.active && !importedIds.has(c.id))
+      .map((c) => ({ ...c, active: false, updated_at: now }));
+
+    this._gradingCategories.set([
+      ...imported,
+      ...this._gradingCategories()
+        .filter((c) => !importedIds.has(c.id))
+        .map((c) => retired.find((r) => r.id === c.id) ?? c),
+    ]);
+
+    for (const row of [...imported, ...retired]) {
+      this.persist(() => this.repository.saveGradingCategory(row));
+    }
+
+    if (rubric.weights.length) {
+      const weights = rubric.weights.map((w) => ({ name: w.name, percent: w.percent }));
+      const written: Course = { ...course, grade_weights: weights, updated_at: now };
+      this._course.set(written);
+      this.persist(() => this.repository.saveCourse(written));
+    }
+
+    return imported.length;
   }
 
   /**

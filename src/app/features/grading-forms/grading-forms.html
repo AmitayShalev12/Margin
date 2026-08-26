@@ -1,6 +1,128 @@
 <div class="page">
   <app-page-header title="טופס הערכה" [subtitle]="subtitle()" />
 
+  <!--
+    Her rubric, read out of her own form.
+    Kept above everything because it decides what the rest of this screen is
+    scored against — and because a course with no rubric is the state that
+    needs an action, not an explanation.
+  -->
+  <div class="card rubric">
+    @if (savedRubric().length) {
+      <div class="rubric-head">
+        <span class="rubric-title">
+          הטופס שלך — {{ savedRubric().length }} סעיפים, {{ savedTotal() }} נקודות
+        </span>
+        <label class="link file-label">
+          החלפה
+          <input
+            type="file"
+            accept=".docx"
+            class="file-input"
+            [disabled]="reading()"
+            (change)="chooseRubric($event)"
+          />
+        </label>
+      </div>
+      @if (weights().length) {
+        <p class="rubric-weights">
+          חישוב הציון הסופי:
+          @for (w of weights(); track w.name) {
+            <span class="weight">{{ w.name }} {{ w.percent }}%</span>
+          }
+        </p>
+      }
+    } @else {
+      <p class="rubric-title">עוד לא נטען טופס ציון</p>
+      <p class="hint">
+        אם יש לך את טופס הציון כקובץ Word, אני קוראת ממנו את הסעיפים והניקוד בדיוק כפי שהם — עדיף
+        מלהקליד שבעה־עשר מספרים ביד.
+      </p>
+      <label class="btn btn-primary btn-block file-label">
+        {{ reading() ? 'קוראת את הקובץ…' : 'טעינת טופס הציון' }}
+        <input
+          type="file"
+          accept=".docx"
+          class="file-input"
+          [disabled]="reading()"
+          (change)="chooseRubric($event)"
+        />
+      </label>
+    }
+
+    @if (rubricError(); as message) {
+      <p class="rubric-error" role="alert">{{ message }}</p>
+    }
+
+    @if (importedCount(); as count) {
+      <p class="rubric-done" role="status">
+        נטענו {{ count }} סעיפים מהטופס שלך. מעכשיו הטופס נבנה לפי הסעיפים והניקוד האלה.
+      </p>
+    }
+
+    @if (rubric(); as parsed) {
+      <div class="rubric-preview">
+        <p class="rubric-found">
+          קראתי {{ parsed.criteria.length }} סעיפים, {{ parsed.totalPoints }} נקודות
+          @if (rubricFile()) {
+            · {{ rubricFile() }}
+          }
+        </p>
+
+        <!--
+          Shown before anything is saved, and shown in full. A point value read
+          wrong is invisible in a total and obvious in a list.
+        -->
+        @for (section of rubricSections(); track section.name) {
+          <div class="rubric-section">
+            <div class="rubric-section-head">
+              <span>{{ section.name }}</span>
+              <span class="rubric-points">{{ section.points }}</span>
+            </div>
+            <ul class="rubric-criteria">
+              @for (criterion of section.criteria; track criterion.name) {
+                <li>
+                  <span class="criterion-name">{{ criterion.name }}</span>
+                  <span class="rubric-points">{{ criterion.points }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        @if (parsed.weights.length) {
+          <p class="rubric-weights">
+            חישוב הציון הסופי:
+            @for (w of parsed.weights; track w.name) {
+              <span class="weight">{{ w.name }} {{ w.percent }}%</span>
+            }
+          </p>
+        }
+
+        <!--
+          Her own arithmetic, checked rather than trusted. A form that adds up
+          to 97 grades every paper three points low and looks entirely normal.
+        -->
+        @if (parsed.warnings.length) {
+          <ul class="rubric-warnings">
+            @for (warning of parsed.warnings; track warning) {
+              <li>{{ warning }}</li>
+            }
+          </ul>
+        }
+
+        <div class="rubric-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="saveRubric()">
+            זה הטופס שלי
+          </button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="discardRubric()">
+            ביטול
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
   @if (startingHeadings()) {
     <!--
       Only while the headings are the default set. Once a year's form exists,

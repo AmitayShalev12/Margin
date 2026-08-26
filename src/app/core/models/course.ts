@@ -29,6 +29,15 @@ export interface Course extends Timestamped, OwnedByTeacher {
    * `matchStudent` can now trust the owner's address.
    */
   drive_folder_id: string | null;
+  /**
+   * How the final grade is composed — her form's own block, not a default.
+   *
+   * The paper is 65% of the grade, the presentation 10%, ongoing tasks 25%.
+   * Read out of her rubric document rather than retyped, and null for a course
+   * whose form carries no weighting — in which case there is no final-grade
+   * arithmetic to do, and the screen says so rather than assuming.
+   */
+  grade_weights: { name: string; percent: number }[] | null;
   archived: boolean;
 }
 
