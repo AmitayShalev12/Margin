@@ -283,6 +283,31 @@ begin
     failed := failed + 1; report := report || format(E'  FAIL  she can add a line to the grading form [%s: %s]\n', sqlstate, sqlerrm);
   end;
 
+  -- The rubric scores. Same `owns_submission` chain, one table newer.
+  begin
+    set local role authenticated;
+    insert into public.grading_criterion_scores (submission_id, category_id, points, status)
+    values (sub_a, cat_a, 6, 'draft');
+    reset role;
+    passed := passed + 1; report := report || E'  ok    she can score a criterion on her own submission\n';
+  exception when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  she can score a criterion on her own submission [%s: %s]\n', sqlstate, sqlerrm);
+  end;
+
+  -- Null points is the ordinary state: the research chapter does not exist in
+  -- November, and the column says so rather than showing a zero.
+  begin
+    set local role authenticated;
+    update public.grading_criterion_scores set points = null, change_note = 'עוד אין פרק מחקרי'
+    where submission_id = sub_a;
+    reset role;
+    passed := passed + 1; report := report || E'  ok    a criterion can go back to having no score at all\n';
+  exception when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  a criterion can go back to having no score at all [%s: %s]\n', sqlstate, sqlerrm);
+  end;
+
   begin
     set local role authenticated;
     insert into public.student_grading_forms (student_id, course_id, year, summary)
@@ -387,6 +412,21 @@ begin
   when others then
     reset role;
     failed := failed + 1; report := report || format(E'  FAIL  she cannot annotate another teacher''s submission [wrong error %s: %s]\n', sqlstate, sqlerrm);
+  end;
+
+  -- The scores table hangs off the same helper, checked the same way.
+  begin
+    set local role authenticated;
+    insert into public.grading_criterion_scores (submission_id, category_id, points)
+    values (sub_b, cat_a, 9);
+    reset role;
+    failed := failed + 1; report := report || E'  FAIL  she cannot score another teacher\'s submission [no error raised]\n';
+  exception when insufficient_privilege then
+    reset role;
+    passed := passed + 1; report := report || E'  ok    she cannot score another teacher\'s submission\n';
+  when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  she cannot score another teacher\'s submission [wrong error %s: %s]\n', sqlstate, sqlerrm);
   end;
 
   -- The same chain one table further out. `grading_form_entries` is guarded by

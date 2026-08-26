@@ -12,7 +12,7 @@
 -- nothing behind.
 
 begin;
-select plan(37);
+select plan(40);
 
 -- ---------------------------------------------------------------------------
 -- Two teachers, each with a course, an assignment, a student and a submission.
@@ -180,6 +180,21 @@ select lives_ok(
             'ca000000-0000-4000-8000-00000000000a', 'המדגם אינו אקראי.')$$,
   'she can add a line to the grading form');
 
+-- The rubric scores. Same `owns_submission` chain, one table newer — and the
+-- table where a hole in that helper would surface next.
+select lives_ok(
+  $$insert into public.grading_criterion_scores (submission_id, category_id, points, status)
+    values ('50b00000-0000-4000-8000-00000000000a',
+            'ca000000-0000-4000-8000-00000000000a', 6, 'draft')$$,
+  'she can score a criterion on her own submission');
+
+-- Null points is the ordinary state, not an edge case: the research chapter
+-- does not exist in November, and the column has to say so rather than zero.
+select lives_ok(
+  $$update public.grading_criterion_scores set points = null, change_note = 'עוד אין פרק מחקרי'
+    where submission_id = '50b00000-0000-4000-8000-00000000000a'$$,
+  'a criterion can go back to having no score at all');
+
 select lives_ok(
   $$insert into public.student_grading_forms (student_id, course_id, year, summary)
     values ('50000000-0000-4000-8000-00000000000a',
@@ -239,6 +254,15 @@ select throws_ok(
   '42501',
   null,
   'she cannot annotate another teacher''s submission');
+
+-- The scores table hangs off the same helper, so it is checked the same way.
+select throws_ok(
+  $$insert into public.grading_criterion_scores (submission_id, category_id, points)
+    values ('50b00000-0000-4000-8000-00000000000b',
+            'ca000000-0000-4000-8000-00000000000a', 9)$$,
+  '42501',
+  'new row violates row-level security policy for table "grading_criterion_scores"',
+  'she cannot score another teacher''s submission');
 
 -- The same chain one table further out. `grading_form_entries` is guarded by
 -- `owns_submission`, so it is where a hole in that helper would show.

@@ -1,3 +1,4 @@
+import { ScoringMode } from './grading-form';
 import { ISODateTime, Json, Timestamped, UUID } from './common';
 
 /**
@@ -90,6 +91,15 @@ export interface SubmissionRound extends Timestamped {
   drive_revision_id: string | null;
 
   received_at: ISODateTime;
+  /**
+   * Whether this round carries scores.
+   *
+   * Null means nobody decided and the app applies the rule from how much was
+   * submitted; a value means she chose. Kept apart because "she asked for
+   * comments only" and "it is too short to score" are different facts and the
+   * screen says which.
+   */
+  scoring: ScoringMode | null;
   notes_sent_at: ISODateTime | null;
 
   /**

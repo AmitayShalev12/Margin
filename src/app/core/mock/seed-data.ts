@@ -412,6 +412,7 @@ export const NOA_ROUND: SubmissionRound = {
   document_blocks: DOCUMENT_BLOCKS,
   drive_revision_id: null,
   received_at: daysAgo(1),
+  scoring: null,
   notes_sent_at: null,
   ai_summary: null,
   ai_summary_confirmed_at: null,

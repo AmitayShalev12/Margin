@@ -125,6 +125,7 @@ export function buildCategories(
     // cannot render "0 נקודות" for a criterion that was never worth points.
     section: null,
     max_points: null,
+    manual_only: false,
     sort_order: index,
     active: true,
     created_at: now,

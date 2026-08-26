@@ -60,6 +60,7 @@ function round(text: string, submissionId = 'sub-1'): SubmissionRound {
     document_blocks: null,
     drive_revision_id: null,
     received_at: '',
+    scoring: null,
     notes_sent_at: null,
     ai_summary: null,
     ai_summary_confirmed_at: null,

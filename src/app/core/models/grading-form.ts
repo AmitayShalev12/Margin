@@ -33,8 +33,56 @@ export interface GradingFormCategory extends Timestamped {
    * zero for.
    */
   max_points: number | null;
+  /**
+   * Only she may score this one.
+   *
+   * Her 2.2 asks whether Chabad sources are woven in with a חסידית reading,
+   * and her 4.2 is typesetting — neither is something a model can see, and a
+   * guess at either is five points of invention. Marked rather than inferred:
+   * her rubric is not the only rubric, and the next teacher's 2.2 is something
+   * else entirely.
+   */
+  manual_only: boolean;
   sort_order: number;
   active: boolean;
+}
+
+/**
+ * Whether a round may carry scores at all.
+ *
+ * The first submission is a single paragraph and gets comments and nothing
+ * else — "לתת רק הערות על הפסקה". Scoring begins from the first part of the
+ * theoretical chapter, six or seven pages in. A score on a paragraph is a
+ * number a student reads as a verdict on work she has barely started.
+ */
+export type ScoringMode = 'comments_only' | 'scored';
+
+/**
+ * One criterion's score on one submission, as it stands today.
+ *
+ * Per submission and not per round: the form is one document that follows the
+ * work, and `round_number` records which round last moved it.
+ */
+export interface GradingCriterionScore extends Timestamped {
+  id: UUID;
+  submission_id: UUID;
+  category_id: UUID;
+  /**
+   * Null is "not assessable yet", and it is the ordinary state for most of the
+   * year — the research chapter does not exist in November. It must never be
+   * rendered as a zero.
+   */
+  points: number | null;
+  /** What it was before this round moved it, so the change reads on its own. */
+  previous_points: number | null;
+  status: 'draft' | 'final';
+  /** What improved since last time, in the words she is shown. */
+  change_note: string | null;
+  round_number: number;
+  origin: 'ai' | 'teacher';
+  /** Once she has touched it, no generated score overwrites it. */
+  edited_by_teacher: boolean;
+  scored_at: ISODateTime;
 }
 
 /**

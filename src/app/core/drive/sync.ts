@@ -832,6 +832,7 @@ export class SyncService {
       document_blocks: document?.blocks ?? null,
       drive_revision_id: document?.revisionId ?? null,
       received_at: file.modifiedTime ?? now,
+      scoring: null,
       notes_sent_at: null,
       ai_summary: null,
       ai_summary_confirmed_at: null,

@@ -537,6 +537,7 @@ export class DataStore {
       origin: 'imported' as const,
       section: criterion.section || null,
       max_points: criterion.maxPoints,
+      manual_only: false,
       sort_order: index,
       active: true,
       created_at: now,
