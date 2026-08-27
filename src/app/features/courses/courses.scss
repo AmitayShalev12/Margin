@@ -241,3 +241,54 @@
   color: var(--c-ink-3);
   unicode-bidi: isolate;
 }
+
+// -- adding to the knowledge base --------------------------------------------
+
+.kb-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-block-start: var(--s-3);
+}
+
+.kb-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.kb-form .control {
+  font: inherit;
+  font-size: var(--fs-sm);
+  padding: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  inline-size: 100%;
+  line-height: 1.6;
+}
+
+.kb-form .file-label {
+  position: relative;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.kb-form .file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.kb-error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--c-danger);
+}
+
+.kb-form-actions {
+  display: flex;
+  gap: var(--s-2);
+}

@@ -171,3 +171,38 @@ export async function readDocxComments(file: ArrayBuffer): Promise<DocxImport> {
 
   return { comments, authors };
 }
+
+/**
+ * The plain text of a Word document.
+ *
+ * For the reference material she attaches to a course — a syllabus, a model
+ * paper, an example of a correction she wrote. The model reads the text, so
+ * the text is what gets stored; the file itself is not kept.
+ */
+export async function readDocxText(file: ArrayBuffer): Promise<string> {
+  let parts: Map<string, string>;
+  try {
+    parts = await readZipParts(file, [DOCUMENT_PART]);
+  } catch (error) {
+    if (error instanceof ZipError) {
+      throw new DocxError(
+        'זה לא נראה כמו קובץ Word. צריך קובץ ‎.docx‎ — לא ‎.doc‎ ולא PDF.',
+        error.message,
+      );
+    }
+    throw error;
+  }
+
+  const xml = parts.get(DOCUMENT_PART);
+  if (!xml) {
+    throw new DocxError('לא הצלחתי לקרוא את תוכן הקובץ.', 'No word/document.xml');
+  }
+
+  const body = parseXml(xml, DOCUMENT_PART).documentElement;
+  const text = textOf(body);
+
+  if (!text) {
+    throw new DocxError('הקובץ נקרא, אבל אין בו טקסט.', 'Document has no text');
+  }
+  return text;
+}

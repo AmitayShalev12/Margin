@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../../core/data/data-store';
+import { DocxError, readDocxText } from '../../core/import/docx-comments';
+import { CourseMaterialKind, CourseRuleOrigin } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { DriveFolder } from './drive-folder/drive-folder';
 
@@ -12,6 +14,16 @@ interface KbItem {
   muted: boolean;
 }
 
+/**
+ * What a section's button actually adds.
+ *
+ * Carried on the section rather than switched on its id, because the button
+ * used to have no handler at all and the next person to add a section should
+ * have to say what pressing it does.
+ */
+type KbAdd =
+  { of: 'rule'; origin: CourseRuleOrigin } | { of: 'material'; kind: CourseMaterialKind };
+
 interface KbSection {
   id: string;
   title: string;
@@ -19,6 +31,7 @@ interface KbSection {
   addLabel: string;
   /** Category class, so each section carries a consistent hue. */
   hue: string;
+  add: KbAdd;
   items: KbItem[];
 }
 
@@ -115,6 +128,7 @@ export class Courses {
     return [
       {
         id: 'rules',
+        add: { of: 'rule', origin: 'teacher' },
         title: 'הכללים שלי',
         meta: `${myRules.filter((r) => r.active).length} כללים פעילים`,
         addLabel: 'הוספת כלל',
@@ -129,6 +143,7 @@ export class Courses {
       },
       {
         id: 'syllabus',
+        add: { of: 'material', kind: 'syllabus' },
         title: 'הסילבוס',
         meta: syllabus[0] ? `עודכן ב${monthName(syllabus[0].updated_at)}` : 'טרם הועלה',
         addLabel: 'החלפת הסילבוס',
@@ -143,6 +158,7 @@ export class Courses {
       },
       {
         id: 'models',
+        add: { of: 'material', kind: 'model_assignment' },
         title: 'עבודות לדוגמה',
         meta: `${models.length} עבודות`,
         addLabel: 'הוספת עבודה',
@@ -157,6 +173,7 @@ export class Courses {
       },
       {
         id: 'corrections',
+        add: { of: 'material', kind: 'example_correction' },
         title: 'דוגמאות לתיקונים שלי',
         meta: `${corrections.length} דוגמאות`,
         addLabel: 'הוספת דוגמה',
@@ -171,6 +188,7 @@ export class Courses {
       },
       {
         id: 'web',
+        add: { of: 'rule', origin: 'web' },
         title: 'כללים כלליים מהאינטרנט',
         meta: `${webRules.length} כללים · אפשר לכבות`,
         addLabel: 'עיון בכללים',
@@ -186,6 +204,84 @@ export class Courses {
     ];
   });
 
+  // -- adding to the knowledge base -----------------------------------------
+  //
+  // Every one of these buttons used to do nothing at all: the markup had no
+  // click handler, so the whole knowledge base was a display of records that
+  // could only arrive from somewhere else.
+
+  /** Which section's form is open. One at a time; they are all short. */
+  protected readonly adding = signal<string | null>(null);
+  protected readonly draftBody = signal('');
+  protected readonly draftTitle = signal('');
+  protected readonly addError = signal<string | null>(null);
+  protected readonly readingFile = signal(false);
+
+  protected isAdding(id: string): boolean {
+    return this.adding() === id;
+  }
+
+  protected startAdding(id: string) {
+    this.adding.set(id);
+    this.draftBody.set('');
+    this.draftTitle.set('');
+    this.addError.set(null);
+  }
+
+  protected cancelAdding() {
+    this.adding.set(null);
+    this.addError.set(null);
+  }
+
+  /**
+   * Fills the text from a Word file rather than asking her to paste it.
+   *
+   * A model paper is a `.docx` sitting on her desktop; retyping it is not a
+   * thing anyone does. Only the text is kept — the file is read in the browser
+   * and dropped, because the text is all the model ever reads.
+   */
+  protected async readFile(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    this.readingFile.set(true);
+    this.addError.set(null);
+
+    try {
+      this.draftBody.set(await readDocxText(await file.arrayBuffer()));
+      if (!this.draftTitle().trim()) {
+        this.draftTitle.set(file.name.replace(/\.docx$/i, ''));
+      }
+    } catch (error) {
+      this.addError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
+    } finally {
+      this.readingFile.set(false);
+    }
+  }
+
+  protected save(section: KbSection) {
+    const written =
+      section.add.of === 'rule'
+        ? this.data.addCourseRule(sectionRuleKind(section.id), this.draftBody(), section.add.origin)
+        : this.data.addCourseMaterial(section.add.kind, this.draftTitle(), this.draftBody());
+
+    if (!written) {
+      this.addError.set(
+        section.add.of === 'rule'
+          ? 'צריך לכתוב את הכלל, וצריך קורס פתוח.'
+          : 'צריך שם וגם תוכן — בלי טקסט אין מה לקרוא.',
+      );
+      return;
+    }
+
+    this.adding.set(null);
+    this.draftBody.set('');
+    this.draftTitle.set('');
+    this.addError.set(null);
+  }
+
   protected isOpen(id: string): boolean {
     return this.open()[id] ?? false;
   }
@@ -193,6 +289,17 @@ export class Courses {
   protected toggle(id: string) {
     this.open.update((map) => ({ ...map, [id]: !map[id] }));
   }
+}
+
+/**
+ * Which kind a rule written in a given section is.
+ *
+ * `other` for the general ones: they are conventions rather than rules about a
+ * particular thing, and filing them under a specific kind would put them in
+ * the prompt under a heading she never chose.
+ */
+function sectionRuleKind(sectionId: string): 'language' | 'other' {
+  return sectionId === 'rules' ? 'language' : 'other';
 }
 
 function monthName(iso: string): string {

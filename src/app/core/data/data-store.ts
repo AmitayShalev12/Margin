@@ -10,6 +10,9 @@ import {
   Assignment,
   Course,
   CourseMaterial,
+  CourseMaterialKind,
+  CourseRuleOrigin,
+  CourseRuleKind,
   CourseRule,
   GradingCriterionScore,
   ScoringMode,
@@ -589,6 +592,101 @@ export class DataStore {
     for (const category of categories) {
       this.persist(() => this.repository.saveGradingCategory(category));
     }
+  }
+
+  /**
+   * A rule of hers, or a general convention she wants applied.
+   *
+   * `origin` is the whole distinction and it reaches the prompt: her own rules
+   * win over everything else in the knowledge base, and web conventions are
+   * background that defers to them. Writing a rule of hers as `web` would
+   * quietly demote it.
+   */
+  addCourseRule(kind: CourseRuleKind, body: string, origin: CourseRuleOrigin): CourseRule | null {
+    const course = this._course();
+    const text = body.trim();
+    if (!course || !text) return null;
+
+    const now = new Date().toISOString();
+    const rule: CourseRule = {
+      id: newId(),
+      course_id: course.id,
+      kind,
+      // The rule is its own title. She writes one sentence, not a heading and
+      // a body, and inventing a title from the first few words reads as a
+      // record she did not write.
+      title: text.slice(0, 60),
+      body: text,
+      origin,
+      source_url: null,
+      active: true,
+      sort_order: this._courseRules().filter((r) => r.origin === origin).length,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._courseRules.update((list) => [...list, rule]);
+    this.persist(() => this.repository.saveCourseRule(rule));
+    return rule;
+  }
+
+  /**
+   * Reference material the model reads: a syllabus, a model paper, an example
+   * of a correction she wrote.
+   *
+   * `content` is what actually reaches the prompt, which is why it is the
+   * field that matters and the file is not kept. A material with a title and
+   * no content is a heading the model can do nothing with, so it is refused
+   * rather than stored looking complete.
+   */
+  addCourseMaterial(
+    kind: CourseMaterialKind,
+    title: string,
+    content: string,
+    notes?: string,
+  ): CourseMaterial | null {
+    const course = this._course();
+    const name = title.trim();
+    const text = content.trim();
+    if (!course || !name || !text) return null;
+
+    const now = new Date().toISOString();
+    const material: CourseMaterial = {
+      id: newId(),
+      course_id: course.id,
+      kind,
+      title: name,
+      notes: notes?.trim() || null,
+      content: text,
+      drive_file_id: null,
+      external_url: null,
+      active: true,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._courseMaterials.update((list) => [...list, material]);
+    this.persist(() => this.repository.saveCourseMaterial(material));
+    return material;
+  }
+
+  /**
+   * Switches a rule off without losing it.
+   *
+   * She was promised she could turn the web conventions off, and a rule she
+   * silenced mid-year is a decision she may reverse — while the comments
+   * already written under it stay explicable.
+   */
+  setCourseRuleActive(id: UUID, active: boolean) {
+    let written: CourseRule | undefined;
+    this._courseRules.update((list) =>
+      list.map((r) => {
+        if (r.id !== id || r.active === active) return r;
+        written = { ...r, active, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveCourseRule(written!));
   }
 
   /**

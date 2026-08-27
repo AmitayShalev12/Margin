@@ -165,7 +165,67 @@
                 <li class="kb-item kb-none">עדיין אין כאן חומרים.</li>
               }
             </ul>
-            <button type="button" class="kb-add">{{ s.addLabel }}</button>
+            <!--
+              This button had no handler at all, so every one of these sections
+              was a display of records that could only arrive from elsewhere.
+            -->
+            @if (isAdding(s.id)) {
+              <div class="kb-form">
+                @if (s.add.of === 'material') {
+                  <label class="field">
+                    <span class="label">שם</span>
+                    <input
+                      class="control"
+                      type="text"
+                      [value]="draftTitle()"
+                      (input)="draftTitle.set($any($event.target).value)"
+                    />
+                  </label>
+                }
+
+                <label class="field">
+                  <span class="label">
+                    {{ s.add.of === 'rule' ? 'הכלל' : 'הטקסט שאני קוראת' }}
+                  </span>
+                  <textarea
+                    class="control"
+                    [rows]="s.add.of === 'rule' ? 2 : 6"
+                    [value]="draftBody()"
+                    (input)="draftBody.set($any($event.target).value)"
+                  ></textarea>
+                </label>
+
+                @if (s.add.of === 'material') {
+                  <label class="link file-label">
+                    {{ readingFile() ? 'קוראת…' : 'או לטעון קובץ Word' }}
+                    <input
+                      type="file"
+                      accept=".docx"
+                      class="file-input"
+                      [disabled]="readingFile()"
+                      (change)="readFile($event)"
+                    />
+                  </label>
+                }
+
+                @if (addError(); as message) {
+                  <p class="kb-error">{{ message }}</p>
+                }
+
+                <div class="kb-form-actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="save(s)">
+                    שמירה
+                  </button>
+                  <button type="button" class="btn btn-plain btn-sm" (click)="cancelAdding()">
+                    ביטול
+                  </button>
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="kb-add" (click)="startAdding(s.id)">
+                {{ s.addLabel }}
+              </button>
+            }
           </div>
         }
       </div>

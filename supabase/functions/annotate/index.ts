@@ -204,39 +204,31 @@ function knowledgeBase(body: AnnotateRequest): string {
    */
   if (body.scoring === 'scored' && body.rubric?.length) {
     parts.push(
-      `# The rubric you are scoring against
-` +
-        `Score each criterion out of the points beside it, using the paper as submitted.
-` +
+      `# The rubric you are scoring against\n` +
+        `Score each criterion out of the points beside it, using the paper as submitted.\n` +
         `This paper is unfinished and will be resubmitted. Where the text does not yet ` +
         `support a judgement — the chapter is not written, the data are not in — return ` +
         `"points": null and say in the note what is missing. Null is the expected answer ` +
         `for most criteria early on. A low score and "not written yet" are opposite ` +
-        `claims, and a student reads the first as a verdict.
-` +
-        `Never exceed a criterion's maximum. Never invent a criterion that is not listed.
-` +
+        `claims, and a student reads the first as a verdict.\n` +
+        `Never exceed a criterion's maximum. Never invent a criterion that is not listed.\n` +
         body.rubric
           .map((c) => {
             const section = c.section ? `${c.section} · ` : '';
             const outOf = c.max_points === null ? '' : ` (מתוך ${c.max_points})`;
             return `- [${c.key}] ${section}${c.name}${outOf}`;
           })
-          .join('
-'),
+          .join('\n'),
     );
 
     const previous = body.previous_scores?.filter((s) => s.points !== null) ?? [];
     if (previous.length) {
       parts.push(
-        `# Where each criterion stood after the previous round
-` +
+        `# Where each criterion stood after the previous round\n` +
           `Say what changed, in the note, for anything that moved: what she added or ` +
           `improved. A score that moved with no account of why cannot be defended to a ` +
-          `student. Where nothing changed, keep the score and say so briefly.
-` +
-          previous.map((s) => `- [${s.key}] ${s.points}`).join('
-'),
+          `student. Where nothing changed, keep the score and say so briefly.\n` +
+          previous.map((s) => `- [${s.key}] ${s.points}`).join('\n'),
       );
     }
   }
