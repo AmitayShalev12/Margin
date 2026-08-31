@@ -357,6 +357,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * immediately, because on the free tier there is nothing to wait for within
  * the request.
  */
+/** Whether a backoff plus another attempt still fits in what is left. */
+function affordable(waitMs: number, remainingMs: number): boolean {
+  return waitMs + MODEL_CONFIG.minAttemptMs <= remainingMs;
+}
+
 async function generate(
   apiKey: string,
   body: AnnotateRequest,
@@ -370,22 +375,52 @@ async function generate(
 
   let lastCode: AnnotateErrorCode = 'generation_failed';
 
+  /**
+   * The clock, not just the attempt count.
+   *
+   * Everything below is bounded by what is left of the budget: the attempt
+   * itself is aborted when the budget runs out, and a retry is only started if
+   * there is room for it. Without this the function is killed by the platform
+   * mid-generation and the teacher gets a 504 — no code, no Hebrew, and no way
+   * to tell "too slow" from "broken".
+   */
+  const startedAt = Date.now();
+  const remaining = () => MODEL_CONFIG.budgetMs - (Date.now() - startedAt);
+
   for (let attempt = 0; attempt < MODEL_CONFIG.maxAttempts; attempt++) {
+    if (remaining() < MODEL_CONFIG.minAttemptMs) {
+      console.error('annotate: out of budget before attempt', attempt);
+      return { ok: false, code: 'timed_out' };
+    }
+
     let response: Response;
+    // Aborted rather than left to be killed: an attempt that overruns still
+    // leaves time to answer.
+    const abort = new AbortController();
+    const guard = setTimeout(() => abort.abort(), remaining());
+
     try {
       response = await fetch(MODEL_CONFIG.endpoint, {
         method: 'POST',
         headers: { 'x-goog-api-key': apiKey, 'content-type': 'application/json' },
         body: JSON.stringify(requestBody),
+        signal: abort.signal,
       });
     } catch (error) {
+      if (abort.signal.aborted) {
+        console.error('annotate: attempt exceeded the budget');
+        return { ok: false, code: 'timed_out' };
+      }
       console.error('annotate: network failure', error);
       lastCode = 'generation_failed';
-      if (attempt < MODEL_CONFIG.maxAttempts - 1) {
-        await sleep(MODEL_CONFIG.backoffBaseMs * 2 ** attempt);
+      const wait = MODEL_CONFIG.backoffBaseMs * 2 ** attempt;
+      if (attempt < MODEL_CONFIG.maxAttempts - 1 && affordable(wait, remaining())) {
+        await sleep(wait);
         continue;
       }
       return { ok: false, code: lastCode };
+    } finally {
+      clearTimeout(guard);
     }
 
     if (response.ok) {
@@ -397,14 +432,29 @@ async function generate(
     const rateCode = classifyRateLimit(response.status, errorBody);
     lastCode = rateCode ?? 'generation_failed';
 
-    if (!isRetryable(response.status, rateCode) || attempt === MODEL_CONFIG.maxAttempts - 1) {
+    const wait = retryDelayMs(errorBody, attempt, MODEL_CONFIG.backoffBaseMs);
+
+    /**
+     * A retry has to fit, backoff included.
+     *
+     * Gemini's `retry_delay` can ask for thirty seconds, and three attempts
+     * around two such waits cannot finish inside the platform's limit. Sleeping
+     * anyway would spend the rest of the budget and be killed mid-generation,
+     * which is how this arrived as a 504 rather than as "try again in a
+     * minute".
+     */
+    if (
+      !isRetryable(response.status, rateCode) ||
+      attempt === MODEL_CONFIG.maxAttempts - 1 ||
+      !affordable(wait, remaining())
+    ) {
       if (lastCode !== 'daily_cap') {
         console.error('annotate: model call failed', response.status, errorBody.slice(0, 400));
       }
       return { ok: false, code: lastCode };
     }
 
-    await sleep(retryDelayMs(errorBody, attempt, MODEL_CONFIG.backoffBaseMs));
+    await sleep(wait);
   }
 
   return { ok: false, code: lastCode };

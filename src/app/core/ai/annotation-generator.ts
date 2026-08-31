@@ -47,6 +47,10 @@ const FAILURE_MESSAGES: Record<string, string> = {
   daily_cap: 'נגמרה המכסה היומית של ניסוח ההערות. אפשר לנסות שוב מחר.',
   bad_response: 'התשובה שהתקבלה לא הייתה שלמה. אפשר לנסות שוב.',
   generation_failed: 'משהו השתבש בניסוח ההערות. אפשר לנסות שוב.',
+  // Not a failure — it was slow. Worth saying so, because "try again" is the
+  // right advice here and the wrong advice for most of the others.
+  timed_out:
+    'הניסוח לקח יותר מדי זמן והופסק. זה קורה בעבודות ארוכות — אפשר לנסות שוב, ובדרך כלל הפעם השנייה עוברת.',
 };
 
 const FALLBACK_MESSAGE = FAILURE_MESSAGES['generation_failed'];

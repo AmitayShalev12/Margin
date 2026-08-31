@@ -34,6 +34,26 @@ export interface ModelConfig {
   thinkingLevel: 'minimal' | 'low' | 'medium' | 'high';
   /** Attempts for a retryable failure (rate limit, transient 5xx). */
   maxAttempts: number;
+  /**
+   * How long the whole call may take, retries and backoff included.
+   *
+   * Supabase kills a function request that has sent nothing for 150 seconds,
+   * and this call sends nothing until the model answers. Killed, it returns a
+   * 504 the teacher cannot act on — no code, no Hebrew, nothing about whether
+   * to try again.
+   *
+   * So the budget sits *inside* the limit and the function gives up in time to
+   * say so itself. Attempts are bounded by the clock rather than only by
+   * `maxAttempts`: three generations plus two backoffs of up to thirty seconds
+   * each cannot fit in 150 seconds, and that combination is exactly what a
+   * rate-limited run produces.
+   */
+  budgetMs: number;
+  /**
+   * The least time worth starting another attempt with. Below this, a retry
+   * would be killed mid-flight and lose the chance to report at all.
+   */
+  minAttemptMs: number;
   /** Base delay for exponential backoff, in milliseconds. */
   backoffBaseMs: number;
 }
@@ -50,6 +70,9 @@ export const MODEL_CONFIG: ModelConfig = {
   // API actually returns rather than tracking a hardcoded quota.
   maxAttempts: 3,
   backoffBaseMs: 1500,
+  // 150s is the platform's limit; the rest is room to write the answer.
+  budgetMs: 132_000,
+  minAttemptMs: 25_000,
 };
 
 /**
@@ -57,4 +80,10 @@ export const MODEL_CONFIG: ModelConfig = {
  * the client turns it into Hebrew, the same split as `DriveError`.
  */
 export type AnnotateErrorCode =
-  'safety_blocked' | 'rate_limited' | 'daily_cap' | 'bad_response' | 'generation_failed';
+  | 'safety_blocked'
+  | 'rate_limited'
+  | 'daily_cap'
+  | 'bad_response'
+  | 'generation_failed'
+  /** The budget ran out. Distinct from a failure: nothing went wrong, it was slow. */
+  | 'timed_out';
