@@ -99,6 +99,11 @@ She was explicit that this is not for the current papers:
 One of the submissions will be **a folder of articles**, and she wants Margin
 to:
 
+The third of these is **half-built already**: `core/reliability/citations.ts`
+compares what the paper cites against its own bibliography, which is the same
+comparison with a different right-hand side. Pointing it at her folder of
+articles instead of the reference list is the remaining work.
+
 1. Read each article and respond to it individually.
 2. Judge whether each is academic ("לא יודעת אם הם אקדמיים או לא").
 3. **Cross-check the paper against the folder** — are the sources cited inside
@@ -117,6 +122,22 @@ So: preferred, not required. Generating one is a zip writer plus a
 `document.xml` — the reader already exists in `core/import/zip.ts`. It will not
 be pixel-identical to her template, and that is the trade to make explicit
 before building it.
+
+## AI detection — asked for, and refused as asked
+
+A detector that scores a paper for being AI-written was requested and not
+built. They do not work reliably, they are trained overwhelmingly on English,
+and what they read as machine-written is careful formal register — which is
+exactly what a seminary student produces when reaching for an academic voice.
+The output is an accusation against a named girl with no evidence to show her.
+
+That is the same rule the reliability module already applies to `bulk_paste`
+and `few_revisions`: refused outright, not softened.
+
+What was built instead is the citation check above. Invented references are the
+most reliable trace an AI-written paper actually leaves, and unlike a score it
+produces something she can look at: this paper cites Cohen 2021, and Cohen 2021
+is in no reference list.
 
 ## Still open
 

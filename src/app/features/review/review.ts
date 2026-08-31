@@ -237,7 +237,7 @@ export class Review {
                 ltr: run.ltr,
                 annotationId: run.annotation_id,
                 kindClass: annotation ? kindClass(annotation.kind) : '',
-                stateClass: annotation ? this.stateClass(annotation.status) : '',
+                stateClass: annotation ? this.stateClass(annotation) : '',
               };
             }),
     }));
@@ -427,6 +427,10 @@ export class Review {
     this.ownBody.set('');
     this.selectionError.set(null);
     window.getSelection()?.removeAllRanges();
+
+    // Shown landing. Without this the sentence simply acquires a faint tint at
+    // the moment the selection disappears, which reads as nothing happening.
+    this.reveal(written.id);
   }
 
   protected cancelOwnComment() {
@@ -520,9 +524,20 @@ export class Review {
 
   // -- helpers --------------------------------------------------------------
 
-  private stateClass(status: AnnotationStatus): string {
-    if (status === 'resolved') return 'is-resolved';
-    return status === 'pending' ? 'is-pending' : 'is-decided';
+  /**
+   * How a marked span looks, by what has happened to its comment.
+   *
+   * `is-own` is not decoration. A drafted comment is loud while it waits for
+   * her and recedes once she has dealt with it — she watched that happen. A
+   * comment she wrote herself is `accepted` the moment it exists, so it would
+   * otherwise appear straight into the quietest style, from nothing, with no
+   * moment of it landing. Hers stays visible because she never sees it any
+   * other way.
+   */
+  private stateClass(annotation: Annotation): string {
+    if (annotation.status === 'resolved') return 'is-resolved';
+    if (annotation.status === 'pending') return 'is-pending';
+    return annotation.origin === 'teacher' ? 'is-own' : 'is-decided';
   }
 
   private toView(a: Annotation): ViewComment {

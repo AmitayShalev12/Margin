@@ -155,6 +155,16 @@
     box-shadow: inset 0 -0.15em 0 var(--k-ink);
   }
 
+  /**
+   * Hers. As visible as a comment still waiting, because she never saw it
+   * wait — it was accepted the moment she wrote it, and a span that only
+   * tints faintly reads as nothing having happened.
+   */
+  &.is-own {
+    background: var(--k-wash);
+    box-shadow: inset 0 -0.15em 0 var(--k-ink);
+  }
+
   // Decided but not yet resolved: quieter, still findable.
   &.is-decided {
     background: var(--k-soft);

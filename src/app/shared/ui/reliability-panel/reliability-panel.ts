@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 
+import { DataStore } from '../../../core/data/data-store';
 import { UUID } from '../../../core/models';
+import { CitationReport, checkCitations } from '../../../core/reliability/citations';
 import { CheckResult, NOT_CHECKED } from '../../../core/reliability/checks';
 import { ReliabilityService } from '../../../core/reliability/reliability';
 
@@ -30,6 +32,7 @@ import { ReliabilityService } from '../../../core/reliability/reliability';
 })
 export class ReliabilityPanel {
   private readonly reliability = inject(ReliabilityService);
+  private readonly data = inject(DataStore);
 
   readonly submissionId = input.required<UUID>();
   readonly studentName = input<string>('');
@@ -49,6 +52,21 @@ export class ReliabilityPanel {
     (this.results() ?? []).filter((r) => r.outcome === 'no_data'),
   );
 
+  /**
+   * What the paper cites against what it lists.
+   *
+   * Here rather than in a screen of its own because it answers the question
+   * this panel exists for, and answers it with evidence: the paper cites Cohen
+   * 2021 and Cohen 2021 is in no reference list. Invented sources are the most
+   * reliable trace an AI-written paper leaves — a model that does not know a
+   * source produces a plausible one — and unlike a detector's number, this is
+   * a fact she can check in ten seconds.
+   *
+   * Runs on text already on screen. No model, no network, nothing of the
+   * student's work leaving the browser.
+   */
+  protected readonly citations = signal<CitationReport | null>(null);
+
   protected readonly headline = computed(() => {
     const results = this.results();
     if (!results) return null;
@@ -65,6 +83,10 @@ export class ReliabilityPanel {
   protected run() {
     const output = this.reliability.run(this.submissionId());
     this.results.set(output?.results ?? []);
+
+    const round = this.data.roundFor(this.submissionId());
+    this.citations.set(round?.document_blocks ? checkCitations(round.document_blocks) : null);
+
     this.open.set(true);
   }
 }

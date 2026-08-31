@@ -69,6 +69,53 @@
       }
 
       <!--
+        The sources check. Evidence rather than a verdict: it names what the
+        paper cites and cannot account for, and she decides what that means.
+      -->
+      @if (citations(); as report) {
+        <div class="rel-group">
+          <h3 class="rel-group-title">המקורות שבעבודה</h3>
+
+          @if (report.noBibliography) {
+            <!--
+              Not a finding about the paper. Reporting "nothing missing" for a
+              paper with no reference list at all would be the opposite of the
+              truth.
+            -->
+            <p class="rel-item-body">
+              לא מצאתי רשימה ביבליוגרפית, אז אין מול מה להשוות את המקורות שצוטטו.
+            </p>
+          } @else if (report.missing.length) {
+            <p class="rel-item-body">
+              {{ report.missing.length }} מקורות מצוטטים בגוף העבודה ולא מופיעים ברשימה:
+            </p>
+            <ul class="rel-list">
+              @for (citation of report.missing; track citation.key) {
+                <li class="rel-item">
+                  <span class="rel-item-title" dir="auto">{{ citation.text }}</span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="rel-item-body">כל {{ report.cited.length }} המקורות שצוטטו מופיעים ברשימה.</p>
+          }
+
+          @if (report.uncited.length) {
+            <p class="rel-item-body">
+              {{ report.uncited.length }} מקורות ברשימה לא צוטטו באף מקום בעבודה:
+            </p>
+            <ul class="rel-list rel-list-quiet">
+              @for (entry of report.uncited; track entry) {
+                <li class="rel-item">
+                  <span class="rel-item-title" dir="auto">{{ entry }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      <!--
         Always shown, before and after a check. These are not gaps waiting to be
         filled — they are things Margin will not claim, and a teacher reading
         only what it found would reasonably assume they had been ruled out.
