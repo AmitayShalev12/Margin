@@ -83,6 +83,25 @@ export type AnnotateErrorCode =
   | 'safety_blocked'
   | 'rate_limited'
   /**
+   * The account is out of credit. A 429, and not a rate limit at all.
+   *
+   * "Your prepayment credits are depleted" arrives with the same status as
+   * "too many requests per minute", and the app spent an afternoon telling a
+   * teacher to wait a moment and try again — advice that could never work, for
+   * a problem no amount of waiting touches. Nothing in the app can fix it and
+   * nothing in the app should pretend otherwise: it is a billing page.
+   */
+  | 'credits_exhausted'
+  /**
+   * Google refused the key itself.
+   *
+   * Worth its own code now that she can paste her own: a key with a typo, a
+   * revoked one, or one from the wrong project is the likeliest thing to go
+   * wrong on that screen, and "something went wrong drafting comments" would
+   * send her looking anywhere but at the key she just saved.
+   */
+  | 'key_rejected'
+  /**
    * The tokens-per-minute ceiling, which is a different problem from the
    * requests-per-minute one and has a different answer.
    *

@@ -62,6 +62,15 @@ const FAILURE_MESSAGES: Record<string, string> = {
     'חלק מהעבודה הזו לא עבר עיבוד אוטומטי. אין בזה כלום על העבודה עצמה — פשוט תעברי עליה ישירות.',
   rate_limited: 'יותר מדי בקשות ברצף. אפשר לנסות שוב עוד רגע.',
   daily_cap: 'נגמרה המכסה היומית של ניסוח ההערות. אפשר לנסות שוב מחר.',
+  /**
+   * Never says "try again". Nothing here is waiting for anything, and the
+   * previous wording sent a teacher round the same failing button for an
+   * afternoon.
+   */
+  credits_exhausted:
+    'נגמרו הקרדיטים בחשבון ה־Gemini. צריך לטעון קרדיטים ב־AI Studio (ai.studio/projects) — המתנה לא תעזור כאן.',
+  key_rejected:
+    'המפתח לא התקבל אצל Google. אפשר לבדוק אותו במסך "הסגנון שלי", או למחוק אותו ולחזור למפתח המשותף.',
   // Deliberately does not say "try again in a minute": the next attempt is
   // the same size and fails the same way, so that advice would be a lie she
   // could follow all afternoon.

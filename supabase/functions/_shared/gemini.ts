@@ -268,9 +268,34 @@ export function parseAnnotationPayload(
  * reads what the response says instead of counting against a hardcoded quota.
  */
 export function classifyRateLimit(status: number, body: string): AnnotateErrorCode | null {
+  /**
+   * A key Google will not accept, told apart from everything else.
+   *
+   * Now that she pastes her own, this is the likeliest failure on that screen
+   * and the one she can actually act on.
+   */
+  if (status === 401 || status === 403) return 'key_rejected';
+
   if (status !== 429) return null;
 
   const haystack = body.toLowerCase();
+
+  /**
+   * Checked before the rate limits, because it wears their status code.
+   *
+   * Google answers a depleted balance with 429 RESOURCE_EXHAUSTED — the same
+   * as a per-minute cap — and only the message tells them apart. Read the
+   * message: the two need opposite advice, and one of them is not something
+   * waiting can solve.
+   */
+  if (
+    haystack.includes('prepayment credit') ||
+    haystack.includes('credits are depleted') ||
+    haystack.includes('billing')
+  ) {
+    return 'credits_exhausted';
+  }
+
   const daily =
     haystack.includes('perday') ||
     haystack.includes('per day') ||
@@ -296,6 +321,9 @@ export function classifyRateLimit(status: number, body: string): AnnotateErrorCo
 /** Whether another attempt could plausibly succeed. */
 export function isRetryable(status: number, code: AnnotateErrorCode | null): boolean {
   if (code === 'daily_cap') return false;
+  // Neither is a transient condition. Retrying spends two more attempts to be
+  // refused in exactly the same way.
+  if (code === 'credits_exhausted' || code === 'key_rejected') return false;
   // The same request would breach the same token ceiling. Retrying spends two
   // more of her requests to fail in exactly the same way.
   if (code === 'token_cap') return false;

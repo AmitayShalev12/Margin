@@ -413,3 +413,71 @@ describe('reading the quota out of a refusal', () => {
     expect(describeQuota('<html>502 Bad Gateway</html>')).toBeNull();
   });
 });
+
+/**
+ * The 429 that is not a rate limit.
+ *
+ * Google answers a depleted balance with the same status as a per-minute cap,
+ * and only the prose distinguishes them. Reading it as a rate limit cost a
+ * real afternoon: the app told a teacher to wait a moment and try again, for a
+ * condition no amount of waiting could ever change, and she pressed the same
+ * failing button until she gave up on it.
+ */
+describe('a 429 that waiting cannot fix', () => {
+  const depleted = JSON.stringify({
+    error: {
+      code: 429,
+      message:
+        'Your prepayment credits are depleted. Please go to AI Studio at ' +
+        'https://ai.studio/projects to manage your project and billing.',
+      status: 'RESOURCE_EXHAUSTED',
+    },
+  });
+
+  it('reads a depleted balance as a billing problem, not a rate limit', () => {
+    expect(classifyRateLimit(429, depleted)).toBe('credits_exhausted');
+  });
+
+  /** Checked before the per-minute and per-day tests, since it wears 429 too. */
+  it('does not let the ordinary limits swallow it', () => {
+    const both = JSON.stringify({
+      error: { code: 429, message: 'prepayment credits are depleted', quotaId: 'PerDay-FreeTier' },
+    });
+
+    expect(classifyRateLimit(429, both)).toBe('credits_exhausted');
+  });
+
+  it('is never retried, because nothing about it is transient', () => {
+    expect(isRetryable(429, 'credits_exhausted')).toBe(false);
+  });
+
+  it('still reads an ordinary per-minute limit as one', () => {
+    const ordinary = JSON.stringify({
+      error: { code: 429, message: 'Resource has been exhausted (e.g. check quota).' },
+    });
+
+    expect(classifyRateLimit(429, ordinary)).toBe('rate_limited');
+  });
+});
+
+/**
+ * A key Google will not accept.
+ *
+ * The likeliest failure now that she pastes her own, and the one she can act
+ * on — "something went wrong drafting comments" would send her looking
+ * anywhere but at the key she had just saved.
+ */
+describe('a key Google refuses', () => {
+  it('is named, at either status', () => {
+    expect(classifyRateLimit(401, '{"error":{"status":"UNAUTHENTICATED"}}')).toBe('key_rejected');
+    expect(classifyRateLimit(403, '{"error":{"status":"PERMISSION_DENIED"}}')).toBe('key_rejected');
+  });
+
+  it('is never retried', () => {
+    expect(isRetryable(401, 'key_rejected')).toBe(false);
+  });
+
+  it('leaves ordinary failures alone', () => {
+    expect(classifyRateLimit(500, '{}')).toBeNull();
+  });
+});

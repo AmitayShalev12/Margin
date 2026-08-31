@@ -364,6 +364,15 @@ function json(body: unknown, status: number, headers: Record<string, string> = {
 function statusFor(code: AnnotateErrorCode): number {
   if (code === 'safety_blocked') return 422;
   if (code === 'rate_limited' || code === 'daily_cap' || code === 'token_cap') return 429;
+  if (code === 'credits_exhausted') return 429;
+  /**
+   * Not 401, deliberately.
+   *
+   * The client reads 401 and 403 from a function as "your Margin session
+   * expired" and asks her to sign in again — which would be the wrong screen
+   * entirely for a Gemini key Google refused.
+   */
+  if (code === 'key_rejected') return 422;
   return 502;
 }
 
