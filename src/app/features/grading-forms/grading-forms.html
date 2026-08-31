@@ -188,6 +188,49 @@
         }
       </div>
 
+      <!--
+        Why the column is empty, and the way out of it.
+        ----------------------------------------------------------------------
+        Shown whenever nothing has been scored. A rubric with no numbers on it
+        is indistinguishable from a broken page, and until this existed the
+        only way to score a round was a store method no screen called.
+      -->
+      @if (nothingScored()) {
+        <div class="unscored">
+          <p class="unscored-why">{{ whyUnscored() }}</p>
+          <div class="unscored-actions">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="working()"
+              (click)="scoreNow()"
+            >
+              {{ working() ? 'מנקדת…' : 'נקדי את העבודה' }}
+            </button>
+          </div>
+        </div>
+      } @else {
+        <!--
+          Whenever there are numbers on the form, whatever mode the round is
+          nominally in. Scores carried over from an earlier round can sit on a
+          form whose current round is comments-only, and gating on the mode
+          left her with a scored paper and no way to touch it.
+        -->
+        <p class="rescore">
+          <button
+            type="button"
+            class="btn btn-plain btn-sm"
+            [disabled]="working()"
+            (click)="scoreNow()"
+          >
+            {{ working() ? 'מנקדת…' : 'עדכני ניקוד' }}
+          </button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="commentsOnly()">
+            הערות בלבד
+          </button>
+        </p>
+      }
+
       <ul class="sections">
         @for (section of sections(); track section.name) {
           <li class="section" [class.is-open]="section.open">

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 
 import { DataStore } from '../../core/data/data-store';
 import { ParsedRubric, RubricError, readRubric } from '../../core/import/rubric';
+import { AnnotationGenerator } from '../../core/ai/annotation-generator';
 import { GradeSheet, buildGradeDocx, gradeDocxName } from '../../core/export/grade-docx';
 import { isStartingSet } from '../../core/grading/categories';
 import { groupByCategory } from '../../core/grading/entries';
@@ -14,6 +15,7 @@ import {
   finalGrade,
   scoreDisplay,
   scoreTotals,
+  scoringReason,
   sectionTotals,
 } from '../../core/grading/scoring';
 import { GradingFormCategory, UUID } from '../../core/models';
@@ -41,6 +43,7 @@ import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 })
 export class GradingForms {
   private readonly data = inject(DataStore);
+  private readonly generator = inject(AnnotationGenerator);
 
   /** Which submission's form is on screen. Defaults to the first with work on it. */
   private readonly selected = signal<UUID | null>(null);
@@ -468,6 +471,59 @@ export class GradingForms {
       })),
       final: this.final(),
     };
+  }
+
+  // -- why there are no numbers, and what to do about it --------------------
+  //
+  // The machinery to score a round has existed since the rubric import landed
+  // and no screen ever reached it. What she saw was seventeen rows of
+  // "טרם נוקד" with no explanation and no way forward, which reads as a broken
+  // page rather than as a decision the app made about her paper.
+
+  private readonly round = computed(() => {
+    const id = this.submissionId();
+    return id ? this.data.roundFor(id) : undefined;
+  });
+
+  /**
+   * Said out loud, in her words.
+   *
+   * "הוגשו 840 מילים בלבד, אז בשלב הזה יש הערות ואין ניקוד" is a finding about
+   * the submission. An empty column is not — it is indistinguishable from a
+   * bug, and she would have no reason to guess which one she was looking at.
+   */
+  protected readonly whyUnscored = computed(() => scoringReason(this.round()));
+
+  /** True when the rubric is loaded but nothing on it has been scored yet. */
+  protected readonly nothingScored = computed(
+    () => this.sections().length > 0 && this.totals().scored === 0,
+  );
+
+  protected readonly working = this.generator.isGenerating;
+
+  /**
+   * Score this round now.
+   *
+   * Turns scoring on for the round first — she asked for it, which is a
+   * stronger signal than the word-count estimate and is remembered as hers —
+   * and then runs the pass that actually produces the numbers. Both, because
+   * either alone leaves her where she started: the toggle without the run
+   * changes nothing on screen, and the run without the toggle sends an empty
+   * rubric and comes back with nothing to show.
+   */
+  protected async scoreNow() {
+    const id = this.submissionId();
+    const round = this.round();
+    if (!id || !round) return;
+
+    if (round.scoring !== 'scored') this.data.setRoundScoring(round.id, 'scored');
+    await this.generator.generate(id);
+  }
+
+  /** Back to comments only, if she decides the paper is too early after all. */
+  protected commentsOnly() {
+    const round = this.round();
+    if (round) this.data.setRoundScoring(round.id, 'comments_only');
   }
 
   protected select(id: UUID) {

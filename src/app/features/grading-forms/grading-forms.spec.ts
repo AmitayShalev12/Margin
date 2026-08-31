@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 
@@ -11,7 +12,9 @@ import {
   GradingFormCategory,
   Student,
   Submission,
+  SubmissionRound,
 } from '../../core/models';
+import { AnnotationGenerator } from '../../core/ai/annotation-generator';
 import { GradingForms } from './grading-forms';
 
 /**
@@ -104,8 +107,24 @@ function snapshot(over: Partial<PersistedSnapshot> = {}): PersistedSnapshot {
     updated_at: '',
   } as Submission;
 
+  const round = {
+    id: 'r1',
+    submission_id: SUBMISSION_ID,
+    round_number: 1,
+    // Short on purpose: under SCORING_MIN_WORDS, so the estimate says
+    // comments-only and the screen has to account for itself.
+    document_text: 'פסקה קצרה בלבד.',
+    document_blocks: null,
+    drive_revision_id: null,
+    received_at: '2026-08-30T09:00:00.000Z',
+    scoring: null,
+    created_at: '',
+    updated_at: '',
+  } as SubmissionRound;
+
   return {
     ...EMPTY_SNAPSHOT,
+    rounds: [round],
     courses: [course],
     assignments: [{ id: 'a1', course_id: COURSE_ID } as unknown as Assignment],
     students: [{ id: 'st-1', full_name: 'נועה ברקוביץ׳' } as unknown as Student],
@@ -117,8 +136,22 @@ function snapshot(over: Partial<PersistedSnapshot> = {}): PersistedSnapshot {
 }
 
 function render(rows: Partial<PersistedSnapshot> = {}) {
+  const generated: string[] = [];
+  const generator = {
+    isGenerating: signal(false),
+    canGenerate: true,
+    generate: async (id: string) => {
+      generated.push(id);
+      return null;
+    },
+  };
+
   TestBed.configureTestingModule({
-    providers: [provideRouter([]), { provide: Repository, useClass: LocalRepository }],
+    providers: [
+      provideRouter([]),
+      { provide: Repository, useClass: LocalRepository },
+      { provide: AnnotationGenerator, useValue: generator },
+    ],
   });
 
   const store = TestBed.inject(DataStore);
@@ -130,6 +163,7 @@ function render(rows: Partial<PersistedSnapshot> = {}) {
   return {
     store,
     fixture,
+    generated,
     text: () => (fixture.nativeElement as HTMLElement).textContent ?? '',
     click: (selector: string) => {
       const el = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(selector);
@@ -253,5 +287,69 @@ describe('the final grade', () => {
 
     expect(page.fixture.nativeElement.querySelector('.final-value')).toBeNull();
     expect(page.text()).toContain('סעיפים נוקדו');
+  });
+});
+
+/**
+ * The gap this screen actually had.
+ *
+ * `setRoundScoring` and `scoringReason` both existed, were both tested, and no
+ * screen in the app called either. What she saw was seventeen rows of
+ * "טרם נוקד" — which is indistinguishable from a broken page — and no way
+ * forward from it.
+ */
+describe('a form with nothing scored on it', () => {
+  it('says why, rather than leaving an empty column to be interpreted', () => {
+    const page = render();
+
+    expect(page.text()).toContain('מילים');
+    expect(page.text()).toContain('אין ניקוד');
+  });
+
+  it('offers the way out in the same breath', () => {
+    const page = render();
+
+    expect(page.fixture.nativeElement.querySelector('.unscored-actions button')).not.toBeNull();
+  });
+
+  /**
+   * Both halves, because either alone leaves her exactly where she started:
+   * the toggle without the run changes nothing on screen, and the run without
+   * the toggle sends an empty rubric and comes back with nothing.
+   */
+  it('turns scoring on for the round and then actually runs the pass', async () => {
+    const page = render();
+
+    page.click('.unscored-actions button');
+    await Promise.resolve();
+
+    expect(page.store.roundFor(SUBMISSION_ID)?.scoring).toBe('scored');
+    expect(page.generated).toEqual([SUBMISSION_ID]);
+  });
+
+  it('remembers her choice as hers, not as the word-count estimate', () => {
+    const page = render();
+
+    page.click('.unscored-actions button');
+
+    // scoringWasChosen() reads this: a round she scored on purpose must not
+    // silently revert to comments-only when the estimate disagrees.
+    expect(page.store.roundFor(SUBMISSION_ID)?.scoring).toBe('scored');
+  });
+
+  it('lets her put a round back to comments only', () => {
+    const page = render({ criterionScores: [score({ points: 3 })] });
+
+    page.click('.rescore button:last-child');
+
+    expect(page.store.roundFor(SUBMISSION_ID)?.scoring).toBe('comments_only');
+  });
+
+  /** Once there are numbers, the banner gets out of the way. */
+  it('stops explaining itself once the paper is scored', () => {
+    const page = render({ criterionScores: [score({ points: 3 })] });
+
+    expect(page.fixture.nativeElement.querySelector('.unscored')).toBeNull();
+    expect(page.fixture.nativeElement.querySelector('.rescore')).not.toBeNull();
   });
 });
