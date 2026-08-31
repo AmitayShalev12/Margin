@@ -252,6 +252,14 @@
         </p>
       }
 
+      @if (blocking(); as note) {
+        <!--
+          Names what is missing. "2 סעיפים" is useless when both are hers to
+          fill: she would sit waiting for the model to do it.
+        -->
+        <p class="blocking">{{ note }}</p>
+      }
+
       <ul class="sections">
         @for (section of sections(); track section.name) {
           <li class="section" [class.is-open]="section.open">
@@ -281,9 +289,33 @@
                     <div class="criterion-head">
                       <span class="criterion-name">{{ criterion.name }}</span>
 
+                      <!--
+                        Editable, every one of them.
+                        ------------------------------------------------------
+                        2.2 and 4.2 can only ever be filled in here, and until
+                        they are there is no paper score at all — which is why
+                        the total never appeared. The rest she can override:
+                        "אם אני רוצה לשנות הערה או לשנות משהו".
+                      -->
+                      <span class="criterion-entry">
+                        <input
+                          class="points"
+                          type="number"
+                          min="0"
+                          [attr.max]="criterion.maxPoints"
+                          inputmode="numeric"
+                          placeholder="—"
+                          [attr.aria-label]="criterion.name"
+                          [value]="criterion.display?.points ?? ''"
+                          (change)="
+                            setScore(criterion.id, criterion.maxPoints, $any($event.target).value)
+                          "
+                        />
+                        <span class="out-of">/ {{ criterion.maxPoints }}</span>
+                      </span>
+
                       @if (criterion.display; as shown) {
                         <span class="criterion-score">
-                          <strong>{{ shown.label }}</strong>
                           <span class="sheet-percent">{{ shown.percent }}%</span>
                         </span>
                       } @else if (criterion.mine) {
@@ -292,14 +324,10 @@
                           it is permanent - 4.2 is העימוד, which the model
                           cannot see. Blank for her, not guessed at.
                         -->
-                        <span class="criterion-score is-mine">
-                          לשיפוטך · {{ criterion.maxPoints }}
-                        </span>
+                        <span class="criterion-score is-mine">לשיפוטך</span>
                       } @else {
                         <!-- Never 0/4. "Not read yet" and "worth nothing" are opposite findings. -->
-                        <span class="criterion-score is-empty">
-                          טרם · {{ criterion.maxPoints }}
-                        </span>
+                        <span class="criterion-score is-empty">טרם</span>
                       }
                     </div>
 

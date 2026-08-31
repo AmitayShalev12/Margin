@@ -310,6 +310,66 @@ export class GradingForms {
     }));
   });
 
+  /**
+   * Her own number on a criterion.
+   *
+   * The reason ציון העבודה never appeared. The paper's score is deliberately
+   * withheld until every criterion carries one — a total out of the part she
+   * has read so far is not the paper's grade — and two of her seventeen, 2.2
+   * and 4.2, are hers alone to judge and can never be filled by the model. So
+   * the total was unreachable by construction: the app was waiting for numbers
+   * it had given her no way to enter.
+   *
+   * `setCriterionScore` has existed and been tested since the rubric import
+   * landed. Nothing called it. Which is the third time on this screen, and the
+   * reason the form looked broken rather than unfinished.
+   *
+   * It also makes every score editable, which she asked for outright: "אם אני
+   * רוצה לשנות הערה או לשנות משהו".
+   */
+  protected setScore(categoryId: UUID, maxPoints: number | null, raw: string) {
+    const id = this.submissionId();
+    if (!id) return;
+
+    const trimmed = raw.trim();
+    // Emptied means "not scored", which is not a zero and must be able to go
+    // back to being nothing.
+    if (trimmed === '') {
+      this.data.setCriterionScore(id, categoryId, null);
+      return;
+    }
+
+    const points = Number(trimmed);
+    if (!Number.isFinite(points) || points < 0) return;
+    if (maxPoints !== null && points > maxPoints) return;
+
+    this.data.setCriterionScore(id, categoryId, points);
+  }
+
+  /**
+   * What is still standing between her and a paper score, in her terms.
+   *
+   * "2 סעיפים" is not useful when both are ones only she can fill: she would
+   * wait for the model to do it. Named, so she knows the next move is hers.
+   */
+  protected readonly blocking = computed(() => {
+    const totals = this.totals();
+    if (totals.complete) return null;
+
+    const mine = this.sections()
+      .flatMap((section) => section.criteria)
+      .filter((criterion) => criterion.mine && !criterion.display)
+      .map((criterion) => criterion.key);
+
+    if (totals.awaiting > 0) {
+      return `נותרו ${totals.awaiting} סעיפים שהמערכת עוד לא ניקדה.`;
+    }
+    if (mine.length) {
+      return `נשארו רק הסעיפים שרק את מנקדת: ${mine.join(', ')}. אחרי שתמלאי אותם יופיע ציון העבודה.`;
+    }
+    return null;
+  });
+
   protected toggle(section: string) {
     this.opened.update((open) => {
       const next = new Set(open);

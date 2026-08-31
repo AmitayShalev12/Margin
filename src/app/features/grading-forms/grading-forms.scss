@@ -562,3 +562,41 @@
   font-size: 0.72rem;
   word-break: break-word;
 }
+
+// -- entering a score --------------------------------------------------------
+//
+// Every criterion, not only hers. 2.2 and 4.2 can be filled in nowhere else,
+// and until they are there is no paper score at all.
+
+.criterion-entry {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  unicode-bidi: isolate;
+}
+
+.points {
+  width: 3.2rem;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+
+.out-of {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+// What is standing between her and a paper score, named.
+.blocking {
+  margin: 0;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}

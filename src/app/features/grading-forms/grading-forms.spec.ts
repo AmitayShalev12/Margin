@@ -450,3 +450,117 @@ describe('when scoring comes back with nothing', () => {
     expect(page.text()).toContain('זה לא כשל');
   });
 });
+
+/**
+ * Why ציון העבודה never appeared.
+ *
+ * The paper score is withheld until every criterion carries one, which is
+ * right — a total out of the part she has read so far is not the paper's
+ * grade. But two of her seventeen are hers alone to judge and can never be
+ * filled by the model, and the app gave her no way to enter them. The total
+ * was unreachable by construction.
+ *
+ * setCriterionScore had existed and been tested since the rubric import
+ * landed, with no caller anywhere in the UI. Third time on this screen.
+ */
+describe('entering a score by hand', () => {
+  function withMine(scores: GradingCriterionScore[] = []) {
+    return render({
+      gradingCategories: [
+        category({ id: 'cat-1', name: '2.1 סקירת ספרות', max_points: 4 }),
+        category({ id: 'cat-2', name: '2.2 מקורות', max_points: 3, manual_only: true }),
+      ],
+      criterionScores: scores,
+    });
+  }
+
+  it('writes her number against the criterion', () => {
+    const page = withMine();
+    page.click('.section-head');
+
+    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    input.value = '3';
+    input.dispatchEvent(new Event('change'));
+    page.fixture.detectChanges();
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0]).toMatchObject({
+      category_id: 'cat-1',
+      points: 3,
+    });
+  });
+
+  /** The one that was impossible before: hers can be filled in nowhere else. */
+  it('lets her score the criteria only she may judge', () => {
+    const page = withMine();
+    page.click('.section-head');
+
+    const input = page.fixture.nativeElement.querySelectorAll('.points')[1] as HTMLInputElement;
+    input.value = '3';
+    input.dispatchEvent(new Event('change'));
+    page.fixture.detectChanges();
+
+    expect(
+      page.store.criterionScores(SUBMISSION_ID).find((s) => s.category_id === 'cat-2')?.points,
+    ).toBe(3);
+  });
+
+  it('refuses a score above the criterion’s maximum', () => {
+    const page = withMine();
+    page.click('.section-head');
+
+    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    input.value = '9';
+    input.dispatchEvent(new Event('change'));
+
+    expect(page.store.criterionScores(SUBMISSION_ID)).toEqual([]);
+  });
+
+  /** Cleared, not zeroed. Emptying must be able to mean "not scored" again. */
+  it('takes a score back to nothing when she empties the box', () => {
+    const page = withMine([score({ category_id: 'cat-1', points: 3 })]);
+    page.click('.section-head');
+
+    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    input.value = '';
+    input.dispatchEvent(new Event('change'));
+    page.fixture.detectChanges();
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].points).toBeNull();
+  });
+
+  it('gives the paper a score once nothing is left open', () => {
+    const page = withMine([
+      score({ id: 'sc-a', category_id: 'cat-1', points: 3 }),
+      score({ id: 'sc-b', category_id: 'cat-2', points: 3 }),
+    ]);
+
+    // 6 of 7.
+    expect(page.text()).toContain('6/7');
+    expect(page.text()).toContain('86%');
+  });
+});
+
+describe('what is holding the paper score up', () => {
+  /**
+   * "2 סעיפים" is useless when both are hers: she would wait for the model to
+   * fill them, and it never will.
+   */
+  it('names her own criteria rather than counting them', () => {
+    const page = render({
+      gradingCategories: [
+        category({ id: 'cat-1', name: '2.1 סקירת ספרות', max_points: 4 }),
+        category({ id: 'cat-2', name: '2.2 מקורות', max_points: 3, manual_only: true }),
+      ],
+      criterionScores: [score({ category_id: 'cat-1', points: 3 })],
+    });
+
+    expect(page.text()).toContain('2.2');
+    expect(page.text()).toContain('רק את מנקדת');
+  });
+
+  it('says nothing once the paper is fully scored', () => {
+    const page = render({ criterionScores: [score({ points: 3 })] });
+
+    expect(page.fixture.nativeElement.querySelector('.blocking')).toBeNull();
+  });
+});
