@@ -543,3 +543,22 @@
   padding: 0.5rem 1.25rem;
   border-bottom: 1px solid var(--line);
 }
+
+// The reason the last run produced nothing. Sits inside the unscored banner,
+// above the button that will be pressed again.
+.score-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--danger-fg, #a3282d);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.score-error .raw {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  word-break: break-word;
+}

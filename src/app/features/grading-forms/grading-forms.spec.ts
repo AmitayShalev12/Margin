@@ -140,6 +140,15 @@ function render(rows: Partial<PersistedSnapshot> = {}) {
   const generator = {
     isGenerating: signal(false),
     canGenerate: true,
+    // The screen reads this to tell a failure apart from a clean run that
+    // produced no numbers, so the double has to carry it.
+    state: signal({
+      phase: 'idle' as const,
+      message: null,
+      detail: null,
+      discarded: 0,
+      scoring: null,
+    }),
     generate: async (id: string) => {
       generated.push(id);
       return null;
@@ -164,6 +173,7 @@ function render(rows: Partial<PersistedSnapshot> = {}) {
     store,
     fixture,
     generated,
+    generator,
     text: () => (fixture.nativeElement as HTMLElement).textContent ?? '',
     click: (selector: string) => {
       const el = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(selector);
@@ -351,5 +361,68 @@ describe('a form with nothing scored on it', () => {
 
     expect(page.fixture.nativeElement.querySelector('.unscored')).toBeNull();
     expect(page.fixture.nativeElement.querySelector('.rescore')).not.toBeNull();
+  });
+});
+
+/**
+ * A run that produced nothing.
+ *
+ * The reported symptom was exact: "it just unpresses the button after a min".
+ * The pass had run, the button had re-enabled, and the page was identical —
+ * which is the same thing a broken feature looks like. Three outcomes shared
+ * that appearance and need different fixes, so the screen has to separate them.
+ */
+describe('when scoring comes back with nothing', () => {
+  async function runWith(scoring: { returned: number; kept: number } | null, phase = 'idle') {
+    const page = render();
+    page.generator.state.set({
+      phase,
+      message: phase === 'error' ? 'משהו נכשל' : null,
+      detail: phase === 'error' ? 'HTTP 504' : null,
+      discarded: 0,
+      scoring,
+    } as never);
+
+    page.click('.unscored-actions button');
+    await Promise.resolve();
+    page.fixture.detectChanges();
+    return page;
+  }
+
+  it('says so when the model returned no scores at all', async () => {
+    const page = await runWith({ returned: 0, kept: 0 });
+
+    expect(page.text()).toContain('לא החזיר ניקוד לאף סעיף');
+  });
+
+  /**
+   * The one worth telling apart. Scores that match nothing on her rubric are
+   * dropped in full, and "the model said nothing" would send her looking in
+   * entirely the wrong place.
+   */
+  it('says so when every score it returned matched nothing on her form', async () => {
+    const page = await runWith({ returned: 11, kept: 0 });
+
+    expect(page.text()).toContain('11');
+    expect(page.text()).toContain('לא התאים');
+  });
+
+  it('shows a real failure in the words the generator already had', async () => {
+    const page = await runWith(null, 'error');
+
+    expect(page.text()).toContain('משהו נכשל');
+    expect(page.text()).toContain('HTTP 504');
+  });
+
+  it('says nothing at all before she has run one', () => {
+    const page = render();
+
+    expect(page.fixture.nativeElement.querySelector('.score-error')).toBeNull();
+  });
+
+  it('stays quiet when the run did produce scores', async () => {
+    const page = await runWith({ returned: 11, kept: 11 });
+
+    expect(page.fixture.nativeElement.querySelector('.score-error')).toBeNull();
   });
 });

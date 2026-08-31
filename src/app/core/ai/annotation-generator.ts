@@ -26,9 +26,26 @@ export interface GenerationState {
   detail: string | null;
   /** Comments whose quote didn't resolve — worth surfacing, not hiding. */
   discarded: number;
+  /**
+   * What the scoring half of the pass did, when the round was scored at all.
+   *
+   * Null when scoring was never asked for. Otherwise `returned` is how many
+   * scores the model sent and `kept` how many survived matching against her
+   * rubric — and the gap between them is the failure that is otherwise
+   * completely silent. A model that answers with keys her form does not use
+   * has every score dropped, and the screen is left exactly as it was, which
+   * she can only read as the button not working.
+   */
+  scoring: { returned: number; kept: number } | null;
 }
 
-const IDLE: GenerationState = { phase: 'idle', message: null, detail: null, discarded: 0 };
+const IDLE: GenerationState = {
+  phase: 'idle',
+  message: null,
+  detail: null,
+  discarded: 0,
+  scoring: null,
+};
 
 /**
  * What the teacher is told when a batch fails, by the code the Edge Function
@@ -102,7 +119,13 @@ export class AnnotationGenerator {
       return this.fail('צריך למלא את פרטי Supabase לפני שאפשר לנסח הערות.');
     }
 
-    this._state.set({ phase: 'generating', message: null, detail: null, discarded: 0 });
+    this._state.set({
+      phase: 'generating',
+      message: null,
+      detail: null,
+      discarded: 0,
+      scoring: null,
+    });
 
     const request = this.buildRequest(submission, round, blocks);
     if (!request) {
@@ -129,11 +152,20 @@ export class AnnotationGenerator {
      * save error rather than as a form that is silently a round behind. Scores
      * she has already settled are left alone inside the store.
      */
+    /**
+     * Recorded even when it is zero, and especially then. "The model returned
+     * nothing" and "the model returned eleven scores and none of them matched
+     * your rubric" are different problems with the same appearance on screen.
+     */
+    const returned = response.scores?.length ?? 0;
+    let kept = 0;
+
     if (response.scores?.length) {
       const scored = resolveScores(
         this.store.gradingCategories().filter((c) => c.active),
         response.scores,
       );
+      kept = scored.length;
       this.store.applyCriterionScores(
         submission.id,
         round.round_number,
@@ -194,7 +226,15 @@ export class AnnotationGenerator {
     });
     this.store.setSubmissionStatus(submission.id, 'in_review');
 
-    this._state.set({ phase: 'idle', message: null, detail: null, discarded: rejected.length });
+    this._state.set({
+      phase: 'idle',
+      message: null,
+      detail: null,
+      discarded: rejected.length,
+      // Null when the round was never up for scoring, so the screen can tell
+      // "not asked" apart from "asked and got nothing back".
+      scoring: request.scoring === 'scored' ? { returned, kept } : null,
+    });
     return { created: annotations.length, discarded: rejected.length };
   }
 
@@ -339,7 +379,7 @@ export class AnnotationGenerator {
   }
 
   private fail(message: string, detail: string | null = null): null {
-    this._state.set({ phase: 'error', message, detail, discarded: 0 });
+    this._state.set({ phase: 'error', message, detail, discarded: 0, scoring: null });
     return null;
   }
 }

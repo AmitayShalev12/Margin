@@ -198,6 +198,27 @@
       @if (nothingScored()) {
         <div class="unscored">
           <p class="unscored-why">{{ whyUnscored() }}</p>
+          <!--
+            What went wrong, in the words the generator already had. A button
+            that re-enables itself with the page unchanged is the same shape
+            as a broken feature, and she cannot tell the two apart by looking.
+          -->
+          @if (failure(); as problem) {
+            <p class="score-error" role="alert">
+              {{ problem.message }}
+              @if (problem.detail; as detail) {
+                <!-- The raw line. It is what tells a deploy apart from a model. -->
+                <span class="raw" dir="ltr">{{ detail }}</span>
+              }
+            </p>
+          } @else if (emptyRun(); as note) {
+            <!--
+              A clean run that moved nothing. Said in whichever of the two ways
+              it happened, because they need opposite fixes and look identical.
+            -->
+            <p class="score-error" role="status">{{ note }}</p>
+          }
+
           <div class="unscored-actions">
             <button
               type="button"

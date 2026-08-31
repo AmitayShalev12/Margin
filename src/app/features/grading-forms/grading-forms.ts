@@ -502,6 +502,43 @@ export class GradingForms {
   protected readonly working = this.generator.isGenerating;
 
   /**
+   * Why the last attempt produced nothing.
+   *
+   * Without this the button simply un-presses after a minute and the page is
+   * unchanged, which is indistinguishable from the scoring being broken — and
+   * she has no way to tell a missing document apart from a deploy that never
+   * happened apart from the model timing out. The generator has carried the
+   * message all along; no screen but the review one ever read it.
+   */
+  protected readonly failure = computed(() => {
+    const state = this.generator.state();
+    return state.phase === 'error' ? state : null;
+  });
+
+  /** Set once she has actually run a pass from this screen. */
+  private readonly ran = signal(false);
+
+  /**
+   * Nothing came back, and nothing broke either.
+   *
+   * The pass can succeed and still produce no numbers, in two ways that look
+   * identical on screen and need opposite fixes: the model returned no scores
+   * at all, or it returned scores whose keys match nothing on her rubric and
+   * every one was dropped. Neither is an error and neither may be dressed as
+   * one — but leaving them silent is what makes the button look dead.
+   */
+  protected readonly emptyRun = computed(() => {
+    if (!this.ran() || this.working() || this.failure()) return null;
+
+    const scoring = this.generator.state().scoring;
+    if (!scoring || scoring.kept > 0) return null;
+
+    return scoring.returned === 0
+      ? 'הריצה הסתיימה בלי שגיאה, אבל המודל לא החזיר ניקוד לאף סעיף.'
+      : `המודל החזיר ${scoring.returned} ציונים, אבל אף אחד מהם לא התאים לסעיפים שבטופס שלך.`;
+  });
+
+  /**
    * Score this round now.
    *
    * Turns scoring on for the round first — she asked for it, which is a
@@ -517,7 +554,10 @@ export class GradingForms {
     if (!id || !round) return;
 
     if (round.scoring !== 'scored') this.data.setRoundScoring(round.id, 'scored');
+
+    this.ran.set(false);
     await this.generator.generate(id);
+    this.ran.set(true);
   }
 
   /** Back to comments only, if she decides the paper is too early after all. */
