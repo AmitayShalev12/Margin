@@ -277,12 +277,28 @@ export function classifyRateLimit(status: number, body: string): AnnotateErrorCo
     haystack.includes('per_day') ||
     haystack.includes('daily');
 
-  return daily ? 'daily_cap' : 'rate_limited';
+  if (daily) return 'daily_cap';
+
+  /**
+   * Google names the quota it refused on, and the token one is worth telling
+   * apart: `..._free_tier_input_token_count` is a ceiling a single request can
+   * breach by itself, so retrying and waiting both fail identically. The
+   * answer there is a smaller request, not a later one.
+   */
+  const tokens =
+    haystack.includes('token_count') ||
+    haystack.includes('tokens per') ||
+    haystack.includes('inputtokens');
+
+  return tokens ? 'token_cap' : 'rate_limited';
 }
 
 /** Whether another attempt could plausibly succeed. */
 export function isRetryable(status: number, code: AnnotateErrorCode | null): boolean {
   if (code === 'daily_cap') return false;
+  // The same request would breach the same token ceiling. Retrying spends two
+  // more of her requests to fail in exactly the same way.
+  if (code === 'token_cap') return false;
   if (status === 429) return true;
   return status >= 500 && status < 600;
 }

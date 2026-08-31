@@ -362,7 +362,7 @@ function json(body: unknown, status: number, headers: Record<string, string> = {
 /** HTTP status for each failure, so the client can branch without parsing prose. */
 function statusFor(code: AnnotateErrorCode): number {
   if (code === 'safety_blocked') return 422;
-  if (code === 'rate_limited' || code === 'daily_cap') return 429;
+  if (code === 'rate_limited' || code === 'daily_cap' || code === 'token_cap') return 429;
   return 502;
 }
 

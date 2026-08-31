@@ -82,6 +82,17 @@ export const MODEL_CONFIG: ModelConfig = {
 export type AnnotateErrorCode =
   | 'safety_blocked'
   | 'rate_limited'
+  /**
+   * The tokens-per-minute ceiling, which is a different problem from the
+   * requests-per-minute one and has a different answer.
+   *
+   * A request can exceed it on its own: one long paper plus her rules, her
+   * sources and sixty style examples is a great many tokens, and when that is
+   * the limit, waiting changes nothing — the next attempt is the same size and
+   * fails identically. Told apart because "try again in a minute" is advice
+   * that cannot work here, and following it looks like the app lying.
+   */
+  | 'token_cap'
   | 'daily_cap'
   | 'bad_response'
   | 'generation_failed'

@@ -319,3 +319,51 @@ describe('rate limiting', () => {
     expect(retryDelayMs('{}', 10, 1500)).toBe(30_000);
   });
 });
+
+/**
+ * Which ceiling a 429 hit.
+ *
+ * All three arrive as 429 and mean different things to her. The token one is
+ * the reason this exists: a single request can breach it on its own, so
+ * "try again in a minute" is advice she could follow all afternoon without it
+ * ever working, and a retry spends two more requests failing identically.
+ */
+describe('telling the free-tier limits apart', () => {
+  const body = (quota: string) =>
+    JSON.stringify({
+      error: {
+        code: 429,
+        message: 'Resource has been exhausted',
+        details: [{ violations: [{ quotaId: quota }] }],
+      },
+    });
+
+  it('reads the daily cap', () => {
+    expect(classifyRateLimit(429, body('GenerateRequestsPerDayPerProject-FreeTier'))).toBe(
+      'daily_cap',
+    );
+  });
+
+  it('reads the tokens-per-minute ceiling', () => {
+    expect(
+      classifyRateLimit(429, body('GenerateContentInputTokensPerModelPerMinute-FreeTier')),
+    ).toBe('token_cap');
+  });
+
+  it('treats anything else as the ordinary per-minute limit', () => {
+    expect(classifyRateLimit(429, body('GenerateRequestsPerMinutePerProject-FreeTier'))).toBe(
+      'rate_limited',
+    );
+  });
+
+  it('says nothing about a response that is not a 429', () => {
+    expect(classifyRateLimit(500, body('whatever'))).toBeNull();
+  });
+
+  /** Retrying it spends two more requests to fail in exactly the same way. */
+  it('never retries a ceiling the same request would breach again', () => {
+    expect(isRetryable(429, 'token_cap')).toBe(false);
+    expect(isRetryable(429, 'daily_cap')).toBe(false);
+    expect(isRetryable(429, 'rate_limited')).toBe(true);
+  });
+});

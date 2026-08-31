@@ -62,6 +62,11 @@ const FAILURE_MESSAGES: Record<string, string> = {
     'חלק מהעבודה הזו לא עבר עיבוד אוטומטי. אין בזה כלום על העבודה עצמה — פשוט תעברי עליה ישירות.',
   rate_limited: 'יותר מדי בקשות ברצף. אפשר לנסות שוב עוד רגע.',
   daily_cap: 'נגמרה המכסה היומית של ניסוח ההערות. אפשר לנסות שוב מחר.',
+  // Deliberately does not say "try again in a minute": the next attempt is
+  // the same size and fails the same way, so that advice would be a lie she
+  // could follow all afternoon.
+  token_cap:
+    'העבודה ארוכה מדי למכסת החינם בבקשה אחת. אפשר לנקד סבב קצר יותר, או לעבור למכסה בתשלום.',
   bad_response: 'התשובה שהתקבלה לא הייתה שלמה. אפשר לנסות שוב.',
   generation_failed: 'משהו השתבש בניסוח ההערות. אפשר לנסות שוב.',
   // Not a failure — it was slow. Worth saying so, because "try again" is the
@@ -103,7 +108,7 @@ export function failureMessage(error: unknown): string {
   const code = error instanceof FunctionError ? error.code : '';
   const base = FAILURE_MESSAGES[code] ?? TRANSPORT_MESSAGES[code] ?? FALLBACK_MESSAGE;
 
-  if (code !== 'rate_limited' && code !== 'daily_cap') return base;
+  if (code !== 'rate_limited' && code !== 'daily_cap' && code !== 'token_cap') return base;
 
   const source = error instanceof FunctionError ? error.keySource : null;
   if (source === 'teacher') return `${base} הריצה רצה על המפתח שלך.`;
