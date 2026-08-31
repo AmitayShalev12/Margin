@@ -4,7 +4,9 @@ import { DataStore } from '../data/data-store';
 import { LocalRepository } from '../data/local-repository';
 import { Repository } from '../data/repository';
 import { seedId } from '../mock/seed-data';
+import { FunctionError } from '../supabase/function-call';
 import { SupabaseService } from '../supabase/supabase';
+import { failureMessage } from './annotation-generator';
 import { AnnotationGenerator } from './annotation-generator';
 import { AnnotateRequest } from './contract';
 import { seedStore } from '../mock/seed-store';
@@ -678,5 +680,41 @@ describe('AnnotationGenerator', () => {
 
     expect(await generator.generate(NOA)).toBeNull();
     expect(sent.length).toBe(0);
+  });
+});
+
+/**
+ * Which quota ran out.
+ *
+ * She saved her own key, hit the same rate limit, and the app had no way to
+ * tell her whether the key was in use. The fallback to the shared key is
+ * deliberate — a hiccup reading one table must not stop her marking — but a
+ * silent fallback is not, and it is the same failure as every other one on
+ * this feature: the answer existed server-side and was never carried back.
+ */
+describe('a rate limit says whose quota it was', () => {
+  it('names the shared key, which is the actionable half', () => {
+    const error = new FunctionError('rate_limited', 429, 'annotate 429', 'shared');
+
+    expect(failureMessage(error)).toContain('המפתח המשותף');
+  });
+
+  it('names her own key, so she knows the saved one is working', () => {
+    const error = new FunctionError('rate_limited', 429, 'annotate 429', 'teacher');
+
+    expect(failureMessage(error)).toContain('המפתח שלך');
+  });
+
+  it('says nothing about keys when the function did not say', () => {
+    const error = new FunctionError('rate_limited', 429, 'annotate 429');
+
+    expect(failureMessage(error)).not.toContain('מפתח');
+  });
+
+  /** Only where the quota is the subject. A safety block is not about keys. */
+  it('leaves other failures alone', () => {
+    const error = new FunctionError('safety_blocked', 400, 'annotate 400', 'shared');
+
+    expect(failureMessage(error)).not.toContain('מפתח');
   });
 });

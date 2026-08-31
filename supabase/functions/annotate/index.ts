@@ -540,32 +540,62 @@ Deno.serve(async (request: Request) => {
    * run. The alternative is that a hiccup in one table stops her marking, and
    * the shared key is a working state, not a compromise of anything.
    */
-  const apiKey = (await teacherKey(request)) ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
+  const hers = await teacherKey(request);
+  const apiKey = hers ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
   if (!apiKey) return json({ error: 'missing_api_key' }, 500, headers);
+
+  /**
+   * Which key this run spent, reported on every answer including the failures.
+   *
+   * The fallback above is deliberate — the shared key is a working state and a
+   * hiccup reading one table should not stop her marking — but a *silent*
+   * fallback is not. She saved her own key, hit the same rate limit, and had
+   * no way to tell whether it was in use at all. Which is the same shape as
+   * every other bug on this feature: the answer existed server-side and was
+   * never carried back.
+   *
+   * Says which key, never anything about it.
+   */
+  const keySource = hers ? 'teacher' : 'shared';
 
   let body: AnnotateRequest;
   try {
     body = (await request.json()) as AnnotateRequest;
   } catch {
-    return json({ error: 'bad_request' }, 400, headers);
+    return json({ error: 'bad_request', key_source: keySource }, 400, headers);
   }
 
-  if (!body.blocks?.length) return json({ error: 'no_document' }, 400, headers);
-  if (!body.allowed_kinds?.length) return json({ error: 'no_kinds' }, 400, headers);
+  if (!body.blocks?.length) {
+    return json({ error: 'no_document', key_source: keySource }, 400, headers);
+  }
+  if (!body.allowed_kinds?.length) {
+    return json({ error: 'no_kinds', key_source: keySource }, 400, headers);
+  }
 
   try {
     const generated = await generate(apiKey, body);
     if (!generated.ok) {
-      return json({ error: generated.code }, statusFor(generated.code), headers);
+      // The rate-limit case above all: "too many requests" means one thing on
+      // her own quota and another entirely on a key shared with everyone.
+      return json(
+        { error: generated.code, key_source: keySource },
+        statusFor(generated.code),
+        headers,
+      );
     }
 
     const payload = parseAnnotationPayload(generated.text);
     if (!payload.ok) {
-      return json({ error: payload.code }, statusFor(payload.code), headers);
+      return json({ error: payload.code, key_source: keySource }, statusFor(payload.code), headers);
     }
 
     return json(
-      { summary: payload.summary, annotations: payload.annotations, scores: payload.scores },
+      {
+        summary: payload.summary,
+        annotations: payload.annotations,
+        scores: payload.scores,
+        key_source: keySource,
+      },
       200,
       {
         ...headers,
@@ -574,6 +604,6 @@ Deno.serve(async (request: Request) => {
     );
   } catch (error) {
     console.error('annotate failed', error);
-    return json({ error: 'generation_failed' }, 502, headers);
+    return json({ error: 'generation_failed', key_source: keySource }, 502, headers);
   }
 });

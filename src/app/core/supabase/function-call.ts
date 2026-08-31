@@ -22,6 +22,15 @@ export class FunctionError extends Error {
     readonly status: number | null,
     /** Raw, for showing in small print. Never the only thing she is told. */
     readonly detail: string,
+    /**
+     * Which API key the run spent, when the function said.
+     *
+     * Carried as a field rather than left in the detail string so a caller can
+     * act on it without parsing prose — the rate-limit message needs to say
+     * which quota was exhausted, and that is the difference between "wait a
+     * minute" and "the key you just saved is not being used".
+     */
+    readonly keySource: string | null = null,
   ) {
     super(code);
     this.name = 'FunctionError';
@@ -93,14 +102,24 @@ export async function callFunction<T>(
   if (response.ok) return (await response.json()) as T;
 
   const text = await response.text().catch(() => '');
-  let served: { error?: string; message?: string } = {};
+  let served: { error?: string; message?: string; key_source?: string } = {};
   try {
     served = JSON.parse(text) as typeof served;
   } catch {
     // Not JSON. The text itself is the detail.
   }
 
-  const detail = `${name} ${response.status}: ${(served.error ?? served.message ?? text ?? '').slice(0, 200)}`;
+  /**
+   * Facts the function attaches to its own failures, kept in the detail line.
+   *
+   * `key_source` is why this exists: "too many requests" means one thing on
+   * her own quota and another entirely on a key shared with everyone, and
+   * without it there was no way to tell whether the key she had just saved was
+   * being used at all.
+   */
+  const context = served.key_source ? ` [key: ${served.key_source}]` : '';
+
+  const detail = `${name} ${response.status}: ${(served.error ?? served.message ?? text ?? '').slice(0, 200)}${context}`;
 
   // A function that isn't there answers 404 through the gateway, with no code
   // of ours in the body. Reporting that as a generation failure sent a real
@@ -112,7 +131,8 @@ export async function callFunction<T>(
 
   // The function's own code when it gave one, so domain failures — safety
   // blocks, rate limits, the daily cap — keep their own wording.
-  if (served.error) throw new FunctionError(served.error, response.status, detail);
+  const keySource = served.key_source ?? null;
+  if (served.error) throw new FunctionError(served.error, response.status, detail, keySource);
 
-  throw new FunctionError('server_error', response.status, detail);
+  throw new FunctionError('server_error', response.status, detail, keySource);
 }

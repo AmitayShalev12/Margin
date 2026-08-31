@@ -87,6 +87,32 @@ const MAX_STYLE_DISMISSED = 30;
  * ordinary `Annotation` records through the store, so it persists by the same
  * path as a comment the teacher wrote herself.
  */
+/**
+ * What she is told when a drafting run fails.
+ *
+ * Exported because the quota half of it is worth testing on its own: "too many
+ * requests" means one thing on her own key and another on a key shared with
+ * everyone, and the difference decides what she does next — wait a minute, or
+ * find out why the key she just saved is not being used. She hit exactly that
+ * and the app could not tell her which.
+ *
+ * The key is named only where the quota is the subject. A safety block is not
+ * about keys, and saying so there would be noise.
+ */
+export function failureMessage(error: unknown): string {
+  const code = error instanceof FunctionError ? error.code : '';
+  const base = FAILURE_MESSAGES[code] ?? TRANSPORT_MESSAGES[code] ?? FALLBACK_MESSAGE;
+
+  if (code !== 'rate_limited' && code !== 'daily_cap') return base;
+
+  const source = error instanceof FunctionError ? error.keySource : null;
+  if (source === 'teacher') return `${base} הריצה רצה על המפתח שלך.`;
+  if (source === 'shared') return `${base} הריצה רצה על המפתח המשותף, לא על מפתח משלך.`;
+
+  // The function did not say. Better silent than guessing at which quota.
+  return base;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AnnotationGenerator {
   private readonly store = inject(DataStore);
@@ -136,9 +162,8 @@ export class AnnotationGenerator {
     try {
       response = await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
     } catch (error) {
-      const code = error instanceof FunctionError ? error.code : '';
       return this.fail(
-        FAILURE_MESSAGES[code] ?? TRANSPORT_MESSAGES[code] ?? FALLBACK_MESSAGE,
+        failureMessage(error),
         error instanceof FunctionError ? error.detail : String(error),
       );
     }
