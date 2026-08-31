@@ -638,3 +638,26 @@
     animation: none;
   }
 }
+
+/**
+ * From a comment back to its sentence.
+ *
+ * Quiet on purpose: it sits under every comment, and four decision buttons
+ * already compete for the eye on the same card. This is a way back, not a
+ * decision.
+ */
+.to-sentence {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--c-ink);
+  }
+}

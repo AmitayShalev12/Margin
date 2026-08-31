@@ -308,7 +308,14 @@ export class Review {
    * Waits a frame because the section is opened in the same tick and the
    * paragraph is not in the DOM until the template has rendered it.
    */
-  private reveal(annotationId: string) {
+  /**
+   * From a comment to the sentence it is about.
+   *
+   * The other direction already existed — tapping a highlight in the paper
+   * finds its comment. Going back was left to the eye, which on a paper long
+   * enough to need forty comments is a scroll each time.
+   */
+  protected reveal(annotationId: string) {
     this.tapRun(annotationId);
     this.found.set(annotationId);
 
