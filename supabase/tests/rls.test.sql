@@ -12,7 +12,7 @@
 -- nothing behind.
 
 begin;
-select plan(40);
+select plan(42);
 
 -- ---------------------------------------------------------------------------
 -- Two teachers, each with a course, an assignment, a student and a submission.
@@ -297,6 +297,22 @@ select throws_ok(
   '42501',
   null,
   'she cannot write into another teacher''s learning log');
+
+-- Undo deletes the log entry rather than superseding it, so a delete is now
+-- something the app actually issues against this table. Aimed at another
+-- teacher's row it must remove nothing: a reversal that reached across
+-- accounts would quietly erase the record of a decision that was never hers.
+
+select lives_ok(
+  $$delete from public.learning_feedback_logs
+     where teacher_id = 'bbbbbbbb-0000-4000-8000-000000000002'$$,
+  'a delete aimed at another teacher''s learning log raises nothing');
+
+select is(
+  (select count(*)::int from public.learning_feedback_logs
+    where teacher_id = 'bbbbbbbb-0000-4000-8000-000000000002'),
+  0,
+  'and it removed nothing of hers, because she can never see it');
 
 -- An update aimed at another teacher's row is not an error — it simply matches
 -- nothing, which is what `using` does. Worth pinning: silence here is correct,

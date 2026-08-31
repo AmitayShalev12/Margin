@@ -1081,6 +1081,8 @@ export class DataStore {
     // Re-asserting the status she already chose is not a second decision.
     if (!before || before.status === status) return;
 
+    this.remember(before);
+
     this.writeAnnotation(id, (a) => ({
       ...a,
       status,
@@ -1101,6 +1103,8 @@ export class DataStore {
   editAnnotation(id: UUID, body: string) {
     const before = this.annotation(id);
     const text = body.trim();
+
+    if (before) this.remember(before);
 
     this.writeAnnotation(id, (a) => ({
       ...a,
@@ -1124,6 +1128,91 @@ export class DataStore {
     );
 
     this.rebuildGradingForm(before.submission_id);
+  }
+
+  // -- taking a decision back -----------------------------------------------
+
+  /**
+   * What each comment looked like immediately before her last decision on it.
+   *
+   * In memory only, and deliberately. This is for the click she regrets a
+   * second after making it, not a permanent history — persisting it would mean
+   * a table, a policy and a migration to serve a case the fallback below
+   * already handles honestly.
+   */
+  private readonly previous = new Map<UUID, Annotation>();
+
+  private remember(annotation: Annotation) {
+    this.previous.set(annotation.id, annotation);
+  }
+
+  /**
+   * Every comment can be taken back, including after a reload.
+   *
+   * A button that is there sometimes and not others — with the difference
+   * being whether the page happened to reload since — is worse than no button:
+   * she would learn it is unreliable rather than learn the rule.
+   */
+  canUndo(id: UUID): boolean {
+    const annotation = this.annotation(id);
+    return !!annotation && annotation.status !== 'pending';
+  }
+
+  /**
+   * Puts a comment back the way it was before her last decision.
+   *
+   * Exact when the previous state is still in memory. After a reload it falls
+   * back to the comment's resting state — undrafted for the model's comments,
+   * accepted for the ones she wrote herself, since a comment of hers was never
+   * pending and returning it to "awaiting a decision" would invent a step that
+   * never happened.
+   *
+   * The learning log entry goes with it. The log is keyed on the comment and
+   * read as the record of what she wanted, so a decision she reversed must
+   * leave nothing behind — otherwise an edit she took back still teaches the
+   * model a phrasing she rejected, silently and a year later.
+   */
+  undoDecision(id: UUID) {
+    const current = this.annotation(id);
+    if (!current || current.status === 'pending') return;
+
+    const prior = this.previous.get(id);
+
+    this.writeAnnotation(id, (a) => ({
+      ...a,
+      ...(prior
+        ? {
+            status: prior.status,
+            body: prior.body,
+            edited_by_teacher: prior.edited_by_teacher,
+            resolved_in_round: prior.resolved_in_round,
+          }
+        : {
+            status: (a.origin === 'teacher' ? 'accepted' : 'pending') as AnnotationStatus,
+            // Back to the model's wording, which is what "before she touched
+            // it" means for a drafted comment. Her own comments have no draft
+            // behind them, so their text stands.
+            body: a.origin === 'teacher' ? a.body : (a.ai_body ?? a.body),
+            edited_by_teacher: a.origin === 'teacher',
+            resolved_in_round: null,
+          }),
+      updated_at: new Date().toISOString(),
+    }));
+
+    this.forgetDecision(id);
+    this.previous.delete(id);
+    this.rebuildGradingForm(current.submission_id);
+  }
+
+  /** Drops the learning-log entry for one comment, if it left one. */
+  private forgetDecision(id: UUID) {
+    const logged = this._feedbackLogs().find(
+      (l) => l.target_type === 'annotation' && l.target_id === id,
+    );
+    if (!logged) return;
+
+    this._feedbackLogs.update((list) => list.filter((l) => l.id !== logged.id));
+    this.persist(() => this.repository.deleteFeedbackLogs([logged.id]));
   }
 
   /** The year-end form for one student, generated and then hers to edit. */

@@ -193,6 +193,19 @@ begin
     failed := failed + 1; report := report || format(E'  FAIL  she can record a learning-loop decision [%s: %s]\n', sqlstate, sqlerrm);
   end;
 
+  -- Undo deletes the log entry rather than superseding it, so a delete is now
+  -- something the app actually issues here. Aimed at another teacher's row it
+  -- must remove nothing.
+  begin
+    set local role authenticated;
+    delete from public.learning_feedback_logs where teacher_id = teacher_b;
+    reset role;
+    passed := passed + 1; report := report || E'  ok    a delete cannot reach another teacher\'s learning log\n';
+  exception when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  a delete cannot reach another teacher\'s learning log [%s: %s]\n', sqlstate, sqlerrm);
+  end;
+
   begin
     set local role authenticated;
     insert into public.teacher_style_examples (teacher_id, source, teacher_text)

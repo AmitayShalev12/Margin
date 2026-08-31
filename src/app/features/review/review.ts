@@ -59,6 +59,16 @@ interface ViewComment {
   short: string;
   isPending: boolean;
   isResolved: boolean;
+  /** Whether her decision on this one can still be taken back. */
+  canUndo: boolean;
+  /**
+   * Already sent to the student's Drive.
+   *
+   * Undo restores what Margin holds; it cannot reach into her Drive and unsay
+   * something. Said on the button rather than left to be discovered, because
+   * the discovery would be a student having read a comment she withdrew.
+   */
+  wasPosted: boolean;
 }
 
 interface ViewSection {
@@ -492,6 +502,20 @@ export class Review {
     this.editingId.set(null);
   }
 
+  /**
+   * Take back the last decision on a comment.
+   *
+   * Reveals it afterwards for the same reason saving one does: she needs to
+   * see it land back among the undecided, or the button is indistinguishable
+   * from one that did nothing.
+   */
+  protected undo(id: UUID) {
+    this.data.undoDecision(id);
+    this.sheetId.set(null);
+    if (this.editingId() === id) this.editingId.set(null);
+    this.reveal(id);
+  }
+
   // -- drafting -------------------------------------------------------------
 
   protected async generate() {
@@ -551,6 +575,8 @@ export class Review {
       short: a.body.split(/[.?!]/)[0],
       isPending: a.status === 'pending',
       isResolved: a.status === 'resolved',
+      canUndo: this.data.canUndo(a.id),
+      wasPosted: !!a.posted_comment_id,
     };
   }
 }

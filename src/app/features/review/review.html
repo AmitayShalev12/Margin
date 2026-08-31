@@ -262,6 +262,20 @@
                               טופל
                             </button>
                           </div>
+                        } @else if (c.canUndo) {
+                          <!--
+                            The way back. Until this existed a decision was
+                            final the instant it was clicked, and the only
+                            recovery was to write the comment again by hand.
+                          -->
+                          <div class="actions">
+                            <button type="button" class="act act-undo" (click)="undo(c.id)">
+                              ביטול ההחלטה
+                            </button>
+                            @if (c.wasPosted) {
+                              <span class="posted-note">כבר נשלחה ל־Drive</span>
+                            }
+                          </div>
                         }
                       }
                     </div>
@@ -421,6 +435,14 @@
         <button type="button" class="sheet-resolve" (click)="decide(c.id, 'resolved')">
           סימון כטופל
         </button>
+      } @else if (c.canUndo) {
+        <!-- The same way back as on the card. -->
+        <div class="sheet-actions">
+          <button type="button" class="btn btn-ghost" (click)="undo(c.id)">ביטול ההחלטה</button>
+        </div>
+        @if (c.wasPosted) {
+          <p class="posted-note">ההערה כבר נשלחה ל־Drive; הביטול לא מוחק אותה משם.</p>
+        }
       }
     }
   </div>

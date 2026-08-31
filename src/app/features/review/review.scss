@@ -745,3 +745,20 @@
   font-size: var(--fs-xs);
   color: var(--c-ink-3);
 }
+
+// -- taking a decision back --------------------------------------------------
+//
+// Quiet. It sits on every decided comment, so it must not compete with the
+// comment itself — it is the way out of a mistake, not an invitation to
+// reconsider everything she has already settled.
+
+.act-undo {
+  color: var(--muted);
+}
+
+.posted-note {
+  margin: 0;
+  color: var(--warn-fg, #7a5a00);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}

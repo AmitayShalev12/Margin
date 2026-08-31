@@ -72,6 +72,7 @@ class FailingRepository extends Repository {
   saveAnnotation = () => this.write('annotation');
   saveFeedbackLog = () => this.write('feedback-log');
   deleteAnnotations = () => this.write('delete');
+  deleteFeedbackLogs = () => this.write('delete');
   saveDriveFolder = () => this.write('drive-folder');
 }
 

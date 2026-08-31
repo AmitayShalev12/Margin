@@ -264,6 +264,16 @@ export class SupabaseRepository extends Repository {
     await this.upsert(TABLES.learningFeedbackLogs, log, 'id');
   }
 
+  async deleteFeedbackLogs(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    this.requireSession();
+    const { error } = await this.supabase.client
+      .from(TABLES.learningFeedbackLogs)
+      .delete()
+      .in('id', [...ids]);
+    if (error) throw new Error(describeFailure(TABLES.learningFeedbackLogs, error));
+  }
+
   async deleteAnnotations(ids: readonly UUID[]): Promise<void> {
     if (ids.length === 0) return;
     this.requireSession();

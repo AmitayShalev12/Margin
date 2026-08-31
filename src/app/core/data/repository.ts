@@ -153,6 +153,17 @@ export abstract class Repository {
   abstract saveDriveFolder(ownerId: UUID, folderId: string | null): Promise<void>;
 
   /**
+   * Removes a decision she took back.
+   *
+   * Deleted rather than superseded by a "she undid it" row. The log is keyed
+   * on (target_type, target_id) and read as the record of what she wanted, so
+   * a decision she reversed has to leave nothing behind — an undone edit that
+   * stays in the log teaches the model a phrasing she rejected, and it would
+   * do it silently, a year later, with nothing to trace it back to.
+   */
+  abstract deleteFeedbackLogs(ids: readonly UUID[]): Promise<void>;
+
+  /**
    * One log per drafted comment, superseded in place when she changes her mind.
    * The store reuses the existing record's id, so this stays a plain upsert.
    *

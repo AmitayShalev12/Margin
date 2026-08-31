@@ -47,6 +47,7 @@ class RecordingRepository extends Repository {
   saveAnnotation = async () => void this.written.push('annotation');
   saveFeedbackLog = async () => undefined;
   deleteAnnotations = async () => undefined;
+  deleteFeedbackLogs = async () => undefined;
   saveDriveFolder = async () => undefined;
 }
 

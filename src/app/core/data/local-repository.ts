@@ -152,6 +152,14 @@ export class LocalRepository extends Repository {
     });
   }
 
+  async deleteFeedbackLogs(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.feedbackLogs = snapshot.feedbackLogs.filter((l) => !gone.has(l.id));
+    });
+  }
+
   async saveFeedbackLog(log: LearningFeedbackLog): Promise<void> {
     this.mutate((snapshot) => {
       snapshot.feedbackLogs = replaceById(snapshot.feedbackLogs, log);
