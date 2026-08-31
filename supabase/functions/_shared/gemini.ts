@@ -219,7 +219,9 @@ export function classifyInteraction(interaction: Interaction): GeminiOutcome {
 /** Parses the model's JSON, guarding against a schema-shaped-but-wrong reply. */
 export function parseAnnotationPayload(
   text: string,
-): { ok: true; summary: string; annotations: unknown[] } | { ok: false; code: AnnotateErrorCode } {
+):
+  | { ok: true; summary: string; annotations: unknown[]; scores: unknown[] }
+  | { ok: false; code: AnnotateErrorCode } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -229,13 +231,25 @@ export function parseAnnotationPayload(
 
   if (!parsed || typeof parsed !== 'object') return { ok: false, code: 'bad_response' };
 
-  const payload = parsed as { summary?: unknown; annotations?: unknown };
+  const payload = parsed as { summary?: unknown; annotations?: unknown; scores?: unknown };
   if (!Array.isArray(payload.annotations)) return { ok: false, code: 'bad_response' };
 
   return {
     ok: true,
     summary: typeof payload.summary === 'string' ? payload.summary : '',
     annotations: payload.annotations,
+    /**
+     * The scores, which this used to drop on the floor.
+     *
+     * They were asked for in the schema, described at length in the prompt and
+     * returned by the model — and then discarded here, so the client saw
+     * `undefined` every time and the whole grading form stayed empty. Nothing
+     * failed anywhere, which is why it took three guesses to find.
+     *
+     * Absent is not an error: a comments-only round has no scores array in its
+     * schema at all, and an empty list is the right answer there.
+     */
+    scores: Array.isArray(payload.scores) ? payload.scores : [],
   };
 }
 

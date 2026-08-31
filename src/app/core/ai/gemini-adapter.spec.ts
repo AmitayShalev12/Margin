@@ -221,6 +221,44 @@ describe('parseAnnotationPayload', () => {
     });
   });
 
+  /**
+   * The bug this file did not catch.
+   *
+   * Scores were in the schema, at length in the prompt, and returned by the
+   * model — and the parser dropped them, so every grading form stayed empty
+   * while nothing anywhere reported a failure. These tests passed throughout:
+   * they asserted on the fields the parser kept and never on the one it lost.
+   */
+  it('keeps the rubric scores', () => {
+    const result = parseAnnotationPayload(
+      '{"summary":"ס","annotations":[],' +
+        '"scores":[{"key":"2.1","points":6,"note":"סקירה רחבה"},' +
+        '{"key":"3.1","points":null,"note":"הפרק טרם נכתב"}]}',
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.scores).toHaveLength(2);
+    expect(result.scores[0]).toMatchObject({ key: '2.1', points: 6 });
+    // Null survives as null: "not judgeable yet" is an answer, not a zero.
+    expect(result.scores[1]).toMatchObject({ key: '3.1', points: null });
+  });
+
+  /** A comments-only round has no scores in its schema at all. Not an error. */
+  it('gives an empty list when the reply carries no scores', () => {
+    const result = parseAnnotationPayload('{"summary":"ס","annotations":[]}');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.scores).toEqual([]);
+  });
+
+  it('ignores a scores field that is not a list', () => {
+    const result = parseAnnotationPayload('{"summary":"ס","annotations":[],"scores":"nope"}');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.scores).toEqual([]);
+  });
+
   it('tolerates a missing summary rather than losing the batch over it', () => {
     const result = parseAnnotationPayload('{"annotations":[]}');
     expect(result).toMatchObject({ ok: true, summary: '' });

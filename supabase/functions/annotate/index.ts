@@ -512,10 +512,14 @@ Deno.serve(async (request: Request) => {
       return json({ error: payload.code }, statusFor(payload.code), headers);
     }
 
-    return json({ summary: payload.summary, annotations: payload.annotations }, 200, {
-      ...headers,
-      'Cache-Control': 'no-store',
-    });
+    return json(
+      { summary: payload.summary, annotations: payload.annotations, scores: payload.scores },
+      200,
+      {
+        ...headers,
+        'Cache-Control': 'no-store',
+      },
+    );
   } catch (error) {
     console.error('annotate failed', error);
     return json({ error: 'generation_failed' }, 502, headers);
