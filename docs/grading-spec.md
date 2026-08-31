@@ -118,10 +118,19 @@ Asked whether she needs the filled `.docx` back or just the scores on screen:
 > "ברור שהכי טוב שיהיה הטופס מוכן ורק אני אערוך על הטופס ואני אוכל להוריד אותו...
 > אבל אם אתה רואה שאני אטבח עם זה, אז אפשר גם בדרך אחרת."
 
-So: preferred, not required. Generating one is a zip writer plus a
-`document.xml` — the reader already exists in `core/import/zip.ts`. It will not
-be pixel-identical to her template, and that is the trade to make explicit
-before building it.
+So: preferred, not required. **Built** — `core/export/zip-writer.ts` and
+`core/export/grade-docx.ts`, the counterparts to `core/import/zip.ts`. The
+button is on טפסי הערכה.
+
+It is not pixel-identical to her template, which is the trade that was made
+explicit before building it: matching her typesetting would mean shipping the
+template as a binary and patching it, and that breaks the moment she edits it.
+What it does carry is her sections, her criteria, her point values and her
+65/10/25 weighting in her order, right to left.
+
+The document is stricter than the screen about absence, because it is read
+without any of the screen's context: an unscored criterion prints `—`, 2.2 and
+4.2 print `לשיפוטך`, and no final grade appears until every part of it is in.
 
 ## AI detection — asked for, and refused as asked
 
