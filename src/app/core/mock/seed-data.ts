@@ -197,6 +197,8 @@ export const SUBMISSIONS: Submission[] = SUBMISSION_SEEDS.map((s) => ({
   drive_metadata_raw: null,
   last_synced_at: new Date(bootedAt - 4 * 60_000).toISOString(),
   word_count: 4200,
+  presentation_score: null,
+  ongoing_score: null,
   created_at: daysAgo(s.updatedDaysAgo + 14),
   updated_at: daysAgo(s.updatedDaysAgo),
 }));

@@ -266,3 +266,241 @@
     color: var(--c-ink);
   }
 }
+
+// -- the score sheet ---------------------------------------------------------
+//
+// Quiet by default. What she needs on opening the page is four subtotals and
+// a grade; the seventeen criteria and their comments live behind a click.
+
+.sheet {
+  padding: 0;
+  overflow: hidden;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+// The fraction reads left-to-right inside a right-to-left line. Isolating it
+// stops the slash and the digits from being reordered around the Hebrew.
+.sheet-score,
+.section-score,
+.criterion-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  unicode-bidi: isolate;
+  white-space: nowrap;
+}
+
+.sheet-score strong {
+  font-size: 1.25rem;
+}
+
+.sheet-percent {
+  color: var(--muted);
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+}
+
+// "Not scored yet" must never look like a score. No weight, no colour.
+.sheet-partial,
+.section-score.is-empty,
+.criterion-score.is-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+// Hers to judge — distinct from "not yet", because it will never be filled by
+// the app and a teacher waiting for it would wait forever.
+.criterion-score.is-mine {
+  color: var(--accent, #7a5cff);
+  font-size: 0.85rem;
+}
+
+.sections {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section + .section {
+  border-top: 1px solid var(--line);
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--hover, rgb(0 0 0 / 3%));
+  }
+}
+
+.chev {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.is-open .chev {
+  transform: none;
+}
+
+.section-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.criteria {
+  margin: 0;
+  padding: 0 1.25rem 0.75rem;
+  list-style: none;
+  background: var(--sunken, rgb(0 0 0 / 2%));
+}
+
+.criterion {
+  padding: 0.7rem 0;
+
+  & + & {
+    border-top: 1px dashed var(--line);
+  }
+}
+
+.criterion-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.criterion-name {
+  font-size: 0.9rem;
+}
+
+.criterion-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+// A provisional score, said in a word as well as a colour — a colour alone is
+// a thing you have to be told the meaning of once.
+.draft {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--warn-bg, #fff3d6);
+  color: var(--warn-fg, #7a5a00);
+}
+
+.delta {
+  font-weight: 600;
+}
+
+.change-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.lines-inline {
+  margin-top: 0.5rem;
+}
+
+// -- the final grade ---------------------------------------------------------
+
+.final {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.final-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.part {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.part-weight {
+  color: var(--muted);
+  font-size: 0.75rem;
+  unicode-bidi: isolate;
+}
+
+.part-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.part-input {
+  width: 3.5rem;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+
+.final-grade {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0.9rem 0 0;
+}
+
+.final-value {
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+// Shown instead of a number, never alongside one. Naming what is missing is
+// the honest form of "no grade yet".
+.final-missing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.missing {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--sunken, rgb(0 0 0 / 4%));
+}

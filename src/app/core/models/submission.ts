@@ -57,6 +57,17 @@ export interface Submission extends Timestamped {
 
   last_synced_at: ISODateTime | null;
   word_count: number | null;
+
+  // -- The parts of the final grade Margin cannot see ----------------------
+  /**
+   * Her mark out of 100 for the class presentation (10% of the final grade).
+   *
+   * Null until she enters it, and null is not zero. The presentation happens
+   * in a room the app has no window into — "זה אני אכניס באופן ידני".
+   */
+  presentation_score: number | null;
+  /** Her mark out of 100 for the year's ongoing tasks (25%). Null until typed. */
+  ongoing_score: number | null;
 }
 
 /**

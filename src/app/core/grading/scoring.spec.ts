@@ -1,6 +1,8 @@
 import { GradingCriterionScore, GradingFormCategory, SubmissionRound } from '../models';
 import {
   SCORING_MIN_WORDS,
+  scoreDisplay,
+  sectionTotals,
   deltaLabel,
   finalGrade,
   scoreTotals,
@@ -226,5 +228,75 @@ describe('the final grade', () => {
 
   it('returns nothing when the course has no weighting', () => {
     expect(finalGrade({ weights: [], parts: {} })).toBeNull();
+  });
+});
+
+describe('a score as she reads it', () => {
+  it('gives both the fraction and the percentage', () => {
+    const shown = scoreDisplay(3, 4);
+
+    expect(shown?.label).toBe('3/4');
+    expect(shown?.percent).toBe(75);
+  });
+
+  it('rounds to whole percent — a grading form is not a laboratory', () => {
+    expect(scoreDisplay(7, 13)?.percent).toBe(54);
+    expect(scoreDisplay(1, 3)?.percent).toBe(33);
+  });
+
+  /**
+   * "Cannot be judged yet" and "judged worth nothing" are opposite findings.
+   * Rendering the first as 0/4 and 0% states the second.
+   */
+  it('gives nothing back for a criterion with no score', () => {
+    expect(scoreDisplay(null, 4)).toBeNull();
+    expect(scoreDisplay(undefined, 4)).toBeNull();
+  });
+
+  it('shows a genuine zero as a zero', () => {
+    expect(scoreDisplay(0, 4)?.label).toBe('0/4');
+    expect(scoreDisplay(0, 4)?.percent).toBe(0);
+  });
+
+  it('gives nothing back when the criterion is worth nothing', () => {
+    expect(scoreDisplay(3, null)).toBeNull();
+    expect(scoreDisplay(3, 0)).toBeNull();
+  });
+});
+
+describe('the sections of her rubric', () => {
+  const rubric = [
+    category({ id: 'a', section: 'פרק תאורטי', max_points: 8 }),
+    category({ id: 'b', section: 'פרק תאורטי', max_points: 16 }),
+    category({ id: 'c', section: 'פרק תאורטי', max_points: 18 }),
+    category({ id: 'd', section: 'דרך ההגשה', max_points: 3 }),
+  ];
+
+  /**
+   * Out of what was scored, not out of the section's full weight. A chapter
+   * half written reads 18/24; out of 42 it would look like a failing paper
+   * rather than an unfinished one.
+   */
+  it('totals only the criteria that carry a score', () => {
+    const totals = sectionTotals(rubric, [
+      score({ category_id: 'a', points: 6 }),
+      score({ category_id: 'b', points: 12 }),
+    ]);
+
+    const theory = totals.find((t) => t.name === 'פרק תאורטי');
+    expect(theory?.display?.label).toBe('18/24');
+    expect(theory?.display?.percent).toBe(75);
+    expect(theory?.awaiting).toBe(1);
+  });
+
+  it('says nothing for a section with no scores at all', () => {
+    const totals = sectionTotals(rubric, []);
+
+    expect(totals.every((t) => t.display === null)).toBe(true);
+    expect(totals.find((t) => t.name === 'דרך ההגשה')?.awaiting).toBe(1);
+  });
+
+  it('keeps her section order', () => {
+    expect(sectionTotals(rubric, []).map((t) => t.name)).toEqual(['פרק תאורטי', 'דרך ההגשה']);
   });
 });

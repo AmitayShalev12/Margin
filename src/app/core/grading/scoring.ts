@@ -230,3 +230,84 @@ export function resolveScores(
     return [{ category, points, note: draft.note }];
   });
 }
+
+/**
+ * A score as she reads it: `3/4` and the percentage beside it.
+ *
+ * Both, because they answer different questions. `3/4` is what she writes on
+ * the form and what a student argues with; `75%` is what makes two criteria
+ * worth different maxima comparable at a glance.
+ *
+ * Null points give null back rather than `0/4` and `0%`. A criterion that
+ * cannot be judged yet and a criterion judged worth nothing are opposite
+ * findings, and they must never render alike.
+ */
+export interface ScoreDisplay {
+  points: number;
+  outOf: number;
+  /** Rounded to whole percent — a grading form is not a laboratory. */
+  percent: number;
+  label: string;
+}
+
+export function scoreDisplay(
+  points: number | null | undefined,
+  outOf: number | null | undefined,
+): ScoreDisplay | null {
+  if (points === null || points === undefined) return null;
+  if (!outOf) return null;
+
+  const percent = Math.round((points / outOf) * 100);
+  return { points, outOf, percent, label: `${points}/${outOf}` };
+}
+
+/** One section of her rubric, totalled from the criteria actually scored. */
+export interface SectionTotal {
+  name: string;
+  points: number;
+  outOf: number;
+  /** Criteria in this section still carrying no score. */
+  awaiting: number;
+  display: ScoreDisplay | null;
+}
+
+/**
+ * Her rubric's sections, each with its own subtotal.
+ *
+ * A section's total is the sum of its children and is never stored, so it
+ * cannot drift from them. `outOf` counts only the criteria that carry a score:
+ * a theoretical chapter half written should read `18/24`, not `18/42`, which
+ * would look like a failing paper rather than an unfinished one.
+ */
+export function sectionTotals(
+  categories: readonly GradingFormCategory[],
+  scores: readonly GradingCriterionScore[],
+): SectionTotal[] {
+  const byCategory = new Map(scores.map((s) => [s.category_id, s]));
+  const order: string[] = [];
+  const totals = new Map<string, SectionTotal>();
+
+  for (const category of categories) {
+    const name = category.section ?? 'ללא פרק';
+    if (!totals.has(name)) {
+      order.push(name);
+      totals.set(name, { name, points: 0, outOf: 0, awaiting: 0, display: null });
+    }
+
+    const section = totals.get(name)!;
+    const score = byCategory.get(category.id);
+
+    if (score && score.points !== null) {
+      section.points += score.points;
+      section.outOf += category.max_points ?? 0;
+    } else {
+      section.awaiting += 1;
+    }
+  }
+
+  for (const section of totals.values()) {
+    section.display = scoreDisplay(section.outOf ? section.points : null, section.outOf);
+  }
+
+  return order.map((name) => totals.get(name)!);
+}

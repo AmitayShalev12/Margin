@@ -154,6 +154,186 @@
     </div>
   }
 
+  <!--
+    The score sheet.
+    ==========================================================================
+    Four section totals and a final grade, which is what she reads at a
+    glance; everything behind them is one click away. Every line carries both
+    the fraction and the percentage - "3/4 or 75%" - because they answer
+    different questions: the fraction is what she writes down and what a
+    student argues with, the percentage is what makes a criterion worth 3 and
+    one worth 18 comparable.
+  -->
+  @if (sections().length) {
+    <section class="card sheet">
+      <div class="sheet-head">
+        <h2 class="sheet-title">ציון העבודה</h2>
+        @if (paperScore(); as paper) {
+          <span class="sheet-score">
+            <strong>{{ paper.label }}</strong>
+            <span class="sheet-percent">{{ paper.percent }}%</span>
+          </span>
+        } @else {
+          <!--
+            Not a number yet. Showing the running sum here would read as the
+            paper's grade, and a paper marked to 71 of the 78 points read so
+            far is not a 71 - it is an unfinished reading of a good paper.
+          -->
+          <span class="sheet-partial">
+            {{ totals().scored }} מתוך {{ totals().total }} סעיפים נוקדו
+          </span>
+        }
+      </div>
+
+      <ul class="sections">
+        @for (section of sections(); track section.name) {
+          <li class="section" [class.is-open]="section.open">
+            <button
+              type="button"
+              class="section-head"
+              [attr.aria-expanded]="section.open"
+              (click)="toggle(section.name)"
+            >
+              <span class="chev" aria-hidden="true">{{ section.open ? '⌄' : '‹' }}</span>
+              <span class="section-name">{{ section.name }}</span>
+
+              @if (section.subtotal; as sub) {
+                <span class="section-score">
+                  <strong>{{ sub.label }}</strong>
+                  <span class="sheet-percent">{{ sub.percent }}%</span>
+                </span>
+              } @else {
+                <span class="section-score is-empty">טרם נוקד</span>
+              }
+            </button>
+
+            @if (section.open) {
+              <ul class="criteria">
+                @for (criterion of section.criteria; track criterion.id) {
+                  <li class="criterion">
+                    <div class="criterion-head">
+                      <span class="criterion-name">{{ criterion.name }}</span>
+
+                      @if (criterion.display; as shown) {
+                        <span class="criterion-score">
+                          <strong>{{ shown.label }}</strong>
+                          <span class="sheet-percent">{{ shown.percent }}%</span>
+                        </span>
+                      } @else if (criterion.mine) {
+                        <!--
+                          2.2 and 4.2. She judges these herself and confirmed
+                          it is permanent - 4.2 is העימוד, which the model
+                          cannot see. Blank for her, not guessed at.
+                        -->
+                        <span class="criterion-score is-mine">
+                          לשיפוטך · {{ criterion.maxPoints }}
+                        </span>
+                      } @else {
+                        <!-- Never 0/4. "Not read yet" and "worth nothing" are opposite findings. -->
+                        <span class="criterion-score is-empty">
+                          טרם · {{ criterion.maxPoints }}
+                        </span>
+                      }
+                    </div>
+
+                    <div class="criterion-meta">
+                      @if (criterion.draft) {
+                        <span class="draft">טיוטה</span>
+                      }
+                      @if (criterion.delta) {
+                        <span class="delta">{{ criterion.delta }}</span>
+                      }
+                      @if (criterion.updatedAt) {
+                        <span class="when">
+                          עודכן {{ criterion.updatedAt | date: 'd.M.yy HH:mm' }}
+                        </span>
+                      }
+                    </div>
+
+                    @if (criterion.changeNote) {
+                      <p class="change-note"><app-bidi-text [value]="criterion.changeNote" /></p>
+                    }
+
+                    @if (criterion.entries.length) {
+                      <ul class="lines lines-inline">
+                        @for (entry of criterion.entries; track entry.id) {
+                          <li class="line" [class]="entry.kindClass">
+                            <div class="line-body"><app-bidi-text [value]="entry.body" /></div>
+                            @if (entry.annotationId) {
+                              <a
+                                class="to-comment"
+                                [routerLink]="['/review', submissionId()]"
+                                [queryParams]="{ comment: entry.annotationId }"
+                              >
+                                למקום בעבודה
+                              </a>
+                            }
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+
+      <!--
+        The final grade, and only when every part of it is in.
+        ----------------------------------------------------------------------
+        The presentation and the ongoing tasks are two numbers Margin has no
+        way of knowing - "זה אני אכניס באופן ידני את החלק הזה" - so they are
+        typed here. Until both are, no grade is shown at all: a final grade
+        built from two of its three parts is not a draft of the grade, it is a
+        wrong grade carrying the authority of a number.
+      -->
+      @if (gradeParts().length) {
+        <div class="final">
+          <div class="final-parts">
+            @for (part of gradeParts(); track part.name) {
+              <div class="part">
+                <span class="part-name">{{ part.name }}</span>
+                <span class="part-weight">{{ part.percent }}%</span>
+
+                @if (part.field) {
+                  <input
+                    class="part-input"
+                    type="number"
+                    min="0"
+                    max="100"
+                    inputmode="numeric"
+                    placeholder="—"
+                    [attr.aria-label]="part.name"
+                    [value]="part.value ?? ''"
+                    (change)="setPart(part.field, $any($event.target).value)"
+                  />
+                } @else {
+                  <span class="part-value">{{ part.value ?? '—' }}</span>
+                }
+              </div>
+            }
+          </div>
+
+          @if (final(); as grade) {
+            <p class="final-grade">
+              <span class="final-label">ציון סופי</span>
+              <strong class="final-value">{{ grade }}</strong>
+            </p>
+          } @else {
+            <p class="final-missing">
+              <span>הציון הסופי יחושב כשכל החלקים יהיו כאן. חסר:</span>
+              @for (part of missingParts(); track part.name) {
+                <span class="missing">{{ part.name }}</span>
+              }
+            </p>
+          }
+        </div>
+      }
+    </section>
+  }
+
   @if (total() === 0) {
     <div class="card empty">
       <p class="hint">
@@ -161,7 +341,12 @@
       </p>
       <a class="btn btn-primary" routerLink="/submissions">לרשימת העבודות</a>
     </div>
-  } @else {
+  } @else if (!sections().length) {
+    <!--
+      The flat listing, for a course whose form carries no point values. With
+      a rubric loaded the same comments appear under their criterion in the
+      sheet above, and showing them twice is noise.
+    -->
     <div class="stack-lg">
       @for (group of groups(); track group.id) {
         <section class="group">

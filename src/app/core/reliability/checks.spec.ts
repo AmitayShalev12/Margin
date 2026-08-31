@@ -45,6 +45,8 @@ function submission(overrides: Partial<Submission> = {}): Submission {
     drive_metadata_raw: null,
     last_synced_at: null,
     word_count: 900,
+    presentation_score: null,
+    ongoing_score: null,
     created_at: '',
     updated_at: '',
     ...overrides,

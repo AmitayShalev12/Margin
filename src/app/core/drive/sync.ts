@@ -707,6 +707,9 @@ export class SyncService {
       drive_metadata_raw: snapshot(file, revisions, truncated),
       last_synced_at: now,
       word_count: document?.wordCount ?? null,
+      // Neither mark exists until she types it. Null, never zero.
+      presentation_score: null,
+      ongoing_score: null,
       created_at: now,
       updated_at: file.modifiedTime ?? now,
     };
