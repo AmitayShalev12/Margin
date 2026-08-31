@@ -320,7 +320,18 @@ export class Review {
     this.found.set(annotationId);
 
     requestAnimationFrame(() => {
-      const target = document.querySelector(`[data-annotation="${annotationId}"]`);
+      /**
+       * The highlighted run, or the paragraph it sits in.
+       *
+       * A comment anchored to a heading has no run — headings are rendered
+       * without them — so the run alone would leave that button doing nothing
+       * at all, which is indistinguishable from broken.
+       */
+      const anchor = this.live().find((a) => a.id === annotationId)?.anchor;
+      const target =
+        document.querySelector(`[data-annotation="${annotationId}"]`) ??
+        (anchor ? document.querySelector(`[data-block="${anchor.block_id}"]`) : null);
+
       target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
 

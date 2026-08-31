@@ -84,17 +84,19 @@
         @for (b of viewBlocks(); track b.id) {
           @if (b.isHeading) {
             @if (b.isTitle) {
-              <h2 class="doc-title">{{ b.text }}</h2>
+              <h2 class="doc-title" [attr.data-block]="b.id">{{ b.text }}</h2>
             } @else {
-              <h3 class="doc-section">{{ b.text }}</h3>
+              <h3 class="doc-section" [attr.data-block]="b.id">{{ b.text }}</h3>
             }
           } @else {
-            <p class="doc-para">
+            <p class="doc-para" [attr.data-block]="b.id">
               @for (run of b.runs; track $index) {
                 @if (run.annotationId) {
                   <span
                     class="mark"
                     [class]="run.kindClass + ' ' + run.stateClass"
+                    [class.is-found]="found() === run.annotationId"
+                    [attr.data-annotation]="run.annotationId"
                     role="button"
                     tabindex="0"
                     (click)="tapRun(run.annotationId)"
