@@ -11,7 +11,14 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
 import { DataStore } from '../../core/data/data-store';
-import { Annotation, AnnotationStatus, DocumentBlock, UUID } from '../../core/models';
+import {
+  Annotation,
+  AnnotationKind,
+  AnnotationStatus,
+  DocumentBlock,
+  TextAnchor,
+  UUID,
+} from '../../core/models';
 import {
   ANNOTATION_STATE_LABEL,
   KIND_LABEL,
@@ -19,6 +26,7 @@ import {
   kindClass,
 } from '../../core/presentation/annotation-kind';
 import { renderBlock, sectionsOf } from '../../core/presentation/document-render';
+import { SELECTION_REFUSAL, anchorFromSelection } from '../../core/presentation/selection-anchor';
 import { submittedAt } from '../../core/presentation/submission-status';
 import { Viewport } from '../../core/viewport';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
@@ -93,6 +101,9 @@ export class Review {
   readonly submissionId = input<string>('');
 
   protected readonly legend = LEGEND_KINDS.map((kind) => ({
+    // Carried, not just rendered: the same list is the kind picker for a
+    // comment she writes herself, and that needs the value behind the label.
+    kind,
     label: KIND_LABEL[kind],
     class: kindClass(kind),
   }));
@@ -339,6 +350,90 @@ export class Review {
     setTimeout(() => {
       if (this.found() === annotationId) this.found.set(null);
     }, 4000);
+  }
+
+  // -- a comment of her own --------------------------------------------------
+  //
+  // Everything else on this screen began as a draft: the model proposed and
+  // she accepted, edited or threw it away. A teacher reading a paper notices
+  // things the model did not, and waiting for a draft that will never come —
+  // or editing an unrelated comment into the one she meant — is not a thing
+  // she should have to do.
+
+  /** The span she selected and is writing about, once it anchors. */
+  protected readonly composing = signal<TextAnchor | null>(null);
+  protected readonly ownBody = signal('');
+  protected readonly ownKind = signal<AnnotationKind>('language');
+  protected readonly selectionError = signal<string | null>(null);
+
+  /**
+   * Reads what she selected in the paper.
+   *
+   * The offsets come from searching the block's own text rather than from the
+   * DOM: the rendered paragraph is a row of spans with template whitespace
+   * between them, and counting characters through it puts every anchor a few
+   * positions out — invisibly, and only for some paragraphs.
+   */
+  protected captureSelection() {
+    const selection = window.getSelection();
+    const text = selection?.toString() ?? '';
+
+    // A click with no drag is her reading, not writing. It clears nothing and
+    // complains about nothing.
+    if (!text.trim()) return;
+
+    const node = selection?.anchorNode;
+    const element = node instanceof Element ? node : node?.parentElement;
+    const blockId = element?.closest('[data-block]')?.getAttribute('data-block') ?? null;
+
+    const result = anchorFromSelection(this.blocks(), blockId, text);
+
+    if (!result.ok) {
+      this.composing.set(null);
+      // `empty` and `no_block` are her clicking about the page; only a real
+      // refusal earns a line of red.
+      this.selectionError.set(
+        result.reason === 'empty' || result.reason === 'no_block'
+          ? null
+          : SELECTION_REFUSAL[result.reason],
+      );
+      return;
+    }
+
+    this.selectionError.set(null);
+    this.composing.set(result.anchor);
+    this.ownBody.set('');
+  }
+
+  protected saveOwnComment() {
+    const anchor = this.composing();
+    const round = this.round();
+    if (!anchor || !round) return;
+
+    const written = this.data.addOwnAnnotation({
+      submissionId: this.submission().id,
+      roundId: round.id,
+      anchor,
+      kind: this.ownKind(),
+      body: this.ownBody(),
+    });
+
+    if (!written) {
+      this.selectionError.set('צריך לכתוב את ההערה.');
+      return;
+    }
+
+    this.composing.set(null);
+    this.ownBody.set('');
+    this.selectionError.set(null);
+    window.getSelection()?.removeAllRanges();
+  }
+
+  protected cancelOwnComment() {
+    this.composing.set(null);
+    this.ownBody.set('');
+    this.selectionError.set(null);
+    window.getSelection()?.removeAllRanges();
   }
 
   // -- interaction ----------------------------------------------------------

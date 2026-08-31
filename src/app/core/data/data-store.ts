@@ -6,6 +6,8 @@ import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
 import {
   Annotation,
+  AnnotationKind,
+  TextAnchor,
   AnnotationStatus,
   Assignment,
   Course,
@@ -592,6 +594,63 @@ export class DataStore {
     for (const category of categories) {
       this.persist(() => this.repository.saveGradingCategory(category));
     }
+  }
+
+  /**
+   * A comment she wrote herself, on a sentence she chose.
+   *
+   * Everything on the review screen until now started as a draft: the model
+   * proposed, she accepted, edited or threw away. But a teacher reading a
+   * paper notices things the model did not, and having to wait for a draft
+   * that will never come — or to edit an unrelated comment into the one she
+   * meant — is not a thing she should have to do.
+   *
+   * `ai_body` stays null, and that is load-bearing: it is what the learning
+   * loop compares her wording against, and there is no draft here to compare
+   * to. A comment of hers recorded as an "edit" of nothing would teach the
+   * model that it wrote something it never wrote.
+   *
+   * Status is `accepted` rather than `pending`. She wrote it; there is nobody
+   * left to approve it.
+   */
+  addOwnAnnotation(input: {
+    submissionId: UUID;
+    roundId: UUID;
+    anchor: TextAnchor;
+    kind: AnnotationKind;
+    body: string;
+  }): Annotation | null {
+    const body = input.body.trim();
+    if (!body || !input.anchor.quote.trim()) return null;
+
+    const now = new Date().toISOString();
+    const annotation: Annotation = {
+      id: newId(),
+      submission_id: input.submissionId,
+      round_id: input.roundId,
+      anchor: input.anchor,
+      kind: input.kind,
+      body,
+      ai_body: null,
+      origin: 'teacher',
+      edited_by_teacher: false,
+      status: 'accepted',
+      confidence: null,
+      grading_category_id: null,
+      resolved_in_round: null,
+      // After everything drafted for this round, so hers do not jump the queue
+      // in a list she is reading top to bottom.
+      sort_order: this._annotations().filter((a) => a.round_id === input.roundId).length,
+      posted_comment_id: null,
+      posted_at: null,
+      marker_number: null,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this._annotations.update((list) => [...list, annotation]);
+    this.persist(() => this.repository.saveAnnotation(annotation));
+    return annotation;
   }
 
   /**
