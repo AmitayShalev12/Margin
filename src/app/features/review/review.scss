@@ -727,3 +727,11 @@
   display: flex;
   gap: var(--s-2);
 }
+
+.own-hint {
+  margin: var(--s-4) 0 0;
+  padding-block-start: var(--s-3);
+  border-block-start: 1px solid var(--c-line);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+}

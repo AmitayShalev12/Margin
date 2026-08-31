@@ -118,53 +118,61 @@
             </p>
           }
         }
-      </article>
 
-      <!--
-        Appears only once a selection has actually anchored. Everything else on
-        this screen began as a draft; this is the one thing she writes from
-        nothing, and it starts from the sentence rather than from a blank box.
-      -->
-      @if (selectionError(); as message) {
-        <p class="selection-error" role="alert">{{ message }}</p>
-      }
+        <!--
+          Said quietly at the foot of the paper. A feature that appears only
+          after you have done the thing that triggers it is a feature nobody
+          finds.
+        -->
+        @if (!composing()) {
+          <p class="own-hint">לכתיבת הערה משלך — לסמן משפט בעבודה.</p>
+        }
+        <!--
+          Appears only once a selection has actually anchored. Everything else on
+          this screen began as a draft; this is the one thing she writes from
+          nothing, and it starts from the sentence rather than from a blank box.
+        -->
+        @if (selectionError(); as message) {
+          <p class="selection-error" role="alert">{{ message }}</p>
+        }
 
-      @if (composing(); as anchor) {
-        <div class="own-comment">
-          <div class="own-quote">״<app-bidi-text [value]="anchor.quote" />״</div>
+        @if (composing(); as anchor) {
+          <div class="own-comment">
+            <div class="own-quote">״<app-bidi-text [value]="anchor.quote" />״</div>
 
-          <div class="own-kinds" role="group" aria-label="סוג ההערה">
-            @for (k of legend; track k.kind) {
-              <button
-                type="button"
-                class="own-kind"
-                [class]="k.class"
-                [class.is-active]="ownKind() === k.kind"
-                (click)="ownKind.set(k.kind)"
-              >
-                {{ k.label }}
+            <div class="own-kinds" role="group" aria-label="סוג ההערה">
+              @for (k of legend; track k.kind) {
+                <button
+                  type="button"
+                  class="own-kind"
+                  [class]="k.class"
+                  [class.is-active]="ownKind() === k.kind"
+                  (click)="ownKind.set(k.kind)"
+                >
+                  {{ k.label }}
+                </button>
+              }
+            </div>
+
+            <textarea
+              class="own-body"
+              rows="3"
+              placeholder="ההערה שלך על המשפט הזה"
+              [value]="ownBody()"
+              (input)="ownBody.set($any($event.target).value)"
+            ></textarea>
+
+            <div class="own-actions">
+              <button type="button" class="btn btn-primary btn-sm" (click)="saveOwnComment()">
+                הוספת ההערה
               </button>
-            }
+              <button type="button" class="btn btn-plain btn-sm" (click)="cancelOwnComment()">
+                ביטול
+              </button>
+            </div>
           </div>
-
-          <textarea
-            class="own-body"
-            rows="3"
-            placeholder="ההערה שלך על המשפט הזה"
-            [value]="ownBody()"
-            (input)="ownBody.set($any($event.target).value)"
-          ></textarea>
-
-          <div class="own-actions">
-            <button type="button" class="btn btn-primary btn-sm" (click)="saveOwnComment()">
-              הוספת ההערה
-            </button>
-            <button type="button" class="btn btn-plain btn-sm" (click)="cancelOwnComment()">
-              ביטול
-            </button>
-          </div>
-        </div>
-      }
+        }
+      </article>
 
       <!-- Desktop: the margin. -->
       @if (viewport.isDesktop() && hasComments() && !pendingSummary()) {
