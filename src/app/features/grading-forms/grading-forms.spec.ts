@@ -374,7 +374,7 @@ describe('a form with nothing scored on it', () => {
  */
 describe('when scoring comes back with nothing', () => {
   async function runWith(
-    scoring: { returned: number; kept: number } | null,
+    scoring: { returned: number; kept: number; unmatched: string[] } | null,
     phase = 'idle',
     rows: Partial<PersistedSnapshot> = {},
   ) {
@@ -396,7 +396,7 @@ describe('when scoring comes back with nothing', () => {
   }
 
   it('says so when the model returned no scores at all', async () => {
-    const page = await runWith({ returned: 0, kept: 0 });
+    const page = await runWith({ returned: 0, kept: 0, unmatched: [] });
 
     expect(page.text()).toContain('לא החזיר ניקוד לאף סעיף');
   });
@@ -407,7 +407,11 @@ describe('when scoring comes back with nothing', () => {
    * entirely the wrong place.
    */
   it('says so when every score it returned matched nothing on her form', async () => {
-    const page = await runWith({ returned: 11, kept: 0 });
+    const page = await runWith({
+      returned: 11,
+      kept: 0,
+      unmatched: ['2.1 סקירת ספרות', '3.1 שיטה'],
+    });
 
     expect(page.text()).toContain('11');
     expect(page.text()).toContain('לא התאים');
@@ -427,7 +431,7 @@ describe('when scoring comes back with nothing', () => {
   });
 
   it('stays quiet when the run did produce scores', async () => {
-    const page = await runWith({ returned: 11, kept: 11 }, 'idle', {
+    const page = await runWith({ returned: 11, kept: 11, unmatched: [] }, 'idle', {
       criterionScores: [score({ points: 3 })],
     });
 
@@ -440,7 +444,7 @@ describe('when scoring comes back with nothing', () => {
    * on a paper the model has correctly declined to mark.
    */
   it('says when the model read everything and judged none of it scorable yet', async () => {
-    const page = await runWith({ returned: 17, kept: 17 });
+    const page = await runWith({ returned: 17, kept: 17, unmatched: [] });
 
     expect(page.text()).toContain('אין עדיין בסיס לנקד');
     expect(page.text()).toContain('זה לא כשל');

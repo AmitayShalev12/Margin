@@ -209,17 +209,61 @@ export function criterionKey(category: GradingFormCategory): string {
  * out of 8 has misread the rubric, and storing 9 would put the form over 100
  * without anything on screen looking wrong.
  */
+/**
+ * The leading criterion number in whatever the model chose to send.
+ *
+ * It is given `2.1` and asked to return `2.1`, and it does not reliably
+ * comply: `[2.1]` echoing the bracket it was shown in, `2.1 סקירת ספרות`
+ * echoing the whole line, `2.1.` with her full stop. Every one of those is
+ * unambiguously about criterion 2.1, and matching only the exact string threw
+ * away all seventeen scores of a paper — silently, because a dropped score
+ * looks exactly like a criterion nobody has read yet.
+ *
+ * Only the number is trusted. A key with no number in it falls back to the
+ * whole trimmed string, which is what an unnumbered form's key looks like.
+ */
+function keyOf(raw: string): string {
+  const trimmed = raw
+    .trim()
+    .replace(/^[[(]|[\])]$/g, '')
+    .trim();
+  const numbered = /^(\d+(?:\.\d+)*)/.exec(trimmed);
+  return numbered ? numbered[1] : trimmed;
+}
+
+export interface ResolvedScores {
+  matched: { category: GradingFormCategory; points: number | null; note: string }[];
+  /**
+   * Keys the model sent that answer to nothing on her form.
+   *
+   * Returned rather than quietly discarded so the screen can say what it saw.
+   * A scoring pass where every key missed is indistinguishable on screen from
+   * one that was never run.
+   */
+  unmatched: string[];
+}
+
 export function resolveScores(
   categories: readonly GradingFormCategory[],
   drafted: readonly { key: string; points: number | null; note: string }[],
-): { category: GradingFormCategory; points: number | null; note: string }[] {
-  const byKey = new Map(categories.map((c) => [criterionKey(c), c]));
+): ResolvedScores {
+  const byKey = new Map(categories.map((c) => [keyOf(criterionKey(c)), c]));
 
-  return drafted.flatMap((draft) => {
-    const category = byKey.get(draft.key);
+  const matched: ResolvedScores['matched'] = [];
+  const unmatched: string[] = [];
+
+  for (const draft of drafted) {
+    const category = byKey.get(keyOf(draft.key));
+
     // Her own criteria were never sent, so a score for one is a model that
-    // invented a row. Dropped rather than stored against her judgement.
-    if (!category || category.manual_only) return [];
+    // invented a row. Dropped rather than stored against her judgement — and
+    // not reported as a mismatch, because it is not one.
+    if (category?.manual_only) continue;
+
+    if (!category) {
+      unmatched.push(draft.key);
+      continue;
+    }
 
     const max = category.max_points;
     const points =
@@ -227,8 +271,10 @@ export function resolveScores(
         ? null
         : Math.max(0, max === null ? draft.points : Math.min(draft.points, max));
 
-    return [{ category, points, note: draft.note }];
-  });
+    matched.push({ category, points, note: draft.note });
+  }
+
+  return { matched, unmatched };
 }
 
 /**

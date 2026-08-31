@@ -537,7 +537,18 @@ export class GradingForms {
       return 'הריצה הסתיימה בלי שגיאה, אבל המודל לא החזיר ניקוד לאף סעיף.';
     }
     if (scoring.kept === 0) {
-      return `המודל החזיר ${scoring.returned} ציונים, אבל אף אחד מהם לא התאים לסעיפים שבטופס שלך.`;
+      /**
+       * The keys it actually sent, named.
+       *
+       * Without them this says a mismatch happened and gives nothing to act
+       * on — which cost three rounds of guessing at what the model was
+       * answering with. Two examples are enough to see the shape.
+       */
+      const saw = scoring.unmatched.slice(0, 2).join('", "');
+      return (
+        `המודל החזיר ${scoring.returned} ציונים, אבל אף אחד מהם לא התאים לסעיפים שבטופס שלך` +
+        (saw ? ` (הוא ענה על "${saw}").` : '.')
+      );
     }
 
     /**

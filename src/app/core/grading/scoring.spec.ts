@@ -1,6 +1,7 @@
 import { GradingCriterionScore, GradingFormCategory, SubmissionRound } from '../models';
 import {
   SCORING_MIN_WORDS,
+  resolveScores,
   scoreDisplay,
   sectionTotals,
   deltaLabel,
@@ -298,5 +299,88 @@ describe('the sections of her rubric', () => {
 
   it('keeps her section order', () => {
     expect(sectionTotals(rubric, []).map((t) => t.name)).toEqual(['פרק תאורטי', 'דרך ההגשה']);
+  });
+});
+
+/**
+ * Matching what the model sent to what her form actually holds.
+ *
+ * This function had no tests, and that is exactly how it came to throw away
+ * all seventeen scores of a paper without a sound. A dropped score renders as
+ * "טרם נוקד" — identical to a criterion nobody has read — so the failure had
+ * no symptom at all beyond an empty form.
+ */
+describe('matching the model’s scores to her criteria', () => {
+  const rubric = [
+    category({ id: 'a', name: '2.1 סקירת ספרות', max_points: 8 }),
+    category({ id: 'b', name: '3.1 שיטת המחקר', max_points: 6 }),
+  ];
+
+  it('matches the key it was given', () => {
+    const { matched, unmatched } = resolveScores(rubric, [
+      { key: '2.1', points: 6, note: 'סקירה רחבה' },
+    ]);
+
+    expect(matched.map((m) => m.category.id)).toEqual(['a']);
+    expect(unmatched).toEqual([]);
+  });
+
+  /**
+   * The forms it actually answers with. It is shown `[2.1]` and asked for
+   * `2.1`, and it variously echoes the bracket, the full line, or her full
+   * stop. All three are unambiguously criterion 2.1.
+   */
+  it('matches the key however the model dressed it up', () => {
+    for (const key of ['2.1', ' 2.1 ', '[2.1]', '2.1 סקירת ספרות', '2.1.']) {
+      const { matched } = resolveScores(rubric, [{ key, points: 6, note: '' }]);
+      expect(
+        matched.map((m) => m.category.id),
+        key,
+      ).toEqual(['a']);
+    }
+  });
+
+  it('does not let one criterion answer for another', () => {
+    const { matched, unmatched } = resolveScores(rubric, [{ key: '2.11', points: 6, note: '' }]);
+
+    expect(matched).toEqual([]);
+    expect(unmatched).toEqual(['2.11']);
+  });
+
+  /** Reported rather than dropped, so the screen can say what it saw. */
+  it('hands back the keys that answered to nothing', () => {
+    const { matched, unmatched } = resolveScores(rubric, [
+      { key: '2.1', points: 6, note: '' },
+      { key: 'שיטת המחקר', points: 4, note: '' },
+    ]);
+
+    expect(matched).toHaveLength(1);
+    expect(unmatched).toEqual(['שיטת המחקר']);
+  });
+
+  /**
+   * Never sent to the model, so a score for one is a row it invented — not a
+   * mismatch to report, and never stored against her judgement.
+   */
+  it('drops a score for a criterion she reserved for herself, silently', () => {
+    const hers = [category({ id: 'h', name: '2.2 מקורות', manual_only: true, max_points: 3 })];
+    const { matched, unmatched } = resolveScores(hers, [{ key: '2.2', points: 3, note: '' }]);
+
+    expect(matched).toEqual([]);
+    expect(unmatched).toEqual([]);
+  });
+
+  it('clamps a score that overruns its criterion', () => {
+    const { matched } = resolveScores(rubric, [{ key: '2.1', points: 9, note: '' }]);
+
+    // 9 out of 8 is a misread rubric; storing it would put the form over 100
+    // with nothing on screen looking wrong.
+    expect(matched[0].points).toBe(8);
+  });
+
+  it('keeps a null as a null rather than turning it into a zero', () => {
+    const { matched } = resolveScores(rubric, [{ key: '3.1', points: null, note: 'טרם נכתב' }]);
+
+    expect(matched[0].points).toBeNull();
   });
 });

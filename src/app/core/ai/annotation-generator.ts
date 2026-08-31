@@ -36,7 +36,7 @@ export interface GenerationState {
    * has every score dropped, and the screen is left exactly as it was, which
    * she can only read as the button not working.
    */
-  scoring: { returned: number; kept: number } | null;
+  scoring: { returned: number; kept: number; unmatched: string[] } | null;
 }
 
 const IDLE: GenerationState = {
@@ -159,17 +159,20 @@ export class AnnotationGenerator {
      */
     const returned = response.scores?.length ?? 0;
     let kept = 0;
+    let unmatched: string[] = [];
 
     if (response.scores?.length) {
       const scored = resolveScores(
         this.store.gradingCategories().filter((c) => c.active),
         response.scores,
       );
-      kept = scored.length;
+      kept = scored.matched.length;
+      unmatched = scored.unmatched;
+
       this.store.applyCriterionScores(
         submission.id,
         round.round_number,
-        scored.map((item) => ({
+        scored.matched.map((item) => ({
           categoryId: item.category.id,
           points: item.points,
           note: item.note,
@@ -233,7 +236,7 @@ export class AnnotationGenerator {
       discarded: rejected.length,
       // Null when the round was never up for scoring, so the screen can tell
       // "not asked" apart from "asked and got nothing back".
-      scoring: request.scoring === 'scored' ? { returned, kept } : null,
+      scoring: request.scoring === 'scored' ? { returned, kept, unmatched } : null,
     });
     return { created: annotations.length, discarded: rejected.length };
   }
