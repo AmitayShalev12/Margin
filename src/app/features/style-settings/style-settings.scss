@@ -307,3 +307,34 @@
   color: var(--c-ink);
   inline-size: 100%;
 }
+
+// -- her own Gemini key ------------------------------------------------------
+//
+// The key is never rendered. Only whether one is set, and its last four
+// characters, which is what lets her tell one key from another.
+
+.model-key {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.key-done {
+  margin: 0.6rem 0 0;
+  color: var(--ok-fg, #1c6b3f);
+  font-size: 0.8rem;
+}
+
+.key-error {
+  margin: 0.6rem 0 0;
+  color: var(--danger-fg, #a3282d);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}

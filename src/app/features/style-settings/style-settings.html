@@ -235,6 +235,93 @@
     </p>
   </div>
 
+  <!--
+    Her own Gemini key.
+    ==========================================================================
+    One-way. She types it, it is sent once, and it never comes back: what this
+    screen can learn about it afterwards is whether one is set and its last
+    four characters — enough to tell one key from another, useless to anybody
+    else. The browser never holds it and never calls Gemini directly.
+  -->
+  @if (modelKey.available) {
+    <div class="model-key">
+      <h2 class="section-title">מפתח Gemini</h2>
+
+      @if (modelKey.status(); as status) {
+        @if (status.set) {
+          <p class="hint">
+            הניקוד וההערות רצים על המפתח שלך (מסתיים ב־<span dir="ltr">{{ status.hint }}</span
+            >), כלומר על המכסה שלך.
+          </p>
+        } @else {
+          <p class="hint">
+            כרגע בשימוש המפתח המשותף. הוא מוגבל בכמות בקשות לדקה, ולכן אחרי כמה עבודות ברצף מופיעה
+            הודעה שצריך לחכות. מפתח משלך פותר את זה.
+          </p>
+        }
+      } @else {
+        <p class="hint">בודקת…</p>
+      }
+
+      @if (keyEditing()) {
+        <label class="field">
+          <span class="label">המפתח</span>
+          <input
+            class="control"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            dir="ltr"
+            placeholder="AIza…"
+            [value]="keyDraft()"
+            (input)="keyDraft.set($any($event.target).value)"
+          />
+        </label>
+
+        <div class="key-actions">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            [disabled]="modelKey.busy() || !keyDraft().trim()"
+            (click)="saveKey()"
+          >
+            {{ modelKey.busy() ? 'שומרת…' : 'שמירה' }}
+          </button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="cancelKeyEdit()">
+            ביטול
+          </button>
+        </div>
+
+        <p class="hint">
+          המפתח נשמר אצלנו בשרת ולא נשלח בחזרה לדפדפן. אפשר להוציא אותו ב־Google AI Studio.
+        </p>
+      } @else {
+        <div class="key-actions">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="startKeyEdit()">
+            {{ modelKey.status()?.set ? 'החלפת המפתח' : 'הוספת מפתח משלי' }}
+          </button>
+          @if (modelKey.status()?.set) {
+            <button
+              type="button"
+              class="btn btn-plain btn-sm"
+              [disabled]="modelKey.busy()"
+              (click)="clearKey()"
+            >
+              מחיקה
+            </button>
+          }
+        </div>
+      }
+
+      @if (keySaved()) {
+        <p class="key-done" role="status">המפתח נשמר.</p>
+      }
+      @if (modelKey.error(); as message) {
+        <p class="key-error" role="alert">{{ message }}</p>
+      }
+    </div>
+  }
+
   <div class="take">
     <button type="button" class="btn btn-ghost btn-block" (click)="exportProfile()">
       הורדת מה שנלמד ממני

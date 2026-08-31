@@ -478,6 +478,44 @@ async function generate(
   return { ok: false, code: lastCode };
 }
 
+/**
+ * The signed-in teacher's own Gemini key, if she has saved one.
+ *
+ * Service-role read against a table the browser cannot touch, keyed on the
+ * caller's own id, so a teacher can only ever spend her own quota. Returns
+ * null for anything at all that goes wrong — no key, no session, no table —
+ * because every one of those means "use the shared key", not "stop".
+ */
+async function teacherKey(request: Request): Promise<string | null> {
+  const url = Deno.env.get('SUPABASE_URL');
+  const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const authorization = request.headers.get('Authorization');
+  if (!url || !serviceRole || !authorization?.startsWith('Bearer ')) return null;
+
+  try {
+    const who = await fetch(`${url}/auth/v1/user`, {
+      headers: { Authorization: authorization, apikey: serviceRole },
+    });
+    if (!who.ok) return null;
+
+    const { id } = (await who.json()) as { id?: string };
+    if (!id) return null;
+
+    const rows = await fetch(
+      `${url}/rest/v1/model_credentials?teacher_id=eq.${id}&select=api_key`,
+      { headers: { apikey: serviceRole, Authorization: `Bearer ${serviceRole}` } },
+    );
+    if (!rows.ok) return null;
+
+    const [row] = (await rows.json()) as { api_key?: string }[];
+    return row?.api_key ?? null;
+  } catch (error) {
+    // Logged without the response body, which would carry the key.
+    console.error('annotate: could not read the teacher key, using the shared one', error);
+    return null;
+  }
+}
+
 Deno.serve(async (request: Request) => {
   const allowedOrigins = (Deno.env.get('MARGIN_ALLOWED_ORIGINS') ?? '')
     .split(',')
@@ -488,7 +526,21 @@ Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, headers);
 
-  const apiKey = Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
+  /**
+   * Her key if she has set one, the shared key otherwise.
+   *
+   * Her own quota is the point: the shared free-tier key hits a per-minute
+   * limit as soon as two papers are marked in a row, and that rate limit is
+   * indistinguishable to her from the app being broken.
+   *
+   * Read here and used here. It is never returned, never logged, and never
+   * reaches the browser — the settings screen learns only whether one is set.
+   *
+   * A lookup failure falls through to the shared key rather than failing the
+   * run. The alternative is that a hiccup in one table stops her marking, and
+   * the shared key is a working state, not a compromise of anything.
+   */
+  const apiKey = (await teacherKey(request)) ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
   if (!apiKey) return json({ error: 'missing_api_key' }, 500, headers);
 
   let body: AnnotateRequest;

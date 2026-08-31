@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
+import { ModelKey } from '../../core/ai/model-key';
 import { DataStore } from '../../core/data/data-store';
 import { DocxError, ImportedComment, readDocxComments } from '../../core/import/docx-comments';
 import { buildStyleProfile, countDecisions, deriveTraits } from '../../core/learning/style-profile';
@@ -26,6 +27,56 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 })
 export class StyleSettings {
   private readonly data = inject(DataStore);
+
+  // -- her own Gemini key ---------------------------------------------------
+  //
+  // Asked for so she can spend her own quota: the shared free-tier key runs
+  // into a per-minute limit as soon as two papers are marked in a row, and a
+  // rate limit she cannot do anything about reads as the app being broken.
+  //
+  // The key goes one way. It is typed here, sent once, and never comes back —
+  // the screen only ever knows whether one is set and its last four
+  // characters. An API key is a spending credential, and it is kept
+  // server-side for the same reason the Drive refresh token is.
+
+  protected readonly modelKey = inject(ModelKey);
+  protected readonly keyDraft = signal('');
+  protected readonly keyEditing = signal(false);
+  protected readonly keySaved = signal(false);
+
+  constructor() {
+    // Asked once, when the screen appears, so it never claims "no key" before
+    // it has looked. Not an effect: it depends on nothing and would only run
+    // once anyway, and an effect that writes signals it never reads is a
+    // puzzle for whoever reads it next.
+    void this.modelKey.refresh();
+  }
+
+  protected startKeyEdit() {
+    this.keyDraft.set('');
+    this.keySaved.set(false);
+    this.keyEditing.set(true);
+  }
+
+  protected cancelKeyEdit() {
+    this.keyDraft.set('');
+    this.keyEditing.set(false);
+  }
+
+  protected async saveKey() {
+    if (!(await this.modelKey.save(this.keyDraft()))) return;
+
+    // Cleared from memory the moment it is saved. Nothing on this screen has
+    // any further use for it.
+    this.keyDraft.set('');
+    this.keyEditing.set(false);
+    this.keySaved.set(true);
+  }
+
+  protected async clearKey() {
+    this.keySaved.set(false);
+    await this.modelKey.clear();
+  }
 
   protected readonly counts = computed(() =>
     countDecisions(this.data.feedbackLogs(), this.data.styleExamples()),

@@ -537,6 +537,20 @@ begin
     failed := failed + 1; report := report || format(E'  FAIL  a teacher cannot read her own Google refresh token [wrong error %s: %s]\n', sqlstate, sqlerrm);
   end;
 
+  -- The Gemini key: a spending credential, held exactly like the Drive token.
+  begin
+    set local role authenticated;
+    perform api_key from public.model_credentials;
+    reset role;
+    failed := failed + 1; report := report || E'  FAIL  a teacher cannot read her own model API key [it was readable]\n';
+  exception when insufficient_privilege then
+    reset role;
+    passed := passed + 1; report := report || E'  ok    a teacher cannot read her own model API key\n';
+  when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  a teacher cannot read her own model API key [wrong error %s: %s]\n', sqlstate, sqlerrm);
+  end;
+
   begin
     set local role authenticated;
     perform 1 from public.google_oauth_states;

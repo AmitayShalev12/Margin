@@ -12,7 +12,7 @@
 -- nothing behind.
 
 begin;
-select plan(42);
+select plan(44);
 
 -- ---------------------------------------------------------------------------
 -- Two teachers, each with a course, an assignment, a student and a submission.
@@ -348,6 +348,23 @@ select throws_ok(
   '42501',
   null,
   'nor the OAuth state table');
+
+-- Her Gemini key is a spending credential and is held the same way: RLS on,
+-- no policies, grants revoked. She can set it and replace it through the
+-- `model-key` function, and cannot read it back from anywhere.
+
+select throws_ok(
+  $$select api_key from public.model_credentials$$,
+  '42501',
+  null,
+  'a teacher cannot read her own model API key');
+
+select throws_ok(
+  $$insert into public.model_credentials (teacher_id, api_key, hint)
+    values ('aaaaaaaa-0000-4000-8000-000000000001', 'AIzaSyPlanted', 'nted')$$,
+  '42501',
+  null,
+  'nor plant one directly, bypassing the function that validates it');
 
 -- ---------------------------------------------------------------------------
 -- The second teacher sees her own world, and none of the first one's.
