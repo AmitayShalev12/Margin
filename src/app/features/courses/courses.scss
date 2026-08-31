@@ -292,3 +292,9 @@
   display: flex;
   gap: var(--s-2);
 }
+
+.kb-hint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+}

@@ -467,6 +467,87 @@ describe('startup and the session', () => {
     });
 
     /**
+     * A page of rules becomes rules, not one enormous rule.
+     *
+     * Her rules arrive as a list she already keeps — typed, or in a Word file.
+     * Pasted whole into one record they would reach the prompt as a single
+     * bullet among a dozen short ones, and the model weighs it as one
+     * instruction.
+     */
+    it('splits a pasted list into one rule per line', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+      store.createCourse('סמינריון', 'תשפ״ז');
+
+      const added = store.addCourseRules(
+        'language',
+        [
+          '1. מתאם אינו סיבתיות.',
+          '',
+          '- לכתוב בלשון עבר בפרק הממצאים.',
+          '   ',
+          '• ביבליוגרפיה לפי APA7.',
+        ].join('\n'),
+        'teacher',
+      );
+      await store.settled();
+
+      expect(added).toBe(3);
+
+      const bodies = store.courseRules().map((r) => r.body);
+      // The list's furniture goes; the rule stays exactly as she wrote it.
+      expect(bodies).toEqual([
+        'מתאם אינו סיבתיות.',
+        'לכתוב בלשון עבר בפרק הממצאים.',
+        'ביבליוגרפיה לפי APA7.',
+      ]);
+      expect(store.courseRules().every((r) => r.origin === 'teacher')).toBe(true);
+    });
+
+    /** One rule is still one rule. */
+    it('keeps a single rule whole', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+      store.createCourse('סמינריון', 'תשפ״ז');
+
+      expect(store.addCourseRules('language', '\n\n   \n', 'teacher')).toBe(0);
+      expect(store.courseRules()).toEqual([]);
+    });
+
+    /**
+     * The web conventions travel under a different origin, and the prompt
+     * defers them to hers. Writing one of hers as `web` would demote it.
+     */
+    it('keeps the general conventions apart from hers', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+      store.createCourse('סמינריון', 'תשפ״ז');
+
+      store.addCourseRules('other', 'להימנע ממשפטים ארוכים מדי.', 'web');
+      await store.settled();
+
+      expect(store.courseRules().length).toBe(1);
+      expect(store.courseRules()[0].origin).toBe('web');
+    });
+
+    it('adds nothing from a page with no rules on it', async () => {
+      const { store, session } = boot(supabase, repository);
+      const started = session.start();
+      supabase.restore('teacher-1');
+      await started;
+      store.createCourse('סמינריון', 'תשפ״ז');
+
+      expect(store.addCourseRules('language', '\n\n   \n', 'teacher')).toBe(0);
+      expect(store.courseRules()).toEqual([]);
+    });
+
+    /**
      * Her old marked-up papers, read in twice.
      *
      * A teacher who is not sure whether the import worked will run it again —

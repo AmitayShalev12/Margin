@@ -185,27 +185,41 @@
 
                 <label class="field">
                   <span class="label">
-                    {{ s.add.of === 'rule' ? 'הכלל' : 'הטקסט שאני קוראת' }}
+                    {{ s.add.of === 'rule' ? 'הכללים — שורה לכל כלל' : 'הטקסט שאני קוראת' }}
                   </span>
                   <textarea
                     class="control"
-                    [rows]="s.add.of === 'rule' ? 2 : 6"
+                    [rows]="s.add.of === 'rule' ? (draftRuleCount() > 1 ? 6 : 2) : 6"
                     [value]="draftBody()"
                     (input)="draftBody.set($any($event.target).value)"
                   ></textarea>
                 </label>
 
-                @if (s.add.of === 'material') {
-                  <label class="link file-label">
-                    {{ readingFile() ? 'קוראת…' : 'או לטעון קובץ Word' }}
-                    <input
-                      type="file"
-                      accept=".docx"
-                      class="file-input"
-                      [disabled]="readingFile()"
-                      (change)="readFile($event)"
-                    />
-                  </label>
+                <label class="link file-label">
+                  {{
+                    readingFile()
+                      ? 'קוראת…'
+                      : s.add.of === 'rule'
+                        ? 'או לטעון קובץ Word עם הכללים'
+                        : 'או לטעון קובץ Word'
+                  }}
+                  <input
+                    type="file"
+                    accept=".docx"
+                    class="file-input"
+                    [disabled]="readingFile()"
+                    (change)="readFile($event)"
+                  />
+                </label>
+
+                <!--
+                  Said before she presses save. One rule and forty rules look
+                  identical in a textarea, and a page of them pasted as a single
+                  record reaches the model as one enormous bullet among a dozen
+                  short ones.
+                -->
+                @if (s.add.of === 'rule' && draftRuleCount() > 1) {
+                  <p class="kb-hint">כל שורה תיכנס ככלל נפרד — {{ draftRuleCount() }} כללים.</p>
                 }
 
                 @if (addError(); as message) {

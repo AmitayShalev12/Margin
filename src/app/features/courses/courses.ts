@@ -250,7 +250,12 @@ export class Courses {
     this.addError.set(null);
 
     try {
-      this.draftBody.set(await readDocxText(await file.arrayBuffer()));
+      const text = await readDocxText(await file.arrayBuffer());
+      // Appended rather than replacing: she may have typed a rule already, and
+      // silently discarding it because she then reached for a file is the kind
+      // of small loss nobody reports and everybody resents.
+      this.draftBody.update((current) => (current.trim() ? `${current.trim()}\n${text}` : text));
+
       if (!this.draftTitle().trim()) {
         this.draftTitle.set(file.name.replace(/\.docx$/i, ''));
       }
@@ -261,10 +266,28 @@ export class Courses {
     }
   }
 
+  /**
+   * How many rules the text in the box would become.
+   *
+   * Shown before she saves, because "one rule" and "forty rules" look
+   * identical in a textarea and are very different things to have added.
+   */
+  protected readonly draftRuleCount = computed(
+    () =>
+      this.draftBody()
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean).length,
+  );
+
   protected save(section: KbSection) {
     const written =
       section.add.of === 'rule'
-        ? this.data.addCourseRule(sectionRuleKind(section.id), this.draftBody(), section.add.origin)
+        ? this.data.addCourseRules(
+            sectionRuleKind(section.id),
+            this.draftBody(),
+            section.add.origin,
+          )
         : this.data.addCourseMaterial(section.add.kind, this.draftTitle(), this.draftBody());
 
     if (!written) {

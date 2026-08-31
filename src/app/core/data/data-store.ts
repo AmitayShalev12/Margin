@@ -631,6 +631,31 @@ export class DataStore {
   }
 
   /**
+   * A page of rules, as rules — one per line.
+   *
+   * Her rules do not arrive one at a time. They arrive as a list she already
+   * keeps, typed or in a Word file, and the whole page pasted into a single
+   * record would reach the prompt as one enormous bullet among a dozen short
+   * ones. The model reads that as a single instruction and weighs it as one.
+   *
+   * So the text is split on its own line breaks. Blank lines go, and so does
+   * any leading bullet or numbering she had in the document — `1.`, `-`, `•` —
+   * because that is the list's furniture rather than part of the rule.
+   */
+  addCourseRules(kind: CourseRuleKind, text: string, origin: CourseRuleOrigin): number {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.replace(/^\s*(?:[-–—•*]|\d+[.)])\s*/, '').trim())
+      .filter(Boolean);
+
+    let added = 0;
+    for (const line of lines) {
+      if (this.addCourseRule(kind, line, origin)) added += 1;
+    }
+    return added;
+  }
+
+  /**
    * Reference material the model reads: a syllabus, a model paper, an example
    * of a correction she wrote.
    *
