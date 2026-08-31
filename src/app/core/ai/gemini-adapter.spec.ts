@@ -2,6 +2,7 @@ import {
   buildRequestBody,
   classifyInteraction,
   classifyRateLimit,
+  describeQuota,
   extractText,
   isRetryable,
   parseAnnotationPayload,
@@ -365,5 +366,50 @@ describe('telling the free-tier limits apart', () => {
     expect(isRetryable(429, 'token_cap')).toBe(false);
     expect(isRetryable(429, 'daily_cap')).toBe(false);
     expect(isRetryable(429, 'rate_limited')).toBe(true);
+  });
+});
+
+/**
+ * The quota Google names when it refuses.
+ *
+ * `limit=0` is the whole point of reading it. A brand new key hitting a limit
+ * on its first run has not exhausted an allowance — it never had one, which is
+ * what a model outside the free tier looks like. That is neither waited out
+ * nor fixed by a shorter paper, and without this the app cannot tell it apart
+ * from either.
+ */
+describe('reading the quota out of a refusal', () => {
+  const body = JSON.stringify({
+    error: {
+      code: 429,
+      details: [
+        {
+          violations: [
+            {
+              quotaId: 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier',
+              quotaDimensions: { model: 'gemini-3.6-flash', location: 'global' },
+              quotaValue: '0',
+            },
+          ],
+        },
+      ],
+    },
+  });
+
+  it('names the ceiling, the model and the limit', () => {
+    const described = describeQuota(body);
+
+    expect(described).toContain('PerMinutePerProjectPerModel');
+    expect(described).toContain('model=gemini-3.6-flash');
+    // Never had one, rather than used one up.
+    expect(described).toContain('limit=0');
+  });
+
+  it('says nothing about a body that names no quota', () => {
+    expect(describeQuota('{"error":{"code":500}}')).toBeNull();
+  });
+
+  it('survives a body that is not JSON at all', () => {
+    expect(describeQuota('<html>502 Bad Gateway</html>')).toBeNull();
   });
 });

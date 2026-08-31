@@ -102,7 +102,7 @@ export async function callFunction<T>(
   if (response.ok) return (await response.json()) as T;
 
   const text = await response.text().catch(() => '');
-  let served: { error?: string; message?: string; key_source?: string } = {};
+  let served: { error?: string; message?: string; key_source?: string; quota?: string } = {};
   try {
     served = JSON.parse(text) as typeof served;
   } catch {
@@ -117,7 +117,11 @@ export async function callFunction<T>(
    * without it there was no way to tell whether the key she had just saved was
    * being used at all.
    */
-  const context = served.key_source ? ` [key: ${served.key_source}]` : '';
+  const context =
+    (served.key_source ? ` [key: ${served.key_source}]` : '') +
+    // Which ceiling, on which model, and how big it is. `limit=0` is the one
+    // that matters: not an allowance used up, an allowance never granted.
+    (served.quota ? ` [quota: ${served.quota}]` : '');
 
   const detail = `${name} ${response.status}: ${(served.error ?? served.message ?? text ?? '').slice(0, 200)}${context}`;
 

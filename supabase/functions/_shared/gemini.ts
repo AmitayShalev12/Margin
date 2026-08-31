@@ -307,6 +307,32 @@ export function isRetryable(status: number, code: AnnotateErrorCode | null): boo
  * Honours a `retryDelay` if the API supplied one, else exponential backoff.
  * Google returns retry hints as strings like `"7s"` in `error.details`.
  */
+/**
+ * The quota Google actually refused on, in a few words.
+ *
+ * A 429 body names the violation — `quotaId`, the model it applies to, and the
+ * limit itself — and all of it was being thrown away, leaving three very
+ * different situations looking identical.
+ *
+ * `quotaValue: "0"` is the one worth the whole function. It does not mean she
+ * has used her allowance up; it means she never had one, which is what a brand
+ * new key on a model outside the free tier looks like. Waiting cannot fix that
+ * and neither can a smaller paper: it is the wrong model for the key.
+ *
+ * Quota metadata only. No part of the key or the paper is in here.
+ */
+export function describeQuota(body: string): string | null {
+  const id = /"quotaId"\s*:\s*"([^"]{1,120})"/.exec(body)?.[1];
+  const value = /"quotaValue"\s*:\s*"?(\d{1,12})"?/.exec(body)?.[1];
+  const model = /"model"\s*:\s*"([^"]{1,80})"/.exec(body)?.[1];
+
+  const parts = [id, model && `model=${model}`, value !== undefined && `limit=${value}`].filter(
+    Boolean,
+  );
+
+  return parts.length ? parts.join(' ') : null;
+}
+
 export function retryDelayMs(body: string, attempt: number, baseMs: number): number {
   const match = /"retry(?:_)?delay"\s*:\s*"?(\d+(?:\.\d+)?)s"?/i.exec(body);
   if (match) return Math.min(30_000, Math.ceil(Number(match[1]) * 1000));

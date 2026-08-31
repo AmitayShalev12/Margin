@@ -24,6 +24,7 @@ import {
   classifyRateLimit,
   isRetryable,
   parseAnnotationPayload,
+  describeQuota,
   responseSchema,
   retryDelayMs,
   type Interaction,
@@ -383,7 +384,9 @@ function affordable(waitMs: number, remainingMs: number): boolean {
 async function generate(
   apiKey: string,
   body: AnnotateRequest,
-): Promise<{ ok: true; text: string } | { ok: false; code: AnnotateErrorCode }> {
+): Promise<
+  { ok: true; text: string } | { ok: false; code: AnnotateErrorCode; quota?: string | null }
+> {
   const requestBody = buildRequestBody({
     config: MODEL_CONFIG,
     systemInstruction: `${INSTRUCTIONS}\n\n${knowledgeBase(body)}`,
@@ -402,6 +405,7 @@ async function generate(
    * mid-generation and the teacher gets a 504 — no code, no Hebrew, and no way
    * to tell "too slow" from "broken".
    */
+  let lastQuota: string | null = null;
   const startedAt = Date.now();
   const remaining = () => MODEL_CONFIG.budgetMs - (Date.now() - startedAt);
 
@@ -436,7 +440,7 @@ async function generate(
         await sleep(wait);
         continue;
       }
-      return { ok: false, code: lastCode };
+      return { ok: false, code: lastCode, quota: lastQuota };
     } finally {
       clearTimeout(guard);
     }
@@ -449,6 +453,8 @@ async function generate(
     const errorBody = await response.text();
     const rateCode = classifyRateLimit(response.status, errorBody);
     lastCode = rateCode ?? 'generation_failed';
+    // Kept for the answer: which ceiling, on which model, and how big it is.
+    lastQuota = describeQuota(errorBody);
 
     const wait = retryDelayMs(errorBody, attempt, MODEL_CONFIG.backoffBaseMs);
 
@@ -469,13 +475,13 @@ async function generate(
       if (lastCode !== 'daily_cap') {
         console.error('annotate: model call failed', response.status, errorBody.slice(0, 400));
       }
-      return { ok: false, code: lastCode };
+      return { ok: false, code: lastCode, quota: lastQuota };
     }
 
     await sleep(wait);
   }
 
-  return { ok: false, code: lastCode };
+  return { ok: false, code: lastCode, quota: lastQuota };
 }
 
 /**
@@ -578,7 +584,7 @@ Deno.serve(async (request: Request) => {
       // The rate-limit case above all: "too many requests" means one thing on
       // her own quota and another entirely on a key shared with everyone.
       return json(
-        { error: generated.code, key_source: keySource },
+        { error: generated.code, key_source: keySource, quota: generated.quota ?? null },
         statusFor(generated.code),
         headers,
       );
