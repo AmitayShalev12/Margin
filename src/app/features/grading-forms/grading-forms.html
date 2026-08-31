@@ -187,6 +187,21 @@
                   }
                   <div class="line-body"><app-bidi-text [value]="entry.body" /></div>
                   <div class="line-meta">
+                    <!--
+                      The form strips a comment of the sentence that provoked
+                      it. Finding that sentence by eye, across seventeen
+                      criteria and forty comments, is not a thing anyone does
+                      twice.
+                    -->
+                    @if (entry.annotationId) {
+                      <a
+                        class="to-comment"
+                        [routerLink]="['/review', submissionId()]"
+                        [queryParams]="{ comment: entry.annotationId }"
+                      >
+                        למקום בעבודה
+                      </a>
+                    }
                     @if (entry.kindLabel) {
                       <span class="tag">{{ entry.kindLabel }}</span>
                     }

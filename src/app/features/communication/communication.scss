@@ -299,3 +299,15 @@
   margin-block-start: 2px;
   color: var(--c-ink-3);
 }
+
+.to-comment {
+  display: inline-block;
+  margin-block-start: var(--s-1);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--c-ink);
+  }
+}

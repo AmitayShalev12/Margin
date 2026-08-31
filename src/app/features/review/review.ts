@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
@@ -102,6 +110,35 @@ export class Review {
 
   /** First name only — the send button reads better as "לנועה" than in full. */
   protected readonly firstName = computed(() => this.student().split(' ')[0]);
+
+  /**
+   * A comment to jump to, from a screen that lists notes away from the paper.
+   *
+   * Bound from `?comment=` by the router's component input binding. The grading
+   * form and the email screen both show her own comments stripped of the
+   * sentence that provoked them; getting back to the paper meant finding it by
+   * eye, which for a seventeen-criterion form over forty comments is not a
+   * thing anyone does twice.
+   */
+  readonly comment = input<string>();
+
+  /** Briefly marked after a jump, so the eye lands on the right sentence. */
+  protected readonly found = signal<string | null>(null);
+
+  /**
+   * Jumps once the comment actually exists on screen.
+   *
+   * The annotations arrive with the round rather than with the route, so
+   * acting on the parameter the moment it appears would scroll to a paragraph
+   * that has not been rendered yet.
+   */
+  private readonly jump = effect(() => {
+    const id = this.comment();
+    if (!id || this.found() === id) return;
+    if (!this.live().some((a) => a.id === id)) return;
+
+    this.reveal(id);
+  });
 
   protected readonly roundNumber = computed(() => this.submission().current_round);
 
@@ -260,6 +297,31 @@ export class Review {
     const annotation = this.live().find((a) => a.id === id);
     return annotation ? this.toView(annotation) : null;
   });
+
+  /**
+   * Opens the section, scrolls the sentence into view, and marks it.
+   *
+   * Deliberately the sentence in the paper rather than the comment card: the
+   * question behind "take me to the comment" is *where in the work is this*,
+   * and the card on its own answers the half she already had.
+   *
+   * Waits a frame because the section is opened in the same tick and the
+   * paragraph is not in the DOM until the template has rendered it.
+   */
+  private reveal(annotationId: string) {
+    this.tapRun(annotationId);
+    this.found.set(annotationId);
+
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-annotation="${annotationId}"]`);
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+
+    // Long enough to find it, short enough not to become part of the page.
+    setTimeout(() => {
+      if (this.found() === annotationId) this.found.set(null);
+    }, 4000);
+  }
 
   // -- interaction ----------------------------------------------------------
 

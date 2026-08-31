@@ -325,6 +325,13 @@
             <li class="line">
               <div class="line-quote">״<app-bidi-text [value]="c.anchor.quote" />״</div>
               <div class="line-body"><app-bidi-text [value]="c.body" /></div>
+              <a
+                class="to-comment"
+                [routerLink]="['/review', submission()!.id]"
+                [queryParams]="{ comment: c.id }"
+              >
+                למקום בעבודה
+              </a>
             </li>
           }
         </ul>

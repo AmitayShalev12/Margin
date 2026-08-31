@@ -255,3 +255,14 @@
   gap: var(--s-2);
   margin-block-start: var(--s-3);
 }
+
+// Back to where the comment sits in the paper.
+.to-comment {
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--c-ink);
+  }
+}

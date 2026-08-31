@@ -608,3 +608,33 @@
     font-size: 22px;
   }
 }
+
+/**
+ * The sentence she was sent to.
+ *
+ * Held for a few seconds and then released: an arrival marker that stayed
+ * would become part of the page, and the next thing she looks at would still
+ * be wearing it.
+ */
+.mark.is-found {
+  outline: 2px solid var(--c-ink-2);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+  animation: found-fade 4s ease-out forwards;
+}
+
+@keyframes found-fade {
+  0%,
+  70% {
+    outline-color: var(--c-ink-2);
+  }
+  100% {
+    outline-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mark.is-found {
+    animation: none;
+  }
+}

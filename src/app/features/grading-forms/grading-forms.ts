@@ -164,6 +164,10 @@ export class GradingForms {
         const annotation = annotations.find((a) => a.id === entry.annotation_id);
         return {
           id: entry.id,
+          // What the line was derived from, so she can get back to where it
+          // sits in the paper. Null for a line she wrote herself, which came
+          // from no comment and has nowhere to go.
+          annotationId: annotation?.id ?? null,
           body: entry.body,
           // The student's own words the line came from — the form stays
           // anchored to the paper rather than floating free of it.
