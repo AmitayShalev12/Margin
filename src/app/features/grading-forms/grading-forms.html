@@ -168,6 +168,9 @@
     <section class="card sheet">
       <div class="sheet-head">
         <h2 class="sheet-title">ציון העבודה</h2>
+        <button type="button" class="btn btn-plain btn-sm export" (click)="exportForm()">
+          ייצוא לוורד
+        </button>
         @if (paperScore(); as paper) {
           <span class="sheet-score">
             <strong>{{ paper.label }}</strong>

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 
 import { DataStore } from '../../core/data/data-store';
 import { ParsedRubric, RubricError, readRubric } from '../../core/import/rubric';
+import { GradeSheet, buildGradeDocx, gradeDocxName } from '../../core/export/grade-docx';
 import { isStartingSet } from '../../core/grading/categories';
 import { groupByCategory } from '../../core/grading/entries';
 import {
@@ -399,6 +400,74 @@ export class GradingForms {
     this.data.updateSubmission(id, {
       [field === 'presentation' ? 'presentation_score' : 'ongoing_score']: parsed,
     });
+  }
+
+  // -- the export -----------------------------------------------------------
+
+  /**
+   * The filled form as a `.docx` she can edit.
+   *
+   * Asked whether the Word file mattered or the screen would do, she said the
+   * file: "ברור שהכי טוב שיהיה הטופס מוכן ורק אני אערוך על הטופס ואני אוכל
+   * להוריד אותו". So the export produces a document, not a print stylesheet —
+   * the point is that she can change a number in it and send it on.
+   */
+  protected exportForm() {
+    const bytes = buildGradeDocx(this.sheet());
+
+    const blob = new Blob([bytes as unknown as BlobPart], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = gradeDocxName(this.sheet());
+    link.click();
+    // Freed on the next turn of the loop; revoking immediately races the
+    // download in Safari and the file arrives empty.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+
+  /**
+   * Everything the document needs, and nothing from the DOM.
+   *
+   * Built here rather than inside the export so the shape the writer takes is
+   * plain data — a test can hand it a half-scored paper without standing up a
+   * component, which is how the "never print a zero" rule is actually pinned
+   * down.
+   */
+  private sheet(): GradeSheet {
+    const id = this.submissionId();
+    const submission = id ? this.data.submission(id) : undefined;
+    const paper = this.paperScore();
+
+    return {
+      student: this.student() || 'עבודה',
+      work: submission?.title ?? null,
+      exportedAt: new Date(),
+      sections: this.sections().map((section) => ({
+        name: section.name,
+        points: section.subtotal?.points ?? null,
+        outOf: section.subtotal?.outOf ?? null,
+        percent: section.subtotal?.percent ?? null,
+        criteria: section.criteria.map((criterion) => ({
+          name: criterion.name,
+          maxPoints: criterion.maxPoints,
+          points: criterion.display?.points ?? null,
+          percent: criterion.display?.percent ?? null,
+          mine: criterion.mine,
+          note: criterion.changeNote,
+        })),
+      })),
+      paper: paper ? { points: paper.points, outOf: paper.outOf, percent: paper.percent } : null,
+      parts: this.gradeParts().map((part) => ({
+        name: part.name,
+        percent: part.percent,
+        value: part.value,
+      })),
+      final: this.final(),
+    };
   }
 
   protected select(id: UUID) {
