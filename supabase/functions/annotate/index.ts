@@ -206,6 +206,24 @@ function knowledgeBase(body: AnnotateRequest): string {
     parts.push(
       `# The rubric you are scoring against\n` +
         `Score each criterion out of the points beside it, using the paper as submitted.\n` +
+        /**
+         * Said first, and as a count, because omission was the actual failure.
+         *
+         * The paragraph below tells the model that null is the expected answer
+         * for most criteria early on — and a model that has nothing to score
+         * reads that as permission to say nothing at all. It returned
+         * `"scores": []`, which is not "I could not judge these yet": it is
+         * indistinguishable from the whole feature being broken, and that is
+         * how it reached the teacher.
+         *
+         * An entry per criterion with `points: null` is the answer that
+         * carries the same meaning and can be told apart from silence.
+         */
+        `Return exactly one object for every criterion listed below — ` +
+        `${body.rubric.length} of them, in the order given, whatever you conclude about ` +
+        `each. Never return an empty array and never omit a criterion: if the paper ` +
+        `supports no judgement anywhere yet, return all ${body.rubric.length} with ` +
+        `"points": null. Saying nothing is not an available answer.\n` +
         `This paper is unfinished and will be resubmitted. Where the text does not yet ` +
         `support a judgement — the chapter is not written, the data are not in — return ` +
         `"points": null and say in the note what is missing. Null is the expected answer ` +

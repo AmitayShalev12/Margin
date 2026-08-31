@@ -531,11 +531,28 @@ export class GradingForms {
     if (!this.ran() || this.working() || this.failure()) return null;
 
     const scoring = this.generator.state().scoring;
-    if (!scoring || scoring.kept > 0) return null;
+    if (!scoring) return null;
 
-    return scoring.returned === 0
-      ? 'הריצה הסתיימה בלי שגיאה, אבל המודל לא החזיר ניקוד לאף סעיף.'
-      : `המודל החזיר ${scoring.returned} ציונים, אבל אף אחד מהם לא התאים לסעיפים שבטופס שלך.`;
+    if (scoring.returned === 0) {
+      return 'הריצה הסתיימה בלי שגיאה, אבל המודל לא החזיר ניקוד לאף סעיף.';
+    }
+    if (scoring.kept === 0) {
+      return `המודל החזיר ${scoring.returned} ציונים, אבל אף אחד מהם לא התאים לסעיפים שבטופס שלך.`;
+    }
+
+    /**
+     * It read the paper and judged that nothing can be scored yet.
+     *
+     * A finding, not a fault, and the expected one for an early draft — "הפרק
+     * לא נכתב עדיין" is the answer she asked the model to give rather than a
+     * low mark. Said explicitly because the screen is otherwise identical to
+     * the run having failed, and she would reasonably press the button again.
+     */
+    if (this.totals().scored === 0) {
+      return `המודל עבר על ${scoring.kept} הסעיפים וקבע שאין עדיין בסיס לנקד אף אחד מהם. זה לא כשל — כך נראית עבודה בתחילת הדרך.`;
+    }
+
+    return null;
   });
 
   /**
