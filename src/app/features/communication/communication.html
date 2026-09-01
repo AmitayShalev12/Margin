@@ -326,7 +326,7 @@
               <div class="line-quote">״<app-bidi-text [value]="c.anchor.quote" />״</div>
               <div class="line-body"><app-bidi-text [value]="c.body" /></div>
               <a
-                class="to-comment"
+                class="btn btn-plain btn-sm to-comment"
                 [routerLink]="['/review', submission()!.id]"
                 [queryParams]="{ comment: c.id }"
               >

@@ -656,20 +656,10 @@
  * already compete for the eye on the same card. This is a way back, not a
  * decision.
  */
+// Layout only. The link styling — underline, muted colour — used to live here
+// and would now override the button it sits on.
 .to-sentence {
   align-self: flex-start;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-  text-decoration: underline;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--c-ink);
-  }
 }
 
 // -- a comment she writes herself --------------------------------------------

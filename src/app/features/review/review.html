@@ -212,7 +212,11 @@
                         <span class="state">{{ c.stateLabel }}</span>
                       </div>
                       <div class="quote">״<app-bidi-text [value]="c.quote" />״</div>
-                      <button type="button" class="to-sentence" (click)="reveal(c.id)">
+                      <button
+                        type="button"
+                        class="btn btn-plain btn-sm to-sentence"
+                        (click)="reveal(c.id)"
+                      >
                         למקום בעבודה
                       </button>
 

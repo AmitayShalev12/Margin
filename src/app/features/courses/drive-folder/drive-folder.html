@@ -189,7 +189,7 @@
     <div class="shared">
       <div class="shared-head">
         <span class="shared-title">מסמכים ששותפו איתך</span>
-        <button type="button" class="link" (click)="toggleShared()">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="toggleShared()">
           {{ sharedOpen() ? 'סגירה' : 'חיפוש' }}
         </button>
       </div>
@@ -215,10 +215,12 @@
           <p class="muted">מחפשת…</p>
         } @else if (sharedError()) {
           <p class="error">{{ sharedError() }}</p>
-          <button type="button" class="link" (click)="loadShared()">נסי שוב</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="loadShared()">נסי שוב</button>
         } @else if (!sharedFiles().length) {
           <p class="muted">לא נמצאו מסמכים ששותפו איתך ועדיין לא שויכו.</p>
-          <button type="button" class="link" (click)="loadShared()">חיפוש מחדש</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="loadShared()">
+            חיפוש מחדש
+          </button>
         } @else {
           @if (attachError()) {
             <p class="error">{{ attachError() }}</p>
@@ -261,13 +263,17 @@
           <span class="muted">מסנכרנת מהדרייב…</span>
         } @else if (syncState().message) {
           <span class="error-inline">{{ syncState().message }}</span>
-          <button type="button" class="link" (click)="syncNow()">נסי שוב</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="syncNow()">נסי שוב</button>
         } @else {
-          <button type="button" class="link" (click)="syncNow()">סנכרון עכשיו</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="syncNow()">
+            סנכרון עכשיו
+          </button>
         }
       }
       <span class="spacer"></span>
-      <button type="button" class="link quiet" (click)="disconnect()">ניתוק החשבון</button>
+      <button type="button" class="btn btn-plain btn-sm" (click)="disconnect()">
+        ניתוק החשבון
+      </button>
     </div>
   }
 </div>

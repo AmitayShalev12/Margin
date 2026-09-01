@@ -13,7 +13,7 @@
         <span class="rubric-title">
           הטופס שלך — {{ savedRubric().length }} סעיפים, {{ savedTotal() }} נקודות
         </span>
-        <label class="link file-label">
+        <label class="btn btn-ghost btn-sm file-label">
           החלפה
           <input
             type="file"
@@ -381,7 +381,7 @@
                             <div class="line-body"><app-bidi-text [value]="entry.body" /></div>
                             @if (entry.annotationId) {
                               <a
-                                class="to-comment"
+                                class="btn btn-plain btn-sm to-comment"
                                 [routerLink]="['/review', submissionId()]"
                                 [queryParams]="{ comment: entry.annotationId }"
                               >
@@ -500,7 +500,7 @@
                     -->
                     @if (entry.annotationId) {
                       <a
-                        class="to-comment"
+                        class="btn btn-plain btn-sm to-comment"
                         [routerLink]="['/review', submissionId()]"
                         [queryParams]="{ comment: entry.annotationId }"
                       >

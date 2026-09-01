@@ -135,6 +135,23 @@
   }
 }
 
+/**
+ * The small variant, for actions that sit inside a card or a row.
+ *
+ * This lived in `drive-folder.scss`, which Angular scopes to that one
+ * component — so `btn-sm` in the other five templates that used it did
+ * precisely nothing, and every "small" button in the app was full size. A
+ * modifier that silently does nothing outside the file it was written in is
+ * worse than no modifier: the markup says one thing and the screen shows
+ * another.
+ */
+.btn-sm {
+  min-height: 2.25rem;
+  padding-inline: var(--s-3);
+  font-size: var(--fs-sm);
+  flex: 0 0 auto;
+}
+
 .btn-block {
   width: 100%;
 }

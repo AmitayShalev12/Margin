@@ -76,12 +76,9 @@
   color: var(--c-ink-3);
 }
 
-.btn-sm {
-  min-height: 2.25rem;
-  padding-inline: var(--s-3);
-  font-size: var(--fs-sm);
-  flex: 0 0 auto;
-}
+// `.btn-sm` moved to styles/_primitives.scss. Scoped here it applied to this
+// component alone, so the same class in five other templates did nothing at
+// all and every "small" button in the app was rendering full size.
 
 // -- folder editor ----------------------------------------------------------
 
@@ -134,15 +131,9 @@
   font-size: var(--fs-sm);
 }
 
-.link {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--c-accent);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  cursor: pointer;
-}
+// `.link` is gone: every control that used it is a real button now. Her rule,
+// and a fair one — a blue word in a paragraph gives no clue that pressing it
+// does anything, and "synchronise the folder" is not a footnote.
 
 .error-inline {
   color: var(--c-danger);

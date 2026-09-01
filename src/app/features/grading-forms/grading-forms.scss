@@ -257,14 +257,10 @@
 }
 
 // Back to where the comment sits in the paper.
+// Layout only. The link styling — underline, muted colour — used to live here
+// and would now override the button it sits on.
 .to-comment {
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-  text-decoration: underline;
-
-  &:hover {
-    color: var(--c-ink);
-  }
+  align-self: flex-start;
 }
 
 // -- the score sheet ---------------------------------------------------------

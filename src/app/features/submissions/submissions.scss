@@ -68,16 +68,8 @@
   color: var(--c-ink-3);
 }
 
-.sync-now {
-  border: 0;
-  background: none;
-  padding: 0;
-  color: var(--c-accent);
-  font-weight: 600;
-  font-size: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
+// `.sync-now` is a button now, not blue text. It is the control she reaches
+// for most on this screen and it looked like a caption.
 
 .unmatched {
   margin-block-start: var(--s-2);

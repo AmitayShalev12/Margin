@@ -300,14 +300,8 @@
   color: var(--c-ink-3);
 }
 
+// Layout only. The link styling — underline, muted colour — used to live here
+// and would now override the button it sits on.
 .to-comment {
-  display: inline-block;
-  margin-block-start: var(--s-1);
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-  text-decoration: underline;
-
-  &:hover {
-    color: var(--c-ink);
-  }
+  align-self: flex-start;
 }
