@@ -59,6 +59,8 @@ function score(over: Partial<GradingCriterionScore> = {}): GradingCriterionScore
     previous_points: null,
     status: 'final',
     change_note: null,
+    rationale: null,
+    rationale_points: null,
     round_number: 1,
     origin: 'ai',
     edited_by_teacher: false,
@@ -562,5 +564,79 @@ describe('what is holding the paper score up', () => {
     const page = render({ criterionScores: [score({ points: 3 })] });
 
     expect(page.fixture.nativeElement.querySelector('.blocking')).toBeNull();
+  });
+});
+
+/**
+ * The model's reasoning for each score.
+ *
+ * Asked for after she tested the form: "שעל כל פרמטר יהיה לו גם הסבר למה הוא
+ * נותן את הציון הזה... כדי שנוכל לעקוב אחרי הרציונל שלו". Distinct from the
+ * comments, which are hers, and from the change note, which only speaks about
+ * movement between rounds.
+ */
+describe('why a criterion got its score', () => {
+  it('shows the explanation, attributed to the system rather than to her', () => {
+    const page = render({
+      criterionScores: [score({ points: 3, rationale: 'רק שניים מהמקורות פורסמו בעשור האחרון.' })],
+    });
+    page.click('.section-head');
+
+    expect(page.text()).toContain('רק שניים מהמקורות');
+    // Every other sentence on this screen is one she wrote. This one is not,
+    // and unlabelled it would read as hers.
+    expect(page.text()).toContain('ההסבר של המערכת');
+  });
+
+  it('says nothing where the model gave no reasoning', () => {
+    const page = render({ criterionScores: [score({ points: 3, rationale: null })] });
+    page.click('.section-head');
+
+    expect(page.fixture.nativeElement.querySelector('.rationale')).toBeNull();
+  });
+
+  /**
+   * The honesty rule. An explanation of 5 sitting under a 7 she typed herself
+   * reads as a justification of her number, in a voice that never made that
+   * judgement.
+   */
+  it('flags an explanation she has since scored over', () => {
+    const page = render({
+      criterionScores: [
+        score({ points: 4, rationale: 'שני מקורות בלבד עדכניים.', rationale_points: 2 }),
+      ],
+    });
+    page.click('.section-head');
+
+    expect(page.text()).toContain('נכתב לניקוד 2');
+    expect(page.fixture.nativeElement.querySelector('.rationale-stale')).not.toBeNull();
+  });
+
+  it('does not flag one that still matches the score', () => {
+    const page = render({
+      criterionScores: [score({ points: 3, rationale: 'הסבר', rationale_points: 3 })],
+    });
+    page.click('.section-head');
+
+    expect(page.fixture.nativeElement.querySelector('.rationale-stale')).toBeNull();
+  });
+
+  /**
+   * Her own edit keeps the reasoning but does not re-point it at her number —
+   * so the moment she overrides a score, the explanation is marked as written
+   * for the old one rather than silently adopted.
+   */
+  it('marks the explanation stale the moment she overrides the score', () => {
+    const page = render({
+      criterionScores: [score({ points: 3, rationale: 'הסבר', rationale_points: 3 })],
+    });
+    page.click('.section-head');
+
+    const input = page.fixture.nativeElement.querySelector('.points') as HTMLInputElement;
+    input.value = '4';
+    input.dispatchEvent(new Event('change'));
+    page.fixture.detectChanges();
+
+    expect(page.text()).toContain('נכתב לניקוד 3');
   });
 });

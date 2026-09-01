@@ -108,11 +108,20 @@ export interface DraftScore {
    */
   points: number | null;
   /**
-   * Why this score, or what changed since the round before. She asked for
-   * this by name — a number that moved with no account of why is the part of
-   * an automated grade that cannot be defended to a student.
+   * What changed since the round before. She asked for this by name — a number
+   * that moved with no account of why is the part of an automated grade that
+   * cannot be defended to a student.
    */
   note: string;
+  /**
+   * Why this criterion earned this score at all, in the model's own words.
+   *
+   * Separate from `note`, which only speaks about movement. She asked for this
+   * after testing: "שעל כל פרמטר יהיה לו גם הסבר למה הוא נותן את הציון הזה...
+   * כדי שנוכל לעקוב אחרי הרציונל שלו" — wanted on every criterion, including
+   * the ones that never moved and the ones with no score yet.
+   */
+  rationale: string;
 }
 
 export interface AnnotateResponse {

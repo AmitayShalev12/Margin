@@ -231,6 +231,26 @@ function knowledgeBase(body: AnnotateRequest): string {
         `for most criteria early on. A low score and "not written yet" are opposite ` +
         `claims, and a student reads the first as a verdict.\n` +
         `Never exceed a criterion's maximum. Never invent a criterion that is not listed.\n` +
+        /**
+         * Her request, in her own framing:
+         *
+         *   "שעל כל פרמטר יהיה לו גם הסבר למה הוא נותן את הציון הזה... נגיד
+         *    נתן על מאמרים עדכניים חמש מתוך שמונה, שיכתוב לי, לא כל המקורות
+         *    היו עדכניים... כאילו כמו שאני שואלת אותו והוא עונה לי."
+         *
+         * So: addressed to her, specific to this paper, and grounded in what
+         * is actually on the page. A rationale that would fit any paper —
+         * "the sources could be stronger" — is worse than none, because it
+         * looks like reasoning and cannot be checked against anything.
+         */
+        `For every criterion also write "rationale": why this paper earned this ` +
+        `score, in Hebrew, addressed to her, in one or two sentences.\n` +
+        `Ground it in this paper. Name what you actually saw — which sources were ` +
+        `dated, which section was missing, which claim went unsupported — the way ` +
+        `you would answer her if she asked you directly. A sentence that would fit ` +
+        `any paper is worth nothing to her: she cannot check it against anything.\n` +
+        `Where the points are null the rationale says what is not there yet, not ` +
+        `what is wrong with it.\n` +
         body.rubric
           .map((c) => {
             const section = c.section ? `${c.section} · ` : '';

@@ -286,6 +286,26 @@ export class GradingForms {
         /** What moved since the round before, and why. */
         delta: score ? deltaLabel(score) : null,
         changeNote: score?.change_note ?? null,
+        /**
+         * Why this criterion got this score, in the model's words.
+         *
+         * "כדי שנוכל לעקוב אחרי הרציונל שלו בכל אחד מהציונים שנותן". Shown as
+         * the model's reasoning and never as hers — this screen is otherwise
+         * built entirely from sentences she wrote, and one that is not has to
+         * say so.
+         */
+        rationale: score?.rationale ?? null,
+        /**
+         * True when she has changed the score since the explanation was
+         * written. An explanation of 5 under a 7 she typed herself is worse
+         * than none: it reads as a justification of her own number, in a voice
+         * that never made that judgement.
+         */
+        rationaleStale:
+          !!score?.rationale &&
+          score.rationale_points !== null &&
+          score.rationale_points !== score.points,
+        rationaleFor: score?.rationale_points ?? null,
         /** 2.2 and 4.2 — hers to judge, never the model's. */
         mine: category.manual_only,
         entries: group?.entries ?? [],
@@ -521,6 +541,10 @@ export class GradingForms {
           percent: criterion.display?.percent ?? null,
           mine: criterion.mine,
           note: criterion.changeNote,
+          // Not carried when she has since moved the score: on paper, away
+          // from the screen that says so, it would read as justifying her
+          // number rather than the one it was written for.
+          rationale: criterion.rationaleStale ? null : criterion.rationale,
         })),
       })),
       paper: paper ? { points: paper.points, outOf: paper.outOf, percent: paper.percent } : null,

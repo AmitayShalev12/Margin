@@ -78,6 +78,25 @@ export interface GradingCriterionScore extends Timestamped {
   status: 'draft' | 'final';
   /** What improved since last time, in the words she is shown. */
   change_note: string | null;
+  /**
+   * Why this criterion got this score, in the model's own words.
+   *
+   * Asked for outright: "שעל כל פרמטר יהיה לו גם הסבר למה הוא נותן את הציון
+   * הזה... כדי שנוכל לעקוב אחרי הרציונל שלו". Distinct from `change_note`,
+   * which says what moved since last round; this says why the number is what
+   * it is at all, and is wanted even on a criterion that has never moved.
+   *
+   * The model's reasoning, never hers. Shown as such.
+   */
+  rationale: string | null;
+  /**
+   * The score the rationale was written for.
+   *
+   * She can override any score by hand, and an explanation of 5 sitting under
+   * a 7 she typed is worse than none: it reads as a justification of her own
+   * number in a voice that never made that judgement.
+   */
+  rationale_points: number | null;
   round_number: number;
   origin: 'ai' | 'teacher';
   /** Once she has touched it, no generated score overwrites it. */

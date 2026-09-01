@@ -106,20 +106,16 @@ Deno.serve(async (request: Request) => {
     const key = typeof body.api_key === 'string' ? body.api_key.trim() : '';
     if (!looksLikeKey(key)) return json({ error: 'bad_key' }, 400, headers);
 
-    await db(
-      env,
-      'model_credentials',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          teacher_id: teacherId,
-          api_key: key,
-          hint: hintFor(key),
-          updated_at: new Date().toISOString(),
-        }),
-        prefer: 'resolution=merge-duplicates',
-      },
-    );
+    await db(env, 'model_credentials', {
+      method: 'POST',
+      body: JSON.stringify({
+        teacher_id: teacherId,
+        api_key: key,
+        hint: hintFor(key),
+        updated_at: new Date().toISOString(),
+      }),
+      prefer: 'resolution=merge-duplicates',
+    });
 
     return json({ set: true, hint: hintFor(key) }, 200, headers);
   } catch (error) {

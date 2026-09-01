@@ -345,6 +345,31 @@
                       }
                     </div>
 
+                    <!--
+                      The model's reasoning for this score.
+                      --------------------------------------------------------
+                      "כדי שנוכל לעקוב אחרי הרציונל שלו בכל אחד מהציונים".
+                      Labelled, because every other sentence on this screen is
+                      one she wrote, and this one is not.
+                    -->
+                    @if (criterion.rationale) {
+                      <div class="rationale">
+                        <span class="rationale-label">ההסבר של המערכת</span>
+                        <p class="rationale-body">
+                          <app-bidi-text [value]="criterion.rationale" />
+                        </p>
+                        @if (criterion.rationaleStale) {
+                          <!--
+                            She has changed the score since. Saying so keeps the
+                            explanation from reading as a defence of her number.
+                          -->
+                          <p class="rationale-stale">
+                            נכתב לניקוד {{ criterion.rationaleFor }}, ומאז שינית אותו.
+                          </p>
+                        }
+                      </div>
+                    }
+
                     @if (criterion.changeNote) {
                       <p class="change-note"><app-bidi-text [value]="criterion.changeNote" /></p>
                     }

@@ -600,3 +600,38 @@
   font-size: 0.85rem;
   line-height: 1.5;
 }
+
+// -- the model's reasoning ---------------------------------------------------
+//
+// Labelled and set apart, because every other sentence on this screen is one
+// she wrote and this one is not. She asked to be able to follow the rationale
+// behind each score; she did not ask for it to be mistaken for her own.
+
+.rationale {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-inline-start: 2px solid var(--line);
+  background: var(--sunken, rgb(0 0 0 / 2%));
+  border-radius: 6px;
+}
+
+.rationale-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+.rationale-body {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+// She has moved the score since this was written.
+.rationale-stale {
+  margin: 0.35rem 0 0;
+  color: var(--warn-fg, #7a5a00);
+  font-size: 0.72rem;
+}

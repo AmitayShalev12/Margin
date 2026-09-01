@@ -59,8 +59,14 @@ export function responseSchema(kinds: string[], scored = false): JsonSchema {
         // an answer, and a required number would force a guess instead.
         points: { type: 'integer', nullable: true },
         note: { type: 'string' },
+        /**
+         * Why this score, in the model's own words. Required, including when
+         * the points are null — "the chapter is not written yet" is exactly
+         * the reasoning she wants to be able to follow.
+         */
+        rationale: { type: 'string' },
       },
-      required: ['key', 'points', 'note'],
+      required: ['key', 'points', 'note', 'rationale'],
     },
   };
 

@@ -33,6 +33,15 @@ export interface GradeSheetCriterion {
   /** Hers to judge — 2.2 and 4.2. Printed as such, not as a gap. */
   mine: boolean;
   note: string | null;
+  /**
+   * Why this score, in the model's words.
+   *
+   * Carried into the document because the document is where she reads the
+   * form back — "כדי שנוכל לעקוב אחרי הרציונל שלו" is not a thing that only
+   * needs to be true on screen. Attributed on the page for the same reason it
+   * is on screen: everything else on the form is her judgement.
+   */
+  rationale: string | null;
 }
 
 export interface GradeSheetSection {
@@ -183,6 +192,16 @@ function documentXml(sheet: GradeSheet): string {
             }),
         ),
       );
+
+      if (criterion.rationale) {
+        rows.push(
+          row(
+            cell(`ההסבר של המערכת: ${criterion.rationale}`, { width: W_NAME }) +
+              cell('', { width: W_SCORE }) +
+              cell('', { width: W_PERCENT }),
+          ),
+        );
+      }
 
       if (criterion.note) {
         rows.push(

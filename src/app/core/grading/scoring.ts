@@ -232,7 +232,13 @@ function keyOf(raw: string): string {
 }
 
 export interface ResolvedScores {
-  matched: { category: GradingFormCategory; points: number | null; note: string }[];
+  matched: {
+    category: GradingFormCategory;
+    points: number | null;
+    note: string;
+    /** The model's reasoning for this score. Empty when it gave none. */
+    rationale: string;
+  }[];
   /**
    * Keys the model sent that answer to nothing on her form.
    *
@@ -245,7 +251,7 @@ export interface ResolvedScores {
 
 export function resolveScores(
   categories: readonly GradingFormCategory[],
-  drafted: readonly { key: string; points: number | null; note: string }[],
+  drafted: readonly { key: string; points: number | null; note: string; rationale?: string }[],
 ): ResolvedScores {
   const byKey = new Map(categories.map((c) => [keyOf(criterionKey(c)), c]));
 
@@ -271,7 +277,7 @@ export function resolveScores(
         ? null
         : Math.max(0, max === null ? draft.points : Math.min(draft.points, max));
 
-    matched.push({ category, points, note: draft.note });
+    matched.push({ category, points, note: draft.note, rationale: draft.rationale ?? '' });
   }
 
   return { matched, unmatched };

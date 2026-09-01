@@ -215,6 +215,7 @@ export class AnnotationGenerator {
           categoryId: item.category.id,
           points: item.points,
           note: item.note,
+          rationale: item.rationale,
         })),
       );
     }

@@ -230,7 +230,12 @@ export class DataStore {
   applyCriterionScores(
     submissionId: UUID,
     roundNumber: number,
-    scored: readonly { categoryId: UUID; points: number | null; note: string }[],
+    scored: readonly {
+      categoryId: UUID;
+      points: number | null;
+      note: string;
+      rationale: string;
+    }[],
   ): number {
     if (!scored.length) return 0;
 
@@ -258,6 +263,10 @@ export class DataStore {
         // Provisional until she settles it. Nothing generated is ever final.
         status: 'draft',
         change_note: item.note,
+        rationale: item.rationale || null,
+        // Recorded against the score it was written for, so an explanation
+        // cannot silently outlive the number it explains.
+        rationale_points: item.points,
         round_number: roundNumber,
         origin: 'ai',
         edited_by_teacher: false,
@@ -297,6 +306,16 @@ export class DataStore {
         before && before.points !== points ? before.points : (before?.previous_points ?? null),
       status: 'final',
       change_note: note ?? before?.change_note ?? null,
+      /**
+       * Kept, but not re-pointed at her number.
+       *
+       * The explanation was written for whatever the model scored. Leaving
+       * `rationale_points` where it was is what lets the screen say "this was
+       * written for 5" under a 7 she typed, rather than presenting the
+       * model's reasoning as though it justified her judgement.
+       */
+      rationale: before?.rationale ?? null,
+      rationale_points: before?.rationale_points ?? null,
       round_number: before?.round_number ?? 1,
       origin: 'teacher',
       edited_by_teacher: true,
