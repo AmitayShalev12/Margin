@@ -50,6 +50,43 @@
     Her own back catalogue. A teacher who has marked papers for years already
     has the thing this screen otherwise spends a year assembling.
   -->
+  <!--
+    How gently to put it.
+    ==========================================================================
+    Wording, not content. Said on the screen as well as in the prompt, because
+    "gentle" is otherwise a reasonable thing to read as "mention less" — and a
+    review softened by leaving half of it out is the one failure she could not
+    see from the outside.
+  -->
+  <div class="tone">
+    <h2 class="section-title">איך לנסח את ההערות</h2>
+    <div class="tone-options">
+      @for (option of tones; track option.key) {
+        <button
+          type="button"
+          class="btn btn-sm tone-option"
+          [class.btn-primary]="tone() === option.key"
+          [class.btn-ghost]="tone() !== option.key"
+          [attr.aria-pressed]="tone() === option.key"
+          (click)="setTone(option.key)"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    @for (option of tones; track option.key) {
+      @if (tone() === option.key) {
+        <p class="hint">{{ option.note }}</p>
+      }
+    }
+
+    <p class="hint">
+      זה משנה איך נאמר, לא מה נאמר. גם בניסוח העדין ההערות יעלו בדיוק את אותם דברים — מקור חסר נשאר
+      מקור חסר.
+    </p>
+  </div>
+
   <div class="add">
     <label class="btn btn-primary btn-block file-button">
       {{ reading() ? 'קוראת את הקובץ…' : 'הוספת דוגמאות מהכתיבה שלי' }}

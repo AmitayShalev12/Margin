@@ -5,6 +5,7 @@ import { buildEntries } from '../grading/entries';
 import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
 import {
+  CommentTone,
   DiscussionTurn,
   Annotation,
   AnnotationKind,
@@ -251,6 +252,23 @@ export class DataStore {
       drive_folder_id: this.folders()[assignment.id] ?? assignment.drive_folder_id,
     };
   });
+
+  /**
+   * How gently the drafted comments are put, for this course.
+   *
+   * Register only. Nothing downstream treats it as permission to leave a
+   * finding out — the prompt is explicit about that, because a gentle setting
+   * that quietly dropped a missing citation would hand her a review softened
+   * by hiding half of it, and nothing on screen would say so.
+   */
+  setCommentTone(tone: CommentTone) {
+    const course = this._course();
+    if (!course || course.comment_tone === tone) return;
+
+    const written: Course = { ...course, comment_tone: tone, updated_at: new Date().toISOString() };
+    this._courses.update((list) => list.map((c) => (c.id === written.id ? written : c)));
+    this.persist(() => this.repository.saveCourse(written));
+  }
 
   /**
    * Switch to another course, or another year of the same one.
@@ -742,6 +760,9 @@ export class DataStore {
       drive_course_folder_id: null,
       drive_folder_id: null,
       grade_weights: null,
+      // The middle setting. A new course has told us nothing about its
+      // students yet, and guessing at gentle or blunt is guessing about them.
+      comment_tone: 'balanced',
       archived: false,
       created_at: now,
       updated_at: now,

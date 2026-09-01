@@ -5,9 +5,25 @@ import { ISODateTime, OwnedByTeacher, Timestamped, UUID } from './common';
  * knowledge base the AI reasons from: the teacher's own rules, her syllabus,
  * model assignments and example corrections.
  */
+/**
+ * How gently a drafted comment is put.
+ *
+ * Register only. It changes the words a problem is raised in, never whether it
+ * is raised — a gentle setting that stopped mentioning a missing citation
+ * would be a review softened by hiding half of it, which is worse than a blunt
+ * one.
+ */
+export type CommentTone = 'gentle' | 'balanced' | 'direct';
+
 export interface Course extends Timestamped, OwnedByTeacher {
   id: UUID;
   name: string;
+  /**
+   * On the course, because that is where the difference lives: the same
+   * teacher is gentler with a class meeting research writing for the first
+   * time than with one handing in its final seminar paper.
+   */
+  comment_tone: CommentTone;
   /** School year, as the teacher writes it — e.g. `תשפ"ו`. */
   year: string;
   description: string | null;

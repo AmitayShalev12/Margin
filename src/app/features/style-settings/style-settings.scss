@@ -345,3 +345,21 @@
 .mine-check {
   margin-block: var(--s-2);
 }
+
+// -- how gently to put it ----------------------------------------------------
+//
+// Three registers. The note under them says what the setting does *not* do,
+// because "gentle" reads as "mention less" unless something says otherwise.
+
+.tone {
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+}
+
+.tone-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-block: var(--s-2);
+}

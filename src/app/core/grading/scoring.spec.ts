@@ -387,3 +387,44 @@ describe('matching the model’s scores to her criteria', () => {
     expect(matched[0].points).toBeNull();
   });
 });
+
+/**
+ * Whose paper is this score on?
+ *
+ * Worth pinning rather than assuming. The rubric is shared across the whole
+ * course — seventeen criteria, one set — so the criterion id is the same for
+ * every student, and a score keyed on the criterion alone would show one
+ * girl's mark on every other girl's form. Every score carries its submission.
+ */
+describe('a score belongs to one paper', () => {
+  const rubric = [category({ id: 'a', name: '2.1 סקירת ספרות', max_points: 8 })];
+
+  it('totals only the scores for the paper being looked at', () => {
+    const noa = score({ id: 's1', submission_id: 'sub-noa', category_id: 'a', points: 6 });
+    const dana = score({ id: 's2', submission_id: 'sub-dana', category_id: 'a', points: 2 });
+    const all = [noa, dana];
+
+    const forNoa = scoreTotals(
+      rubric,
+      all.filter((s) => s.submission_id === 'sub-noa'),
+    );
+    const forDana = scoreTotals(
+      rubric,
+      all.filter((s) => s.submission_id === 'sub-dana'),
+    );
+
+    expect(forNoa.points).toBe(6);
+    expect(forDana.points).toBe(2);
+  });
+
+  /** The same criterion, two papers, two different marks — not one shared row. */
+  it('keeps two papers scored on the same criterion apart', () => {
+    const rows = [
+      score({ id: 's1', submission_id: 'sub-noa', category_id: 'a', points: 6 }),
+      score({ id: 's2', submission_id: 'sub-dana', category_id: 'a', points: 2 }),
+    ];
+
+    expect(new Set(rows.map((r) => r.id)).size).toBe(2);
+    expect(rows.filter((r) => r.submission_id === 'sub-noa')).toHaveLength(1);
+  });
+});

@@ -56,6 +56,8 @@ function make() {
       mine: { set(v: boolean): void };
       canSave(): boolean;
       save(): void;
+      tone(): string;
+      setTone(t: 'gentle' | 'balanced' | 'direct'): void;
     },
   };
 }
@@ -156,5 +158,46 @@ describe('the formats it still cannot read', () => {
 
     expect(page.component.found()).toEqual([]);
     expect(page.component.canSave()).toBe(false);
+  });
+});
+
+/**
+ * How gently the comments are put.
+ *
+ * "add an option to choose how graceful it is." A first-year handing in her
+ * first chapter and a fourth-year finishing a seminar paper need the same
+ * problems named, and not in the same words.
+ */
+describe('choosing how gently to put it', () => {
+  it('starts balanced, since a new course has told us nothing yet', () => {
+    expect(make().component.tone()).toBe('balanced');
+  });
+
+  it('remembers what she chose', () => {
+    const page = make();
+
+    page.component.setTone('gentle');
+
+    expect(page.component.tone()).toBe('gentle');
+    expect(page.store.course()?.comment_tone).toBe('gentle');
+  });
+
+  /**
+   * Per course-year, which is where the difference actually lives: the same
+   * teacher is gentler with a class meeting research writing for the first
+   * time than with one handing in its final paper.
+   */
+  it('is a property of the course, not of everything she teaches', () => {
+    const page = make();
+    const first = page.store.course()!;
+    page.component.setTone('direct');
+
+    const second = page.store.createCourse('שיטות מחקר', 'תשפ״ו')!;
+
+    expect(page.store.course()?.id).toBe(second.id);
+    expect(page.store.course()?.comment_tone).toBe('balanced');
+
+    page.store.selectCourse(first.id);
+    expect(page.store.course()?.comment_tone).toBe('direct');
   });
 });

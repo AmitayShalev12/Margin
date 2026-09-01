@@ -320,6 +320,7 @@ export class AnnotationGenerator {
       student_name: this.store.studentName(submission.student_id),
       round_number: round.round_number,
       course_name: course.name,
+      tone: course.comment_tone,
       assignment_title: assignment.title,
       assignment_brief: assignment.brief,
       blocks: blocks.map((b) => ({

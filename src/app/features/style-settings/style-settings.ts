@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { ModelKey } from '../../core/ai/model-key';
+import { CommentTone } from '../../core/models';
 import { DataStore } from '../../core/data/data-store';
 import {
   DocxError,
@@ -32,6 +33,32 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 })
 export class StyleSettings {
   private readonly data = inject(DataStore);
+
+  // -- how gently to put it -------------------------------------------------
+  //
+  // "add an option to choose how graceful it is". A first-year handing in her
+  // first chapter and a fourth-year finishing a seminar paper need the same
+  // problems named, and not in the same words.
+  //
+  // Wording only. The prompt is explicit that a gentler setting raises exactly
+  // the same things — a review softened by leaving half of it out is the one
+  // failure she could not see from the outside.
+
+  protected readonly tones = [
+    { key: 'gentle' as const, label: 'עדין', note: 'מוביל במה שהפסקה מנסה לעשות, ואז מה חסר.' },
+    {
+      key: 'balanced' as const,
+      label: 'מאוזן',
+      note: 'כמו הערה בשוליים — ישר, בלי לרכך ובלי לחדד.',
+    },
+    { key: 'direct' as const, label: 'ישיר', note: 'הבעיה במשפט הראשון, בלי ריפוד.' },
+  ];
+
+  protected readonly tone = computed(() => this.data.course()?.comment_tone ?? 'balanced');
+
+  protected setTone(tone: CommentTone) {
+    this.data.setCommentTone(tone);
+  }
 
   // -- her own Gemini key ---------------------------------------------------
   //

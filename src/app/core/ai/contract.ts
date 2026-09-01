@@ -30,6 +30,11 @@ export interface AnnotateRequest {
   student_name: string;
   round_number: number;
   course_name: string;
+  /**
+   * The register she asked for. Never a licence to leave something out — the
+   * function's prompt is explicit that this changes wording only.
+   */
+  tone: 'gentle' | 'balanced' | 'direct';
   assignment_title: string;
   assignment_brief: string | null;
   blocks: Pick<DocumentBlock, 'id' | 'type' | 'level' | 'text'>[];

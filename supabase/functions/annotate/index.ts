@@ -52,6 +52,8 @@ interface AnnotateRequest {
   student_name: string;
   round_number: number;
   course_name: string;
+  /** The register she chose: gentle, balanced or direct. Wording only. */
+  tone?: 'gentle' | 'balanced' | 'direct';
   assignment_title: string;
   assignment_brief: string | null;
   blocks: RequestBlock[];
@@ -194,6 +196,40 @@ function knowledgeBase(body: AnnotateRequest): string {
    * from ordinary academic judgement rather than staying silent, but do not
    * dress that answer up as coming from an authority that never said it.
    */
+  /**
+   * How gently to put it.
+   *
+   * The sentence that matters is the second one in each. A tone setting is an
+   * instruction about wording, and a model reading "be gentle" without it will
+   * quietly start leaving the hard things out — which is the one failure that
+   * cannot be seen from the outside: she would be reading a review that had
+   * been softened by hiding half of it, with nothing on screen to say so.
+   */
+  const TONE: Record<string, string> = {
+    gentle:
+      `# How to put it\n` +
+      `Gently. These students are early in their research writing and a blunt ` +
+      `note reads as a verdict on them rather than on a paragraph. Lead with ` +
+      `what the sentence is trying to do, then what would make it work.\n` +
+      `Raise exactly the same things you otherwise would. Gentleness is about ` +
+      `wording, never about leaving something out: a missing citation is still ` +
+      `a missing citation, and softening it into silence would hand her a ` +
+      `review with half of it hidden.`,
+    balanced:
+      `# How to put it\n` +
+      `Plainly and without hedging, the way a teacher writes in a margin. ` +
+      `Neither softened nor sharpened.`,
+    direct:
+      `# How to put it\n` +
+      `Directly. Name the problem in the first clause and do not cushion it — ` +
+      `these students are near the end of their degree and can take it.\n` +
+      `Direct is not unkind. It is still about the paragraph and never about ` +
+      `the student, and a comment that would sting to read on your own work at ` +
+      `midnight is the wrong comment however true it is.`,
+  };
+
+  if (body.tone && TONE[body.tone]) parts.push(TONE[body.tone]);
+
   /**
    * The rubric, and the two refusals that go with it.
    *
