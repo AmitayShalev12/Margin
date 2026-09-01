@@ -62,6 +62,7 @@ function score(over: Partial<GradingCriterionScore> = {}): GradingCriterionScore
     rationale: null,
     rationale_points: null,
     teacher_note: null,
+    model_reply: null,
     round_number: 1,
     origin: 'ai',
     edited_by_teacher: false,
@@ -751,5 +752,136 @@ describe('replying to the reasoning', () => {
     page.store.setCriterionScore(SUBMISSION_ID, category.id, 4);
 
     expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe('שניים מספיקים כאן.');
+  });
+});
+
+/**
+ * The model answering back.
+ *
+ * The half that turns a note into "משא ומתן כזה". These cover the rules that
+ * keep it a negotiation rather than a takeover — an answer that quietly
+ * overwrote her own judgement would be the opposite of what she asked for.
+ */
+describe('what the model’s answer may and may not change', () => {
+  const CATEGORY = 'cat-1';
+
+  function scored(over = {}) {
+    return render({
+      criterionScores: [
+        score({ points: 3, rationale: 'שני מקורות בלבד.', rationale_points: 3, ...over }),
+      ],
+    });
+  }
+
+  it('records the answer and the score it revised', () => {
+    const page = scored();
+
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'צודקת, המקור מ־2019 עדיין נחשב עדכני בתחום.',
+      points: 4,
+      rationale: 'שלושה מקורות עדכניים.',
+    });
+
+    const after = page.store.criterionScores(SUBMISSION_ID)[0];
+    expect(after.model_reply).toContain('צודקת');
+    expect(after.points).toBe(4);
+    // The reasoning follows the score it explains, so nothing goes stale.
+    expect(after.rationale_points).toBe(4);
+  });
+
+  it('keeps the previous score, so the change is still traceable', () => {
+    const page = scored();
+
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'משנה ל־4.',
+      points: 4,
+      rationale: 'הסבר חדש',
+    });
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].previous_points).toBe(3);
+  });
+
+  /**
+   * The rule that matters most. She overrode this score by hand; being talked
+   * out of it by the thing she was arguing with is exactly backwards.
+   */
+  it('never overwrites a score she set herself', () => {
+    const page = scored({ edited_by_teacher: true, points: 4 });
+
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'אני עדיין חושב 2.',
+      points: 2,
+      rationale: 'הסבר משלו',
+    });
+
+    const after = page.store.criterionScores(SUBMISSION_ID)[0];
+    expect(after.points).toBe(4);
+    // Its answer is still recorded — she asked for its opinion, and it gave one.
+    expect(after.model_reply).toContain('עדיין חושב');
+  });
+
+  it('marks a score it revised as a draft, not as settled', () => {
+    const page = scored();
+
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'משנה',
+      points: 4,
+      rationale: 'הסבר',
+    });
+
+    // She asked it to reconsider, not to decide.
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].status).toBe('draft');
+  });
+
+  it('is allowed to hold its ground', () => {
+    const page = scored();
+
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'עדיין נראה לי ששניים מהם מיושנים, בעמוד 4.',
+      points: 3,
+      rationale: 'שני מקורות בלבד.',
+    });
+
+    const after = page.store.criterionScores(SUBMISSION_ID)[0];
+    expect(after.points).toBe(3);
+    expect(after.model_reply).toContain('עדיין נראה לי');
+  });
+
+  /**
+   * An answer to a sentence she has since rewritten is not stale, it is wrong:
+   * it puts words in the model's mouth about an objection it never read.
+   */
+  it('drops the answer when she rewrites the note it was answering', () => {
+    const page = scored({ teacher_note: 'הערה ראשונה' });
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'תשובה להערה הראשונה',
+      points: 3,
+      rationale: 'הסבר',
+    });
+
+    page.store.setCriterionNote(SUBMISSION_ID, CATEGORY, 'הערה אחרת לגמרי');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].model_reply).toBeNull();
+  });
+
+  it('keeps the answer when she saves the same note again', () => {
+    const page = scored({ teacher_note: 'הערה' });
+    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
+      reply: 'תשובה',
+      points: 3,
+      rationale: 'הסבר',
+    });
+
+    page.store.setCriterionNote(SUBMISSION_ID, CATEGORY, 'הערה');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].model_reply).toBe('תשובה');
+  });
+
+  it('shows the answer, attributed to it', () => {
+    const page = scored({ teacher_note: 'לא מסכימה', model_reply: 'צודקת בחלק מזה.' });
+    page.click('.section-head');
+
+    expect(page.text()).toContain('התשובה שלו');
+    expect(page.text()).toContain('צודקת בחלק מזה.');
   });
 });

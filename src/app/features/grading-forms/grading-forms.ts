@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { DataStore } from '../../core/data/data-store';
 import { ParsedRubric, RubricError, readRubric } from '../../core/import/rubric';
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
+import { CriterionReply } from '../../core/ai/criterion-reply';
 import { GradeSheet, buildGradeDocx, gradeDocxName } from '../../core/export/grade-docx';
 import { isStartingSet } from '../../core/grading/categories';
 import { groupByCategory } from '../../core/grading/entries';
@@ -44,6 +45,7 @@ import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 export class GradingForms {
   private readonly data = inject(DataStore);
   private readonly generator = inject(AnnotationGenerator);
+  protected readonly replies = inject(CriterionReply);
 
   /** Which submission's form is on screen. Defaults to the first with work on it. */
   private readonly selected = signal<UUID | null>(null);
@@ -308,6 +310,8 @@ export class GradingForms {
         rationaleFor: score?.rationale_points ?? null,
         /** Her reply to the reasoning, or a remark of her own. Always hers. */
         note: score?.teacher_note ?? null,
+        /** What it answered back. Cleared whenever she rewrites her note. */
+        modelReply: score?.model_reply ?? null,
         /** 2.2 and 4.2 — hers to judge, never the model's. */
         mine: category.manual_only,
         entries: group?.entries ?? [],
@@ -435,6 +439,21 @@ export class GradingForms {
 
     this.data.setCriterionNote(id, categoryId, '');
     this.cancelReply();
+  }
+
+  /**
+   * Ask the model to answer her note on this criterion.
+   *
+   * Only offered once she has written something — there is nothing to answer
+   * otherwise, and a button that sends an empty objection would come back with
+   * the model restating itself at length.
+   */
+  protected async askModel(categoryId: UUID) {
+    const id = this.submissionId();
+    const category = this.data.gradingCategories().find((c) => c.id === categoryId);
+    if (!id || !category) return;
+
+    await this.replies.ask(id, category);
   }
 
   protected toggle(section: string) {

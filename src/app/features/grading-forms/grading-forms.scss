@@ -687,3 +687,16 @@
 .reply-open {
   margin-top: 0.4rem;
 }
+
+// Its answer to her. Same treatment as its reasoning, because it is the same
+// voice — one exchange, two speakers, each labelled.
+.model-answer {
+  margin-top: 0.4rem;
+}
+
+.reply-error {
+  margin: 0.4rem 0 0;
+  color: var(--c-danger, #a3282d);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}

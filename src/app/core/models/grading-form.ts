@@ -109,6 +109,14 @@ export interface GradingCriterionScore extends Timestamped {
    * negotiation — it is one voice with no way to tell whose it is.
    */
   teacher_note: string | null;
+  /**
+   * The model's answer to her note — the other half of the exchange.
+   *
+   * Cleared whenever `teacher_note` changes. An answer to a sentence she has
+   * since rewritten is not stale, it is wrong, and the only safe thing to do
+   * with it is delete it.
+   */
+  model_reply: string | null;
   round_number: number;
   origin: 'ai' | 'teacher';
   /** Once she has touched it, no generated score overwrites it. */

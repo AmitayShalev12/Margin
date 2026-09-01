@@ -268,6 +268,7 @@ export class DataStore {
         // silently dropped her reply would be the worst kind of data loss:
         // invisible, and only noticed when she looks for what she wrote.
         teacher_note: before?.teacher_note ?? null,
+        model_reply: before?.model_reply ?? null,
         // Recorded against the score it was written for, so an explanation
         // cannot silently outlive the number it explains.
         rationale_points: item.points,
@@ -321,6 +322,7 @@ export class DataStore {
       rationale: before?.rationale ?? null,
       rationale_points: before?.rationale_points ?? null,
       teacher_note: before?.teacher_note ?? null,
+      model_reply: before?.model_reply ?? null,
       round_number: before?.round_number ?? 1,
       origin: 'teacher',
       edited_by_teacher: true,
@@ -358,6 +360,15 @@ export class DataStore {
       rationale: before?.rationale ?? null,
       rationale_points: before?.rationale_points ?? null,
       teacher_note: text || null,
+      /**
+       * Dropped whenever her note changes.
+       *
+       * An answer to a sentence she has since rewritten does not describe the
+       * exchange on screen — it describes one that no longer exists, and
+       * leaving it there would put words in the model's mouth about an
+       * objection it never read.
+       */
+      model_reply: text === (before?.teacher_note ?? '') ? (before?.model_reply ?? null) : null,
       round_number: before?.round_number ?? 1,
       /**
        * Origin stays whatever it was.
@@ -370,6 +381,48 @@ export class DataStore {
       edited_by_teacher: before?.edited_by_teacher ?? false,
       scored_at: before?.scored_at ?? now,
       created_at: before?.created_at ?? now,
+      updated_at: now,
+    };
+
+    this._criterionScores.update((list) => [...list.filter((s) => s.id !== written.id), written]);
+    this.persist(() => this.repository.saveCriterionScore(written));
+  }
+
+  /**
+   * Records the model's answer to her objection, and any score it revised.
+   *
+   * The revised score is applied here rather than left for her to copy across,
+   * but it is written as a draft and attributed to the model — she asked it to
+   * reconsider, not to decide. A score she had already set by hand is left
+   * alone entirely: she overrode it once, and a negotiation is not a licence
+   * to overwrite her judgement.
+   */
+  applyCriterionReply(
+    submissionId: UUID,
+    categoryId: UUID,
+    answer: { reply: string; points: number | null; rationale: string },
+  ) {
+    const before = this._criterionScores().find(
+      (s) => s.submission_id === submissionId && s.category_id === categoryId,
+    );
+    if (!before) return;
+
+    const hers = before.edited_by_teacher;
+    const points = hers ? before.points : answer.points;
+    const moved = points !== before.points;
+    const now = new Date().toISOString();
+
+    const written: GradingCriterionScore = {
+      ...before,
+      points,
+      previous_points: moved ? before.points : before.previous_points,
+      model_reply: answer.reply,
+      // The rationale follows the score it explains. Where her number stands,
+      // so does the reasoning that was written for it.
+      rationale: hers ? before.rationale : answer.rationale || before.rationale,
+      rationale_points: hers ? before.rationale_points : points,
+      status: hers ? before.status : 'draft',
+      scored_at: now,
       updated_at: now,
     };
 

@@ -418,14 +418,47 @@
                       <div class="reply">
                         <span class="reply-label">התגובה שלי</span>
                         <p class="reply-body"><app-bidi-text [value]="criterion.note" /></p>
-                        <button
-                          type="button"
-                          class="btn btn-plain btn-sm"
-                          (click)="startReply(criterion.id, criterion.note)"
-                        >
-                          עריכה
-                        </button>
+                        <div class="reply-actions">
+                          <button
+                            type="button"
+                            class="btn btn-plain btn-sm"
+                            (click)="startReply(criterion.id, criterion.note)"
+                          >
+                            עריכה
+                          </button>
+                          @if (replies.available && !criterion.modelReply) {
+                            <button
+                              type="button"
+                              class="btn btn-ghost btn-sm"
+                              [disabled]="replies.isAsking(criterion.id)"
+                              (click)="askModel(criterion.id)"
+                            >
+                              {{ replies.isAsking(criterion.id) ? 'שולחת…' : 'מה הוא אומר על זה?' }}
+                            </button>
+                          }
+                        </div>
                       </div>
+
+                      <!--
+                        Its answer.
+                        ------------------------------------------------------
+                        The half that makes this an exchange rather than a
+                        suggestion box. Marked as the model's, like its
+                        reasoning above, and gone the moment she rewrites the
+                        note it was answering.
+                      -->
+                      @if (criterion.modelReply) {
+                        <div class="rationale model-answer">
+                          <span class="rationale-label">התשובה שלו</span>
+                          <p class="rationale-body">
+                            <app-bidi-text [value]="criterion.modelReply" />
+                          </p>
+                        </div>
+                      }
+
+                      @if (replies.error(); as problem) {
+                        <p class="reply-error" role="alert">{{ problem }}</p>
+                      }
                     } @else {
                       <button
                         type="button"
