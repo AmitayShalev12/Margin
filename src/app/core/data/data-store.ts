@@ -264,6 +264,10 @@ export class DataStore {
         status: 'draft',
         change_note: item.note,
         rationale: item.rationale || null,
+        // Never touched by a generated pass. It is hers, and a re-run that
+        // silently dropped her reply would be the worst kind of data loss:
+        // invisible, and only noticed when she looks for what she wrote.
+        teacher_note: before?.teacher_note ?? null,
         // Recorded against the score it was written for, so an explanation
         // cannot silently outlive the number it explains.
         rationale_points: item.points,
@@ -316,10 +320,55 @@ export class DataStore {
        */
       rationale: before?.rationale ?? null,
       rationale_points: before?.rationale_points ?? null,
+      teacher_note: before?.teacher_note ?? null,
       round_number: before?.round_number ?? 1,
       origin: 'teacher',
       edited_by_teacher: true,
       scored_at: now,
+      created_at: before?.created_at ?? now,
+      updated_at: now,
+    };
+
+    this._criterionScores.update((list) => [...list.filter((s) => s.id !== written.id), written]);
+    this.persist(() => this.repository.saveCriterionScore(written));
+  }
+
+  /**
+   * Her reply to the model's reasoning on one criterion.
+   *
+   * Written against the score even when there is no score yet: she may well
+   * want to answer "this cannot be judged until the chapter exists" before any
+   * number is on it. Empty clears the note rather than storing a blank.
+   */
+  setCriterionNote(submissionId: UUID, categoryId: UUID, note: string) {
+    const now = new Date().toISOString();
+    const text = note.trim();
+    const before = this._criterionScores().find(
+      (s) => s.submission_id === submissionId && s.category_id === categoryId,
+    );
+
+    const written: GradingCriterionScore = {
+      id: before?.id ?? derivedId('criterion-score', `${submissionId}:${categoryId}`),
+      submission_id: submissionId,
+      category_id: categoryId,
+      points: before?.points ?? null,
+      previous_points: before?.previous_points ?? null,
+      status: before?.status ?? 'draft',
+      change_note: before?.change_note ?? null,
+      rationale: before?.rationale ?? null,
+      rationale_points: before?.rationale_points ?? null,
+      teacher_note: text || null,
+      round_number: before?.round_number ?? 1,
+      /**
+       * Origin stays whatever it was.
+       *
+       * Replying to a drafted score does not make the score hers, and marking
+       * it `teacher` here would tell the next generated pass to leave the
+       * number alone — quietly freezing a score she only commented on.
+       */
+      origin: before?.origin ?? 'teacher',
+      edited_by_teacher: before?.edited_by_teacher ?? false,
+      scored_at: before?.scored_at ?? now,
       created_at: before?.created_at ?? now,
       updated_at: now,
     };

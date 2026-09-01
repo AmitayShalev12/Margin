@@ -370,6 +370,72 @@
                       </div>
                     }
 
+                    <!--
+                      Her reply.
+                      --------------------------------------------------------
+                      "אם הוא אומר, זה הסיבה שנתתי ציון כזה וכזה, אז אני אולי
+                      יכולה להגיב לו... למשא ומתן כזה." Hers, kept beside the
+                      model's reasoning rather than replacing it — a
+                      disagreement needs both halves on the page or it is not a
+                      disagreement.
+                    -->
+                    @if (isReplying(criterion.id)) {
+                      <div class="reply-edit">
+                        <textarea
+                          class="control reply-box"
+                          rows="3"
+                          [value]="replyDraft()"
+                          (input)="replyDraft.set($any($event.target).value)"
+                          [attr.aria-label]="'תגובה על ' + criterion.name"
+                        ></textarea>
+                        <div class="reply-actions">
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            (click)="saveReply(criterion.id)"
+                          >
+                            שמירה
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-plain btn-sm"
+                            (click)="cancelReply()"
+                          >
+                            ביטול
+                          </button>
+                          @if (criterion.note) {
+                            <button
+                              type="button"
+                              class="btn btn-plain btn-sm"
+                              (click)="deleteReply(criterion.id)"
+                            >
+                              מחיקה
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    } @else if (criterion.note) {
+                      <div class="reply">
+                        <span class="reply-label">התגובה שלי</span>
+                        <p class="reply-body"><app-bidi-text [value]="criterion.note" /></p>
+                        <button
+                          type="button"
+                          class="btn btn-plain btn-sm"
+                          (click)="startReply(criterion.id, criterion.note)"
+                        >
+                          עריכה
+                        </button>
+                      </div>
+                    } @else {
+                      <button
+                        type="button"
+                        class="btn btn-plain btn-sm reply-open"
+                        (click)="startReply(criterion.id, null)"
+                      >
+                        {{ criterion.rationale ? 'להגיב להסבר' : 'הוספת הערה' }}
+                      </button>
+                    }
+
                     @if (criterion.changeNote) {
                       <p class="change-note"><app-bidi-text [value]="criterion.changeNote" /></p>
                     }

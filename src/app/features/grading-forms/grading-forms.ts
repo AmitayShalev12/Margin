@@ -306,6 +306,8 @@ export class GradingForms {
           score.rationale_points !== null &&
           score.rationale_points !== score.points,
         rationaleFor: score?.rationale_points ?? null,
+        /** Her reply to the reasoning, or a remark of her own. Always hers. */
+        note: score?.teacher_note ?? null,
         /** 2.2 and 4.2 — hers to judge, never the model's. */
         mine: category.manual_only,
         entries: group?.entries ?? [],
@@ -389,6 +391,51 @@ export class GradingForms {
     }
     return null;
   });
+
+  // -- her reply ------------------------------------------------------------
+  //
+  // "אז אני אולי יכולה להגיב לו... שתהיה אופציה כזאת, למשא ומתן כזה."
+  //
+  // Her side of it. The model does not answer back — said plainly on screen
+  // rather than implied by a composer that looks like a chat and never
+  // replies, which would be a promise the app cannot keep.
+
+  /** Which criterion's reply box is open. One at a time. */
+  private readonly replyingTo = signal<UUID | null>(null);
+  protected readonly replyDraft = signal('');
+
+  protected isReplying(categoryId: UUID): boolean {
+    return this.replyingTo() === categoryId;
+  }
+
+  protected startReply(categoryId: UUID, existing: string | null) {
+    // Opens on what she wrote last, so "edit" and "reply" are one control
+    // rather than two that behave differently.
+    this.replyDraft.set(existing ?? '');
+    this.replyingTo.set(categoryId);
+  }
+
+  protected cancelReply() {
+    this.replyingTo.set(null);
+    this.replyDraft.set('');
+  }
+
+  protected saveReply(categoryId: UUID) {
+    const id = this.submissionId();
+    if (!id) return;
+
+    this.data.setCriterionNote(id, categoryId, this.replyDraft());
+    this.cancelReply();
+  }
+
+  /** Clearing it is saving an empty one — one path, so they cannot disagree. */
+  protected deleteReply(categoryId: UUID) {
+    const id = this.submissionId();
+    if (!id) return;
+
+    this.data.setCriterionNote(id, categoryId, '');
+    this.cancelReply();
+  }
 
   protected toggle(section: string) {
     this.opened.update((open) => {
@@ -545,6 +592,8 @@ export class GradingForms {
           // from the screen that says so, it would read as justifying her
           // number rather than the one it was written for.
           rationale: criterion.rationaleStale ? null : criterion.rationale,
+          // Hers, so it goes on the form whatever happened to the score.
+          teacherNote: criterion.note,
         })),
       })),
       paper: paper ? { points: paper.points, outOf: paper.outOf, percent: paper.percent } : null,

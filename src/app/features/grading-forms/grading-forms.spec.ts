@@ -61,6 +61,7 @@ function score(over: Partial<GradingCriterionScore> = {}): GradingCriterionScore
     change_note: null,
     rationale: null,
     rationale_points: null,
+    teacher_note: null,
     round_number: 1,
     origin: 'ai',
     edited_by_teacher: false,
@@ -638,5 +639,117 @@ describe('why a criterion got its score', () => {
     page.fixture.detectChanges();
 
     expect(page.text()).toContain('נכתב לניקוד 3');
+  });
+});
+
+/**
+ * Her reply to the model's reasoning.
+ *
+ * "אם הוא אומר, זה הסיבה שנתתי ציון כזה וכזה, אז אני אולי יכולה להגיב לו...
+ * שתהיה אופציה כזאת, למשא ומתן כזה."
+ *
+ * Kept beside the rationale rather than replacing it: a disagreement needs
+ * both halves on the page, or there is no way to tell whose voice is whose.
+ */
+describe('replying to the reasoning', () => {
+  function open(over = {}) {
+    const page = render({
+      criterionScores: [score({ points: 3, rationale: 'רק שניים מהמקורות עדכניים.', ...over })],
+    });
+    page.click('.section-head');
+    return page;
+  }
+
+  function type(page: ReturnType<typeof render>, text: string) {
+    const box = page.fixture.nativeElement.querySelector('.reply-box') as HTMLTextAreaElement;
+    box.value = text;
+    box.dispatchEvent(new Event('input'));
+    page.fixture.detectChanges();
+  }
+
+  it('offers to answer the explanation', () => {
+    const page = open();
+
+    expect(page.text()).toContain('להגיב להסבר');
+  });
+
+  /** With no reasoning to answer, it is a note of her own, not a reply. */
+  it('offers a plain note where the model said nothing', () => {
+    const page = render({ criterionScores: [score({ points: 3, rationale: null })] });
+    page.click('.section-head');
+
+    expect(page.text()).toContain('הוספת הערה');
+  });
+
+  it('keeps what she writes, attributed to her', () => {
+    const page = open();
+
+    page.click('.reply-open');
+    type(page, 'שניים מספיקים בפרק הזה, זה נושא ותיק.');
+    page.click('.reply-actions button');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe(
+      'שניים מספיקים בפרק הזה, זה נושא ותיק.',
+    );
+    expect(page.text()).toContain('התגובה שלי');
+  });
+
+  /**
+   * Both halves stay on the page. Replacing the rationale with her answer
+   * would erase the thing she was answering.
+   */
+  it('leaves the model’s reasoning standing beside it', () => {
+    const page = open();
+
+    page.click('.reply-open');
+    type(page, 'לא מסכימה.');
+    page.click('.reply-actions button');
+
+    expect(page.text()).toContain('רק שניים מהמקורות עדכניים.');
+    expect(page.text()).toContain('לא מסכימה.');
+  });
+
+  it('opens on what she wrote last, so editing is the same control', () => {
+    const page = open({ teacher_note: 'הערה קודמת' });
+
+    page.click('.reply .btn');
+    const box = page.fixture.nativeElement.querySelector('.reply-box') as HTMLTextAreaElement;
+
+    expect(box.value).toBe('הערה קודמת');
+  });
+
+  it('lets her take it back', () => {
+    const page = open({ teacher_note: 'הערה קודמת' });
+
+    page.click('.reply .btn');
+    page.click('.reply-actions button:last-child');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBeNull();
+  });
+
+  /**
+   * The loss that would be invisible. A re-run rewrites the score and the
+   * rationale; if it took her note with them she would only find out by
+   * looking for something she wrote and not finding it.
+   */
+  it('survives a generated pass rewriting the score', () => {
+    const page = open({ teacher_note: 'שניים מספיקים כאן.' });
+    const category = page.store.gradingCategories()[0];
+
+    page.store.applyCriterionScores(SUBMISSION_ID, 2, [
+      { categoryId: category.id, points: 2, note: 'ירד', rationale: 'הסבר חדש' },
+    ]);
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe('שניים מספיקים כאן.');
+  });
+
+  /** And survives her own edit of the score, for the same reason. */
+  it('survives her changing the score by hand', () => {
+    const page = open({ teacher_note: 'שניים מספיקים כאן.' });
+    const category = page.store.gradingCategories()[0];
+
+    page.store.setCriterionScore(SUBMISSION_ID, category.id, 4);
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe('שניים מספיקים כאן.');
   });
 });

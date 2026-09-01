@@ -42,6 +42,15 @@ export interface GradeSheetCriterion {
    * is on screen: everything else on the form is her judgement.
    */
   rationale: string | null;
+  /**
+   * Her own note on this criterion.
+   *
+   * Printed after the model's reasoning and attributed, because on the page
+   * that leaves the app her words are the ones that carry weight — and unlike
+   * the rationale, this one survives her changing the score, since it is hers
+   * and she meant it about this criterion however it ends up marked.
+   */
+  teacherNote: string | null;
 }
 
 export interface GradeSheetSection {
@@ -197,6 +206,16 @@ function documentXml(sheet: GradeSheet): string {
         rows.push(
           row(
             cell(`ההסבר של המערכת: ${criterion.rationale}`, { width: W_NAME }) +
+              cell('', { width: W_SCORE }) +
+              cell('', { width: W_PERCENT }),
+          ),
+        );
+      }
+
+      if (criterion.teacherNote) {
+        rows.push(
+          row(
+            cell(`התגובה שלי: ${criterion.teacherNote}`, { width: W_NAME }) +
               cell('', { width: W_SCORE }) +
               cell('', { width: W_PERCENT }),
           ),

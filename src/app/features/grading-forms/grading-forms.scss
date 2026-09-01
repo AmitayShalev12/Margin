@@ -631,3 +631,59 @@
   color: var(--warn-fg, #7a5a00);
   font-size: 0.72rem;
 }
+
+// -- her reply ---------------------------------------------------------------
+//
+// Sits beside the model's reasoning, not in place of it. Styled as hers:
+// warmer than the quiet grey the system's explanation gets, because on this
+// form her words are the ones that count.
+
+.reply {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-inline-start: 2px solid var(--c-accent, #7a5cff);
+  border-radius: 6px;
+  background: var(--c-accent-soft, rgb(122 92 255 / 6%));
+}
+
+.reply-label {
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--c-accent, #7a5cff);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.reply-body {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.reply-edit {
+  margin-top: 0.5rem;
+}
+
+.reply-box {
+  inline-size: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.reply-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.reply-open {
+  margin-top: 0.4rem;
+}

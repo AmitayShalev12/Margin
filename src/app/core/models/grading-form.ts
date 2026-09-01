@@ -97,6 +97,18 @@ export interface GradingCriterionScore extends Timestamped {
    * number in a voice that never made that judgement.
    */
   rationale_points: number | null;
+  /**
+   * Her own note on this criterion, and her reply to the reasoning above it.
+   *
+   * "אם הוא אומר, זה הסיבה שנתתי ציון כזה וכזה, אז אני אולי יכולה להגיב לו...
+   * שתהיה אופציה כזאת, למשא ומתן כזה."
+   *
+   * Kept apart from `rationale` rather than replacing it. The rationale is the
+   * record of what the model said; overwriting it would erase the thing she is
+   * answering, and a disagreement with both halves in one paragraph is not a
+   * negotiation — it is one voice with no way to tell whose it is.
+   */
+  teacher_note: string | null;
   round_number: number;
   origin: 'ai' | 'teacher';
   /** Once she has touched it, no generated score overwrites it. */

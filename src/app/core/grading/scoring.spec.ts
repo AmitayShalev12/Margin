@@ -70,6 +70,7 @@ function score(overrides: Partial<GradingCriterionScore> = {}): GradingCriterion
     change_note: null,
     rationale: null,
     rationale_points: null,
+    teacher_note: null,
     round_number: 1,
     origin: 'ai',
     edited_by_teacher: false,
