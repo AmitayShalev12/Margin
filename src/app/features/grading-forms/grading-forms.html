@@ -219,6 +219,18 @@
             <p class="score-error anim-rise" role="status">{{ note }}</p>
           }
 
+          @if (working()) {
+            <!--
+              The longest wait on this screen. A disabled button reading
+              "מנקדת…" is indistinguishable from a frozen page after twenty
+              seconds, and the honest response to a frozen page is to reload.
+            -->
+            <app-working
+              label="מנקדת את העבודה"
+              longRunNote="ריצה כזאת לוקחת בדרך כלל דקה עד שתיים."
+            />
+          }
+
           <div class="unscored-actions">
             <button
               type="button"
