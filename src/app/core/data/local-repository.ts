@@ -152,6 +152,22 @@ export class LocalRepository extends Repository {
     });
   }
 
+  async deleteCourseRules(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.courseRules = snapshot.courseRules.filter((r) => !gone.has(r.id));
+    });
+  }
+
+  async deleteCourseMaterials(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.courseMaterials = snapshot.courseMaterials.filter((m) => !gone.has(m.id));
+    });
+  }
+
   async deleteFeedbackLogs(ids: readonly UUID[]): Promise<void> {
     if (ids.length === 0) return;
     const gone = new Set(ids);

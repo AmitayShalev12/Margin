@@ -264,6 +264,25 @@ export class SupabaseRepository extends Repository {
     await this.upsert(TABLES.learningFeedbackLogs, log, 'id');
   }
 
+  async deleteCourseRules(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.courseRules, ids);
+  }
+
+  async deleteCourseMaterials(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.courseMaterials, ids);
+  }
+
+  /** One delete, so the session check and the error wording cannot drift. */
+  private async deleteRows(table: string, ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    this.requireSession();
+    const { error } = await this.supabase.client
+      .from(table)
+      .delete()
+      .in('id', [...ids]);
+    if (error) throw new Error(describeFailure(table, error));
+  }
+
   async deleteFeedbackLogs(ids: readonly UUID[]): Promise<void> {
     if (ids.length === 0) return;
     this.requireSession();

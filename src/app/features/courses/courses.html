@@ -153,13 +153,79 @@
             <ul class="kb-items">
               @for (item of s.items; track item.id) {
                 <li class="kb-item" [class.muted]="item.muted">
-                  <span class="kb-text">
-                    <span class="kb-main">{{ item.text }}</span>
-                    @if (item.note) {
-                      <span class="kb-note">{{ item.note }}</span>
-                    }
-                  </span>
-                  <span class="kb-tag">{{ item.tag }}</span>
+                  @if (editingItem() === item.id) {
+                    <!--
+                      Her rules reach the model verbatim, so a typo is not
+                      cosmetic — it is an instruction being followed. Until now
+                      the only remedy was to switch the line off and add
+                      another, leaving the mistake on screen beside its
+                      replacement forever.
+                    -->
+                    <textarea
+                      class="control kb-edit"
+                      rows="2"
+                      [value]="editDraft()"
+                      (input)="editDraft.set($any($event.target).value)"
+                      aria-label="עריכה"
+                    ></textarea>
+                    <span class="kb-row-actions">
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        (click)="saveEditItem(item.of, item.id)"
+                      >
+                        שמירה
+                      </button>
+                      <button type="button" class="btn btn-plain btn-sm" (click)="cancelEditItem()">
+                        ביטול
+                      </button>
+                    </span>
+                  } @else if (confirmingDelete() === item.id) {
+                    <!--
+                      Named before it goes. These lists are rows of similar
+                      short lines and a misclick is easy; a rule she wrote in
+                      August is not something to lose to a stray press.
+                    -->
+                    <span class="kb-text">
+                      <span class="kb-main">למחוק את ״{{ item.text }}״?</span>
+                    </span>
+                    <span class="kb-row-actions">
+                      <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        (click)="confirmDelete(item.of, item.id)"
+                      >
+                        מחיקה
+                      </button>
+                      <button type="button" class="btn btn-plain btn-sm" (click)="cancelDelete()">
+                        ביטול
+                      </button>
+                    </span>
+                  } @else {
+                    <span class="kb-text">
+                      <span class="kb-main">{{ item.text }}</span>
+                      @if (item.note) {
+                        <span class="kb-note">{{ item.note }}</span>
+                      }
+                    </span>
+                    <span class="kb-tag">{{ item.tag }}</span>
+                    <span class="kb-row-actions">
+                      <button
+                        type="button"
+                        class="btn btn-plain btn-sm"
+                        (click)="startEditItem(item.id, item.text)"
+                      >
+                        עריכה
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-plain btn-sm"
+                        (click)="askDelete(item.id)"
+                      >
+                        מחיקה
+                      </button>
+                    </span>
+                  }
                 </li>
               } @empty {
                 <li class="kb-item kb-none">עדיין אין כאן חומרים.</li>

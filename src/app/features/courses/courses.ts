@@ -7,6 +7,13 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { DriveFolder } from './drive-folder/drive-folder';
 
 interface KbItem {
+  /**
+   * Which table the row came from, so a row knows how to edit and delete
+   * itself. Without it the screen would have to infer it from the section,
+   * which is the sort of mapping that silently deletes the wrong thing the
+   * first time a section is added.
+   */
+  of: 'rule' | 'material';
   id: string;
   text: string;
   tag: string;
@@ -134,6 +141,7 @@ export class Courses {
         addLabel: 'הוספת כלל',
         hue: 'kind-language',
         items: myRules.map((r) => ({
+          of: 'rule' as const,
           id: r.id,
           text: r.body,
           tag: 'שלי',
@@ -149,6 +157,7 @@ export class Courses {
         addLabel: 'החלפת הסילבוס',
         hue: 'kind-structure',
         items: syllabus.map((m) => ({
+          of: 'material' as const,
           id: m.id,
           text: m.title,
           tag: 'מסמך',
@@ -164,6 +173,7 @@ export class Courses {
         addLabel: 'הוספת עבודה',
         hue: 'kind-praise',
         items: models.map((m) => ({
+          of: 'material' as const,
           id: m.id,
           text: m.title,
           tag: 'עבודה',
@@ -179,6 +189,7 @@ export class Courses {
         addLabel: 'הוספת דוגמה',
         hue: 'kind-content',
         items: corrections.map((m) => ({
+          of: 'material' as const,
           id: m.id,
           text: m.title,
           tag: m.notes ?? 'דוגמה',
@@ -194,6 +205,7 @@ export class Courses {
         addLabel: 'עיון בכללים',
         hue: 'kind-sources',
         items: webRules.map((r) => ({
+          of: 'rule' as const,
           id: r.id,
           text: r.body,
           tag: r.active ? 'פעיל' : 'כבוי',
@@ -216,6 +228,59 @@ export class Courses {
   protected readonly draftTitle = signal('');
   protected readonly addError = signal<string | null>(null);
   protected readonly readingFile = signal(false);
+
+  // -- editing what is already here -----------------------------------------
+  //
+  // "add an option to delete/edit example works files rules or everything
+  // else". Until now every one of these lists was write-once: a rule with a
+  // typo could be switched off but never corrected, and a paper uploaded twice
+  // stayed twice. Her rules reach the model verbatim, so a wrong one is not
+  // cosmetic — it is an instruction being followed.
+
+  /** Which item is open for editing, and the text as it stands. */
+  protected readonly editingItem = signal<string | null>(null);
+  protected readonly editDraft = signal('');
+  /** Named before deleting, because a list of similar lines is easy to misclick. */
+  protected readonly confirmingDelete = signal<string | null>(null);
+
+  protected startEditItem(id: string, text: string) {
+    this.confirmingDelete.set(null);
+    this.editDraft.set(text);
+    this.editingItem.set(id);
+  }
+
+  protected cancelEditItem() {
+    this.editingItem.set(null);
+    this.editDraft.set('');
+  }
+
+  protected saveEditItem(of: 'rule' | 'material', id: string) {
+    const text = this.editDraft().trim();
+    if (!text) return;
+
+    if (of === 'rule') this.data.editCourseRule(id, text);
+    // For a material the line on screen is its title; the text the model reads
+    // is edited from the same box only when there is no separate content.
+    else this.data.editCourseMaterial(id, { title: text });
+
+    this.cancelEditItem();
+  }
+
+  protected askDelete(id: string) {
+    this.editingItem.set(null);
+    this.confirmingDelete.set(id);
+  }
+
+  protected cancelDelete() {
+    this.confirmingDelete.set(null);
+  }
+
+  protected confirmDelete(of: 'rule' | 'material', id: string) {
+    if (of === 'rule') this.data.deleteCourseRule(id);
+    else this.data.deleteCourseMaterial(id);
+
+    this.confirmingDelete.set(null);
+  }
 
   protected isAdding(id: string): boolean {
     return this.adding() === id;

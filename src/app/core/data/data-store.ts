@@ -934,6 +934,72 @@ export class DataStore {
    * decision she may reverse, and the comments already written under it stay
    * explicable if the thing they deferred to is still on record.
    */
+  /**
+   * Rewrites a rule she got wrong.
+   *
+   * Her rules go into every prompt verbatim, so a typo or half-pasted line is
+   * not cosmetic — it is an instruction the model follows. Until now the only
+   * remedy was to switch it off and add another, which left the mistake on
+   * screen forever beside its replacement.
+   */
+  editCourseRule(id: UUID, body: string) {
+    const text = body.trim();
+    if (!text) return;
+
+    let written: CourseRule | undefined;
+    this._courseRules.update((list) =>
+      list.map((r) => {
+        if (r.id !== id || r.body === text) return r;
+        written = { ...r, body: text, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveCourseRule(written!));
+  }
+
+  /**
+   * Removes a rule outright, as distinct from switching it off.
+   *
+   * Both exist because they mean different things. Off is "not this year";
+   * deleted is "this was a mistake", and a mistake she cannot clear sits in
+   * the list forever looking like a decision.
+   */
+  deleteCourseRule(id: UUID) {
+    if (!this._courseRules().some((r) => r.id === id)) return;
+
+    this._courseRules.update((list) => list.filter((r) => r.id !== id));
+    this.persist(() => this.repository.deleteCourseRules([id]));
+  }
+
+  /** Retitles a material, or replaces the text the model reads from it. */
+  editCourseMaterial(id: UUID, patch: { title?: string; notes?: string; content?: string }) {
+    let written: CourseMaterial | undefined;
+    this._courseMaterials.update((list) =>
+      list.map((m) => {
+        if (m.id !== id) return m;
+        written = {
+          ...m,
+          title: patch.title?.trim() || m.title,
+          // Emptied deliberately clears these: a note she has deleted should
+          // stop reaching the model, and `|| m.notes` would silently keep it.
+          notes: patch.notes === undefined ? m.notes : patch.notes.trim() || null,
+          content: patch.content === undefined ? m.content : patch.content.trim() || null,
+          updated_at: new Date().toISOString(),
+        };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveCourseMaterial(written!));
+  }
+
+  /** Removes a material — an example paper, a syllabus, a source — outright. */
+  deleteCourseMaterial(id: UUID) {
+    if (!this._courseMaterials().some((m) => m.id === id)) return;
+
+    this._courseMaterials.update((list) => list.filter((m) => m.id !== id));
+    this.persist(() => this.repository.deleteCourseMaterials([id]));
+  }
+
   setSourceActive(id: UUID, active: boolean) {
     let written: CourseMaterial | undefined;
     this._courseMaterials.update((list) =>

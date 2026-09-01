@@ -164,6 +164,18 @@ export abstract class Repository {
   abstract deleteFeedbackLogs(ids: readonly UUID[]): Promise<void>;
 
   /**
+   * Removes course rules and materials outright.
+   *
+   * Deletion rather than deactivation, because she asked for both and they are
+   * different acts. A rule switched off is one she may want back next year and
+   * that the screen still shows; a rule deleted is one that was a mistake — a
+   * duplicate, a paste of the wrong paragraph — and leaving it greyed out
+   * forever is clutter she cannot clear.
+   */
+  abstract deleteCourseRules(ids: readonly UUID[]): Promise<void>;
+  abstract deleteCourseMaterials(ids: readonly UUID[]): Promise<void>;
+
+  /**
    * One log per drafted comment, superseded in place when she changes her mind.
    * The store reuses the existing record's id, so this stays a plain upsert.
    *

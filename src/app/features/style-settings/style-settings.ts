@@ -249,8 +249,16 @@ export class StyleSettings {
     this.addingSource.set(false);
   }
 
+  /**
+   * Takes a source off the list for good.
+   *
+   * It used only to deactivate, which is a different thing: a deactivated
+   * source stays visible and stops reaching the model, and there was no way at
+   * all to clear one added by mistake. A link she pasted wrong is not a
+   * decision she wants preserved.
+   */
   protected removeSource(id: string) {
-    this.data.setSourceActive(id, false);
+    this.data.deleteCourseMaterial(id);
   }
 
   /**

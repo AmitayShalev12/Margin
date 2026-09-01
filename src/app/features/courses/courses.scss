@@ -302,3 +302,28 @@
   font-size: var(--fs-xs);
   color: var(--c-ink-3);
 }
+
+// -- editing a row -----------------------------------------------------------
+//
+// Every list here was write-once: a rule with a typo could be switched off but
+// never corrected, and a paper uploaded twice stayed twice.
+
+.kb-row-actions {
+  display: inline-flex;
+  gap: var(--s-1);
+  flex: 0 0 auto;
+}
+
+.kb-edit {
+  flex: 1 1 100%;
+  inline-size: 100%;
+  padding: var(--s-2);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  resize: vertical;
+}

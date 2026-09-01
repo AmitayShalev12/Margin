@@ -5,6 +5,21 @@ import { Courses } from './courses';
 import { DataStore } from '../../core/data/data-store';
 import { LocalRepository } from '../../core/data/local-repository';
 import { Repository } from '../../core/data/repository';
+import { SupabaseService } from '../../core/supabase/supabase';
+
+/**
+ * A signed-in teacher. `createCourse` writes `teacher_id` and refuses without
+ * one, so a spec that skips this gets no course and every rule it adds comes
+ * back null — silently, since the screen simply renders nothing.
+ */
+class FakeSupabase {
+  isConfigured = true;
+  teacherId = 'teacher-1';
+  functionsUrl = 'https://project.supabase.co/functions/v1';
+  client = {
+    auth: { getSession: async () => ({ data: { session: { access_token: 'jwt' } } }) },
+  };
+}
 
 /**
  * Putting a file into the knowledge base.
@@ -23,7 +38,11 @@ import { Repository } from '../../core/data/repository';
 function make() {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    providers: [provideRouter([]), { provide: Repository, useClass: LocalRepository }],
+    providers: [
+      provideRouter([]),
+      { provide: Repository, useClass: LocalRepository },
+      { provide: SupabaseService, useValue: new FakeSupabase() },
+    ],
   });
 
   const store = TestBed.inject(DataStore);
@@ -41,6 +60,11 @@ function make() {
       draftTitle(): string;
       startAdding(id: string): void;
       toggle(id: string): void;
+      startEditItem(id: string, text: string): void;
+      editDraft: { set(v: string): void };
+      saveEditItem(of: 'rule' | 'material', id: string): void;
+      askDelete(id: string): void;
+      confirmDelete(of: 'rule' | 'material', id: string): void;
     },
   };
 }
@@ -138,5 +162,96 @@ describe('the upload control itself', () => {
 
     const input = label!.querySelector('input[type=file]');
     expect(input?.getAttribute('accept')).toContain('.txt');
+  });
+});
+
+/**
+ * Correcting and clearing what is already in the knowledge base.
+ *
+ * "add an option to delete/edit example works files rules or everything else".
+ * Every list here was write-once: a rule with a typo could be switched off but
+ * never corrected, and a paper uploaded twice stayed twice. Her rules reach the
+ * model verbatim, so a wrong one is not cosmetic — it is an instruction being
+ * followed.
+ */
+describe('editing what is already saved', () => {
+  function withRule(body = 'לכתוב בגוף שלישי') {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    const rule = store.addCourseRule('language', body, 'teacher');
+    page.fixture.detectChanges();
+    return { page, store, rule: rule! };
+  }
+
+  it('rewrites a rule she got wrong', () => {
+    const { page, store, rule } = withRule('לכתוב בגוף שלישי');
+
+    page.component.startEditItem(rule.id, rule.body);
+    page.component.editDraft.set('לכתוב בגוף שלישי, בלשון עבר');
+    page.component.saveEditItem('rule', rule.id);
+
+    expect(store.courseRules().find((r) => r.id === rule.id)?.body).toBe(
+      'לכתוב בגוף שלישי, בלשון עבר',
+    );
+  });
+
+  /** An empty rule would reach the model as a blank instruction. */
+  it('refuses to save an empty one', () => {
+    const { page, store, rule } = withRule('כלל אמיתי');
+
+    page.component.startEditItem(rule.id, rule.body);
+    page.component.editDraft.set('   ');
+    page.component.saveEditItem('rule', rule.id);
+
+    expect(store.courseRules().find((r) => r.id === rule.id)?.body).toBe('כלל אמיתי');
+  });
+
+  it('deletes a rule outright', () => {
+    const { page, store, rule } = withRule();
+
+    page.component.confirmDelete('rule', rule.id);
+
+    expect(store.courseRules().some((r) => r.id === rule.id)).toBe(false);
+  });
+
+  /**
+   * Deleting and switching off are different acts and both are kept. Off is
+   * "not this year"; deleted is "this was a mistake", and a mistake she cannot
+   * clear sits in the list forever looking like a decision.
+   */
+  it('leaves a rule she only switched off in place', () => {
+    const { store, rule } = withRule();
+
+    store.setCourseRuleActive(rule.id, false);
+
+    expect(store.courseRules().some((r) => r.id === rule.id)).toBe(true);
+    expect(store.courseRules().find((r) => r.id === rule.id)?.active).toBe(false);
+  });
+
+  /** A stray press should not lose a rule she wrote in August. */
+  it('asks before deleting rather than acting on the first press', () => {
+    const { page, store, rule } = withRule();
+
+    page.component.askDelete(rule.id);
+    page.fixture.detectChanges();
+
+    expect(store.courseRules().some((r) => r.id === rule.id)).toBe(true);
+    expect((page.fixture.nativeElement as HTMLElement).textContent).toContain('למחוק את');
+  });
+
+  it('retitles and removes a material', () => {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    const material = store.addCourseMaterial('model_assignment', 'עבודה לדוגמא', 'טקסט')!;
+
+    page.component.startEditItem(material.id, material.title);
+    page.component.editDraft.set('עבודה לדוגמה של נועה');
+    page.component.saveEditItem('material', material.id);
+    expect(store.courseMaterials().find((m) => m.id === material.id)?.title).toBe(
+      'עבודה לדוגמה של נועה',
+    );
+
+    page.component.confirmDelete('material', material.id);
+    expect(store.courseMaterials().some((m) => m.id === material.id)).toBe(false);
   });
 });
