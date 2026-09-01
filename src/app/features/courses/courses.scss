@@ -273,6 +273,10 @@
   position: relative;
   align-self: flex-start;
   cursor: pointer;
+  // Overflow hidden so the transparent input, which is stretched over the
+  // whole control to make the label clickable, cannot spill past the border
+  // radius and catch clicks outside the button.
+  overflow: hidden;
 }
 
 .kb-form .file-input {

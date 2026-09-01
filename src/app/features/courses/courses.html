@@ -195,22 +195,28 @@
                   ></textarea>
                 </label>
 
-                <label class="link file-label">
+                <!--
+                  A button, because it was styled as a line of prose and read
+                  as one — "the button does nothing" was the report, and it was
+                  never a button to begin with.
+                -->
+                <label class="btn btn-ghost btn-sm file-label">
                   {{
                     readingFile()
                       ? 'קוראת…'
                       : s.add.of === 'rule'
-                        ? 'או לטעון קובץ Word עם הכללים'
-                        : 'או לטעון קובץ Word'
+                        ? 'טעינת קובץ Word עם הכללים'
+                        : 'טעינת קובץ'
                   }}
                   <input
                     type="file"
-                    accept=".docx"
+                    accept=".docx,.txt,.md"
                     class="file-input"
                     [disabled]="readingFile()"
                     (change)="readFile($event)"
                   />
                 </label>
+                <p class="kb-hint">אפשר גם להעתיק את הטקסט לתיבה למעלה.</p>
 
                 <!--
                   Said before she presses save. One rule and forty rules look

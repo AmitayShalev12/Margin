@@ -250,20 +250,59 @@ export class Courses {
     this.addError.set(null);
 
     try {
-      const text = await readDocxText(await file.arrayBuffer());
+      const text = await this.textOf(file);
       // Appended rather than replacing: she may have typed a rule already, and
       // silently discarding it because she then reached for a file is the kind
       // of small loss nobody reports and everybody resents.
       this.draftBody.update((current) => (current.trim() ? `${current.trim()}\n${text}` : text));
 
       if (!this.draftTitle().trim()) {
-        this.draftTitle.set(file.name.replace(/\.docx$/i, ''));
+        this.draftTitle.set(file.name.replace(/\.(docx|txt|md)$/i, ''));
       }
     } catch (error) {
       this.addError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
     } finally {
       this.readingFile.set(false);
     }
+  }
+
+  /**
+   * The text of whatever she picked, or a refusal that says what to do.
+   *
+   * `.docx` was the only thing accepted, and the file picker hid everything
+   * else — so a `.doc`, a PDF or anything exported from Drive appeared greyed
+   * out and unselectable, which reads as the upload being broken rather than
+   * as a format she needs to convert.
+   *
+   * Plain text now works too, since reading it takes one line and refusing it
+   * was arbitrary. Everything else is named rather than silently ignored, with
+   * the specific fix said out loud: a PDF and an old `.doc` are both one
+   * "save as" away from something this can read, and that is a far better
+   * thing to be told than "לא הצלחתי לקרוא את הקובץ".
+   */
+  private async textOf(file: File): Promise<string> {
+    const name = file.name.toLowerCase();
+
+    if (name.endsWith('.docx')) return readDocxText(await file.arrayBuffer());
+    if (name.endsWith('.txt') || name.endsWith('.md')) return (await file.text()).trim();
+
+    if (name.endsWith('.doc')) {
+      throw new DocxError(
+        'זה קובץ Word מהפורמט הישן (.doc). אפשר לפתוח אותו ב־Word, "שמירה בשם" ולבחור .docx.',
+        'legacy .doc',
+      );
+    }
+    if (name.endsWith('.pdf')) {
+      throw new DocxError(
+        'אני יודעת לקרוא קובצי Word (.docx) וטקסט, לא PDF. אפשר לפתוח את ה־PDF ב־Word ולשמור כ־.docx, או להעתיק את הטקסט לכאן.',
+        'pdf',
+      );
+    }
+
+    throw new DocxError(
+      'אני יודעת לקרוא קובצי Word (.docx) וקובצי טקסט. אפשר גם פשוט להעתיק את הטקסט לתיבה למעלה.',
+      `unsupported: ${name}`,
+    );
   }
 
   /**
