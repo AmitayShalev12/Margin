@@ -250,7 +250,23 @@
         }
       </div>
 
-      @if (isSent()) {
+      @if (isSkipped()) {
+        <!--
+          She chose not to write one. Said as a decision she made rather than
+          as something missing, and reversible in one press — the whole point
+          of recording it is that the screen stops asking.
+        -->
+        <div class="card sent">
+          <div class="sent-text">
+            <p class="sent-line">ויתרת על המייל ל{{ firstName() }} בסבב הזה.</p>
+            <p class="sent-note">
+              ההערות עצמן נמצאות על המסמך. אם תשני את דעתך אפשר לכתוב הודעה בכל שלב.
+            </p>
+          </div>
+          <button type="button" class="btn btn-plain" (click)="unskip()">בכל זאת לכתוב</button>
+          <a class="btn btn-plain" routerLink="/submissions">לרשימת העבודות</a>
+        </div>
+      } @else if (isSent()) {
         <div class="card sent">
           <div class="sent-text">
             <p class="sent-line">סימנת שהמייל נשלח ל{{ firstName() }}.</p>
@@ -271,6 +287,16 @@
             Says exactly what happens, because it is not what the word "שליחה"
             usually means: Margin has no mail account and opens hers.
           -->
+          <!--
+            Not every round needs a covering message: the comments are already
+            on the document, and she may be seeing the girl on Thursday. Before
+            this the only ways past this screen were to write a message she did
+            not want to send, or to mark one sent that never was.
+          -->
+          <button type="button" class="btn btn-plain btn-sm skip-mail" (click)="skip()">
+            לוותר על המייל בסבב הזה
+          </button>
+
           <p class="send-note">
             הכפתור פותח את תוכנת המייל שלך עם ההודעה מוכנה. השליחה עצמה נעשית משם, מהחשבון שלך.
           </p>

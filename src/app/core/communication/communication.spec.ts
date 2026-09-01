@@ -430,3 +430,84 @@ describe('the message to the student', () => {
     expect(store.submission(NOA)!.status).not.toBe('notes_sent');
   });
 });
+
+/**
+ * Skipping the covering message.
+ *
+ * Not every round needs one: the comments are already on the student's
+ * document, and she may be seeing the girl on Thursday. Before this the only
+ * ways past the screen were to write a message she did not want to send, or to
+ * mark one sent that never was — and the second is a lie the app would then
+ * keep, in a log that feeds the model.
+ */
+describe('deciding not to write a message', () => {
+  it('records the decision rather than leaving the screen blank', () => {
+    const { store } = boot();
+
+    store.skipStudentEmail(NOA);
+
+    // "No message" and "not written yet" look identical on an empty screen and
+    // mean opposite things.
+    expect(store.studentEmail(NOA)?.status).toBe('skipped');
+  });
+
+  it('moves the submission on, because the notes are on the document', () => {
+    const { store } = boot();
+
+    store.skipStudentEmail(NOA);
+
+    expect(store.submission(NOA)?.status).toBe('notes_sent');
+  });
+
+  /** Nothing was written, so there is no wording for the model to learn from. */
+  it('teaches the learning loop nothing', () => {
+    const { store } = boot();
+    const before = store.feedbackLogs().length;
+
+    store.skipStudentEmail(NOA);
+
+    expect(store.feedbackLogs().length).toBe(before);
+  });
+
+  it('never claims a skipped message was sent', () => {
+    const { store } = boot();
+
+    store.skipStudentEmail(NOA);
+
+    const email = store.studentEmail(NOA);
+    expect(email?.sent_at).toBeNull();
+    expect(email?.status).not.toBe('sent');
+  });
+
+  it('lets her change her mind', () => {
+    const { store } = boot();
+    store.skipStudentEmail(NOA);
+
+    store.unskipStudentEmail(NOA);
+
+    expect(store.studentEmail(NOA)?.status).toBe('draft');
+    expect(store.submission(NOA)?.status).toBe('in_review');
+  });
+
+  /**
+   * A message already gone cannot be unsent by pressing skip.
+   *
+   * Written the lazy way this passed for the wrong reason: the fixture has no
+   * message for this submission, so `markStudentEmailSent` never ran and the
+   * assertion was about a state the test had not set up.
+   */
+  it('refuses to skip one she has already sent', () => {
+    const { store } = boot();
+
+    store.skipStudentEmail(NOA);
+    const email = store.studentEmail(NOA);
+    expect(email).toBeDefined();
+
+    store.markStudentEmailSent(email!.id);
+    expect(store.studentEmail(NOA)?.status).toBe('sent');
+
+    store.skipStudentEmail(NOA);
+
+    expect(store.studentEmail(NOA)?.status).toBe('sent');
+  });
+});

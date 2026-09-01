@@ -305,3 +305,11 @@
 .to-comment {
   align-self: flex-start;
 }
+
+// Skipping the covering message. Quiet: it is a legitimate choice, not the
+// expected one, and it sits beside a send button that should stay the louder
+// of the two.
+.skip-mail {
+  align-self: flex-start;
+  margin-block-end: var(--s-2);
+}

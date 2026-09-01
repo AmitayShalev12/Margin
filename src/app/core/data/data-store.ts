@@ -1428,6 +1428,62 @@ export class DataStore {
     this.setSubmissionStatus(email.submission_id, 'notes_sent');
   }
 
+  /**
+   * She has decided this round needs no message.
+   *
+   * Recorded rather than left blank, because "no message" and "not written
+   * yet" look identical on an empty screen and mean opposite things — one is
+   * finished, the other is waiting for her.
+   *
+   * Nothing is logged to the learning loop. There is no drafted text she
+   * accepted or rejected here, and a decision about whether to write at all
+   * teaches nothing about how she writes.
+   *
+   * The submission moves on. Her notes reached the student on the document
+   * itself; the message was only ever the covering note.
+   */
+  skipStudentEmail(submissionId: UUID) {
+    const submission = this.submission(submissionId);
+    if (!submission) return;
+
+    const now = new Date().toISOString();
+    const existing = this.studentEmail(submissionId);
+
+    if (existing?.status === 'sent') return; // Already gone. Nothing to skip.
+
+    const next: StudentEmail = existing
+      ? { ...existing, status: 'skipped', error_message: null, updated_at: now }
+      : {
+          id: derivedId('student-email', submissionId),
+          submission_id: submissionId,
+          student_id: submission.student_id,
+          round_id: this.roundFor(submissionId)?.id ?? null,
+          subject: '',
+          body: '',
+          variants: [],
+          selected_variant_key: null,
+          ai_body: null,
+          edited_by_teacher: false,
+          status: 'skipped',
+          sent_at: null,
+          error_message: null,
+          created_at: now,
+          updated_at: now,
+        };
+
+    this.writeEmail(next);
+    this.setSubmissionStatus(submissionId, 'notes_sent');
+  }
+
+  /** She changed her mind and does want to write one after all. */
+  unskipStudentEmail(submissionId: UUID) {
+    const existing = this.studentEmail(submissionId);
+    if (existing?.status !== 'skipped') return;
+
+    this.writeEmail({ ...existing, status: 'draft', updated_at: new Date().toISOString() });
+    this.setSubmissionStatus(submissionId, 'in_review');
+  }
+
   /** The authenticity observations for one round, replaced when re-run. */
   saveReliabilityCheck(check: ReliabilityCheck) {
     this._reliabilityChecks.update((list) => [...list.filter((c) => c.id !== check.id), check]);

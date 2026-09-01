@@ -1,6 +1,15 @@
 import { ISODateTime, Timestamped, UUID } from './common';
 
-export type StudentEmailStatus = 'draft' | 'approved' | 'sent' | 'failed';
+/**
+ * `skipped` is a decision, not a failure.
+ *
+ * Not every round needs a covering message: the comments are already on the
+ * student's document, and she may be seeing the girl on Thursday anyway.
+ * Without a way to say so, the only ways past this screen were to write a
+ * message she did not want to send or to mark one sent that never was — and
+ * the second is a lie the app would then keep, in a log that feeds the model.
+ */
+export type StudentEmailStatus = 'draft' | 'approved' | 'sent' | 'failed' | 'skipped';
 
 /** One phrasing option the teacher can pick between before sending. */
 export interface StudentEmailVariant {

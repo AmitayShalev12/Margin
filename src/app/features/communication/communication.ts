@@ -109,6 +109,27 @@ export class Communication {
 
   protected readonly isSent = computed(() => this.email()?.status === 'sent');
 
+  /**
+   * She decided this round needs no covering message.
+   *
+   * A state of its own, because "no message" and "not written yet" look
+   * identical on an empty screen and mean opposite things — one is finished,
+   * the other is waiting for her.
+   */
+  protected readonly isSkipped = computed(() => this.email()?.status === 'skipped');
+
+  protected skip() {
+    // The submission actually on screen, which is not the same as the routed
+    // id once she has picked another from the list.
+    const id = this.submission()?.id;
+    if (id) this.data.skipStudentEmail(id);
+  }
+
+  protected unskip() {
+    const id = this.submission()?.id;
+    if (id) this.data.unskipStudentEmail(id);
+  }
+
   protected readonly subject = computed(() => this.subjectDraft() ?? this.email()?.subject ?? '');
   protected readonly body = computed(() => this.bodyDraft() ?? this.email()?.body ?? '');
 
