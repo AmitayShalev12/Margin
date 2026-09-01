@@ -65,8 +65,17 @@ export class CriterionReply {
       .criterionScores(submissionId)
       .find((s) => s.category_id === category.id);
 
-    const note = score?.teacher_note?.trim();
-    if (!note) return false;
+    /**
+     * The whole thread, not only her latest message.
+     *
+     * A model answering the last line of an argument it cannot see the rest of
+     * repeats itself, and repeats the point she has already conceded two turns
+     * back. The exchange is short — a handful of sentences — so sending it
+     * whole costs almost nothing and is the difference between a conversation
+     * and a series of unrelated replies.
+     */
+    const discussion = score?.discussion ?? [];
+    if (discussion.at(-1)?.role !== 'teacher') return false;
 
     const round = this.data.roundFor(submissionId);
     const course = this.data.course();
@@ -85,7 +94,11 @@ export class CriterionReply {
         },
         points: score?.points ?? null,
         rationale: score?.rationale ?? null,
-        note,
+        discussion: discussion.map((t) => ({
+          role: t.role,
+          text: t.text,
+          points: t.points ?? null,
+        })),
         blocks: (round?.document_blocks ?? [])
           .slice(0, MAX_BLOCKS)
           .map((b) => ({ type: b.type, text: b.text })),

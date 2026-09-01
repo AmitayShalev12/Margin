@@ -61,8 +61,7 @@ function score(over: Partial<GradingCriterionScore> = {}): GradingCriterionScore
     change_note: null,
     rationale: null,
     rationale_points: null,
-    teacher_note: null,
-    model_reply: null,
+    discussion: [],
     round_number: 1,
     origin: 'ai',
     edited_by_teacher: false,
@@ -482,7 +481,9 @@ describe('entering a score by hand', () => {
     const page = withMine();
     page.click('.section-head');
 
-    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    const input = page.fixture.nativeElement.querySelectorAll(
+      '.criterion-entry .points',
+    )[0] as HTMLInputElement;
     input.value = '3';
     input.dispatchEvent(new Event('change'));
     page.fixture.detectChanges();
@@ -498,7 +499,9 @@ describe('entering a score by hand', () => {
     const page = withMine();
     page.click('.section-head');
 
-    const input = page.fixture.nativeElement.querySelectorAll('.points')[1] as HTMLInputElement;
+    const input = page.fixture.nativeElement.querySelectorAll(
+      '.criterion-entry .points',
+    )[1] as HTMLInputElement;
     input.value = '3';
     input.dispatchEvent(new Event('change'));
     page.fixture.detectChanges();
@@ -512,7 +515,9 @@ describe('entering a score by hand', () => {
     const page = withMine();
     page.click('.section-head');
 
-    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    const input = page.fixture.nativeElement.querySelectorAll(
+      '.criterion-entry .points',
+    )[0] as HTMLInputElement;
     input.value = '9';
     input.dispatchEvent(new Event('change'));
 
@@ -524,7 +529,9 @@ describe('entering a score by hand', () => {
     const page = withMine([score({ category_id: 'cat-1', points: 3 })]);
     page.click('.section-head');
 
-    const input = page.fixture.nativeElement.querySelectorAll('.points')[0] as HTMLInputElement;
+    const input = page.fixture.nativeElement.querySelectorAll(
+      '.criterion-entry .points',
+    )[0] as HTMLInputElement;
     input.value = '';
     input.dispatchEvent(new Event('change'));
     page.fixture.detectChanges();
@@ -634,7 +641,9 @@ describe('why a criterion got its score', () => {
     });
     page.click('.section-head');
 
-    const input = page.fixture.nativeElement.querySelector('.points') as HTMLInputElement;
+    const input = page.fixture.nativeElement.querySelector(
+      '.criterion-entry .points',
+    ) as HTMLInputElement;
     input.value = '4';
     input.dispatchEvent(new Event('change'));
     page.fixture.detectChanges();
@@ -644,15 +653,15 @@ describe('why a criterion got its score', () => {
 });
 
 /**
- * Her reply to the model's reasoning.
+ * The argument over a criterion.
  *
- * "אם הוא אומר, זה הסיבה שנתתי ציון כזה וכזה, אז אני אולי יכולה להגיב לו...
- * שתהיה אופציה כזאת, למשא ומתן כזה."
- *
- * Kept beside the rationale rather than replacing it: a disagreement needs
- * both halves on the page, or there is no way to tell whose voice is whose.
+ * "make the 'להגיב להסבר' a back and forth conversation and give it the option
+ * to change the score there." One round was a comment box; several is a
+ * discussion she can follow back afterwards and see how the mark moved.
  */
-describe('replying to the reasoning', () => {
+describe('arguing about a criterion', () => {
+  const CATEGORY = 'cat-1';
+
   function open(over = {}) {
     const page = render({
       criterionScores: [score({ points: 3, rationale: 'רק שניים מהמקורות עדכניים.', ...over })],
@@ -669,219 +678,134 @@ describe('replying to the reasoning', () => {
   }
 
   it('offers to answer the explanation', () => {
-    const page = open();
-
-    expect(page.text()).toContain('להגיב להסבר');
+    expect(open().text()).toContain('להגיב להסבר');
   });
 
-  /** With no reasoning to answer, it is a note of her own, not a reply. */
-  it('offers a plain note where the model said nothing', () => {
-    const page = render({ criterionScores: [score({ points: 3, rationale: null })] });
-    page.click('.section-head');
-
-    expect(page.text()).toContain('הוספת הערה');
-  });
-
-  it('keeps what she writes, attributed to her', () => {
+  it('keeps her turn, attributed to her', () => {
     const page = open();
 
-    page.click('.reply-open');
-    type(page, 'שניים מספיקים בפרק הזה, זה נושא ותיק.');
+    page.click('.reply-actions button');
+    type(page, 'שניים מספיקים בפרק הזה.');
     page.click('.reply-actions button');
 
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe(
-      'שניים מספיקים בפרק הזה, זה נושא ותיק.',
-    );
-    expect(page.text()).toContain('התגובה שלי');
+    const thread = page.store.criterionScores(SUBMISSION_ID)[0].discussion;
+    expect(thread).toHaveLength(1);
+    expect(thread[0]).toMatchObject({ role: 'teacher', text: 'שניים מספיקים בפרק הזה.' });
   });
 
-  /**
-   * Both halves stay on the page. Replacing the rationale with her answer
-   * would erase the thing she was answering.
-   */
-  it('leaves the model’s reasoning standing beside it', () => {
+  /** The point of the change: it goes on, rather than replacing what came before. */
+  it('adds turns rather than overwriting the last one', () => {
     const page = open();
-
-    page.click('.reply-open');
-    type(page, 'לא מסכימה.');
-    page.click('.reply-actions button');
-
-    expect(page.text()).toContain('רק שניים מהמקורות עדכניים.');
-    expect(page.text()).toContain('לא מסכימה.');
-  });
-
-  it('opens on what she wrote last, so editing is the same control', () => {
-    const page = open({ teacher_note: 'הערה קודמת' });
-
-    page.click('.reply .btn');
-    const box = page.fixture.nativeElement.querySelector('.reply-box') as HTMLTextAreaElement;
-
-    expect(box.value).toBe('הערה קודמת');
-  });
-
-  it('lets her take it back', () => {
-    const page = open({ teacher_note: 'הערה קודמת' });
-
-    page.click('.reply .btn');
-    page.click('.reply-actions button:last-child');
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBeNull();
-  });
-
-  /**
-   * The loss that would be invisible. A re-run rewrites the score and the
-   * rationale; if it took her note with them she would only find out by
-   * looking for something she wrote and not finding it.
-   */
-  it('survives a generated pass rewriting the score', () => {
-    const page = open({ teacher_note: 'שניים מספיקים כאן.' });
-    const category = page.store.gradingCategories()[0];
-
-    page.store.applyCriterionScores(SUBMISSION_ID, 2, [
-      { categoryId: category.id, points: 2, note: 'ירד', rationale: 'הסבר חדש' },
-    ]);
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe('שניים מספיקים כאן.');
-  });
-
-  /** And survives her own edit of the score, for the same reason. */
-  it('survives her changing the score by hand', () => {
-    const page = open({ teacher_note: 'שניים מספיקים כאן.' });
-    const category = page.store.gradingCategories()[0];
-
-    page.store.setCriterionScore(SUBMISSION_ID, category.id, 4);
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].teacher_note).toBe('שניים מספיקים כאן.');
-  });
-});
-
-/**
- * The model answering back.
- *
- * The half that turns a note into "משא ומתן כזה". These cover the rules that
- * keep it a negotiation rather than a takeover — an answer that quietly
- * overwrote her own judgement would be the opposite of what she asked for.
- */
-describe('what the model’s answer may and may not change', () => {
-  const CATEGORY = 'cat-1';
-
-  function scored(over = {}) {
-    return render({
-      criterionScores: [
-        score({ points: 3, rationale: 'שני מקורות בלבד.', rationale_points: 3, ...over }),
-      ],
-    });
-  }
-
-  it('records the answer and the score it revised', () => {
-    const page = scored();
-
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'צודקת, המקור מ־2019 עדיין נחשב עדכני בתחום.',
-      points: 4,
-      rationale: 'שלושה מקורות עדכניים.',
-    });
-
-    const after = page.store.criterionScores(SUBMISSION_ID)[0];
-    expect(after.model_reply).toContain('צודקת');
-    expect(after.points).toBe(4);
-    // The reasoning follows the score it explains, so nothing goes stale.
-    expect(after.rationale_points).toBe(4);
-  });
-
-  it('keeps the previous score, so the change is still traceable', () => {
-    const page = scored();
-
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'משנה ל־4.',
-      points: 4,
-      rationale: 'הסבר חדש',
-    });
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].previous_points).toBe(3);
-  });
-
-  /**
-   * The rule that matters most. She overrode this score by hand; being talked
-   * out of it by the thing she was arguing with is exactly backwards.
-   */
-  it('never overwrites a score she set herself', () => {
-    const page = scored({ edited_by_teacher: true, points: 4 });
-
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'אני עדיין חושב 2.',
-      points: 2,
-      rationale: 'הסבר משלו',
-    });
-
-    const after = page.store.criterionScores(SUBMISSION_ID)[0];
-    expect(after.points).toBe(4);
-    // Its answer is still recorded — she asked for its opinion, and it gave one.
-    expect(after.model_reply).toContain('עדיין חושב');
-  });
-
-  it('marks a score it revised as a draft, not as settled', () => {
-    const page = scored();
-
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'משנה',
-      points: 4,
-      rationale: 'הסבר',
-    });
-
-    // She asked it to reconsider, not to decide.
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].status).toBe('draft');
-  });
-
-  it('is allowed to hold its ground', () => {
-    const page = scored();
-
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'עדיין נראה לי ששניים מהם מיושנים, בעמוד 4.',
-      points: 3,
-      rationale: 'שני מקורות בלבד.',
-    });
-
-    const after = page.store.criterionScores(SUBMISSION_ID)[0];
-    expect(after.points).toBe(3);
-    expect(after.model_reply).toContain('עדיין נראה לי');
-  });
-
-  /**
-   * An answer to a sentence she has since rewritten is not stale, it is wrong:
-   * it puts words in the model's mouth about an objection it never read.
-   */
-  it('drops the answer when she rewrites the note it was answering', () => {
-    const page = scored({ teacher_note: 'הערה ראשונה' });
-    page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
-      reply: 'תשובה להערה הראשונה',
-      points: 3,
-      rationale: 'הסבר',
-    });
-
-    page.store.setCriterionNote(SUBMISSION_ID, CATEGORY, 'הערה אחרת לגמרי');
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].model_reply).toBeNull();
-  });
-
-  it('keeps the answer when she saves the same note again', () => {
-    const page = scored({ teacher_note: 'הערה' });
+    page.store.addDiscussionTurn(SUBMISSION_ID, CATEGORY, { role: 'teacher', text: 'ראשונה' });
     page.store.applyCriterionReply(SUBMISSION_ID, CATEGORY, {
       reply: 'תשובה',
       points: 3,
       rationale: 'הסבר',
     });
+    page.store.addDiscussionTurn(SUBMISSION_ID, CATEGORY, { role: 'teacher', text: 'שנייה' });
 
-    page.store.setCriterionNote(SUBMISSION_ID, CATEGORY, 'הערה');
-
-    expect(page.store.criterionScores(SUBMISSION_ID)[0].model_reply).toBe('תשובה');
+    const thread = page.store.criterionScores(SUBMISSION_ID)[0].discussion;
+    expect(thread.map((t) => t.role)).toEqual(['teacher', 'model', 'teacher']);
+    expect(thread.map((t) => t.text)).toEqual(['ראשונה', 'תשובה', 'שנייה']);
   });
 
-  it('shows the answer, attributed to it', () => {
-    const page = scored({ teacher_note: 'לא מסכימה', model_reply: 'צודקת בחלק מזה.' });
-    page.click('.section-head');
+  it('shows the whole exchange, both voices named', () => {
+    const page = open({
+      discussion: [
+        { role: 'teacher', text: 'לא מסכימה', at: '2026-09-01T10:00:00.000Z' },
+        { role: 'model', text: 'צודקת בחלק מזה', at: '2026-09-01T10:01:00.000Z' },
+      ],
+    });
 
-    expect(page.text()).toContain('התשובה שלו');
-    expect(page.text()).toContain('צודקת בחלק מזה.');
+    expect(page.text()).toContain('לא מסכימה');
+    expect(page.text()).toContain('צודקת בחלק מזה');
+    expect(page.text()).toContain('המערכת');
+  });
+
+  /** Nothing to answer until she has said something. */
+  it('does not offer the model a turn when it spoke last', () => {
+    const page = open({
+      discussion: [{ role: 'model', text: 'תשובה', at: '2026-09-01T10:00:00.000Z' }],
+    });
+
+    expect(page.text()).not.toContain('מה הוא אומר על זה');
+  });
+
+  it('offers it a turn once she has answered', () => {
+    const page = open({
+      discussion: [{ role: 'teacher', text: 'לא מסכימה', at: '2026-09-01T10:00:00.000Z' }],
+    });
+
+    expect(page.text()).toContain('מה הוא אומר על זה');
+  });
+
+  it('lets her start the argument over', () => {
+    const page = open({
+      discussion: [{ role: 'teacher', text: 'משהו', at: '2026-09-01T10:00:00.000Z' }],
+    });
+
+    page.store.clearDiscussion(SUBMISSION_ID, CATEGORY);
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].discussion).toEqual([]);
+  });
+
+  it('survives a generated pass rewriting the score', () => {
+    const page = open({
+      discussion: [{ role: 'teacher', text: 'שניים מספיקים', at: '2026-09-01T10:00:00.000Z' }],
+    });
+
+    page.store.applyCriterionScores(SUBMISSION_ID, 2, [
+      { categoryId: CATEGORY, points: 2, note: 'ירד', rationale: 'הסבר חדש' },
+    ]);
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].discussion).toHaveLength(1);
+  });
+});
+
+describe('changing the score inside the argument', () => {
+  const CATEGORY = 'cat-1';
+
+  function open() {
+    const page = render({ criterionScores: [score({ points: 3, rationale: 'הסבר' })] });
+    page.click('.section-head');
+    return page;
+  }
+
+  function setThreadScore(page: ReturnType<typeof render>, value: string) {
+    const box = page.fixture.nativeElement.querySelector(
+      '.thread-score .points',
+    ) as HTMLInputElement;
+    box.value = value;
+    box.dispatchEvent(new Event('change'));
+    page.fixture.detectChanges();
+  }
+
+  it('sets the score from the conversation', () => {
+    const page = open();
+
+    setThreadScore(page, '4');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].points).toBe(4);
+  });
+
+  /**
+   * The thread has to show which sentence moved the mark, or it reads as two
+   * people talking while the number changes by itself.
+   */
+  it('records the change as a turn, with the number on it', () => {
+    const page = open();
+
+    setThreadScore(page, '4');
+
+    const last = page.store.criterionScores(SUBMISSION_ID)[0].discussion.at(-1);
+    expect(last).toMatchObject({ role: 'teacher', points: 4 });
+  });
+
+  it('refuses a score above the maximum', () => {
+    const page = open();
+
+    setThreadScore(page, '99');
+
+    expect(page.store.criterionScores(SUBMISSION_ID)[0].points).toBe(3);
   });
 });

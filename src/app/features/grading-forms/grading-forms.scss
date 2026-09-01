@@ -700,3 +700,69 @@
   font-size: 0.78rem;
   line-height: 1.5;
 }
+
+// -- the argument ------------------------------------------------------------
+//
+// Two speakers, each labelled. Hers sits to one side and reads as hers,
+// because on this form her words are the ones that count.
+
+.thread {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.turn {
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border-inline-start: 2px solid var(--line);
+  background: var(--sunken, rgb(0 0 0 / 2%));
+}
+
+.turn.is-mine {
+  border-inline-start-color: var(--c-accent, #7a5cff);
+  background: var(--c-accent-soft, rgb(122 92 255 / 6%));
+}
+
+.turn-who {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.turn.is-mine .turn-who {
+  color: var(--c-accent, #7a5cff);
+}
+
+.turn-text {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+// The turns that moved the mark say so. Without it the thread reads as two
+// people talking and the number changing by itself.
+.turn-points {
+  display: inline-block;
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  unicode-bidi: isolate;
+}
+
+.thread-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  unicode-bidi: isolate;
+}
+
+.thread-score-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+}

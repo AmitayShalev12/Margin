@@ -5,6 +5,7 @@ import { buildEntries } from '../grading/entries';
 import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
 import {
+  DiscussionTurn,
   Annotation,
   AnnotationKind,
   TextAnchor,
@@ -326,8 +327,9 @@ export class DataStore {
         // Never touched by a generated pass. It is hers, and a re-run that
         // silently dropped her reply would be the worst kind of data loss:
         // invisible, and only noticed when she looks for what she wrote.
-        teacher_note: before?.teacher_note ?? null,
-        model_reply: before?.model_reply ?? null,
+        // Never touched by a generated pass. The argument is hers and its,
+        // and a re-run that silently dropped it would be invisible loss.
+        discussion: before?.discussion ?? [],
         // Recorded against the score it was written for, so an explanation
         // cannot silently outlive the number it explains.
         rationale_points: item.points,
@@ -380,8 +382,7 @@ export class DataStore {
        */
       rationale: before?.rationale ?? null,
       rationale_points: before?.rationale_points ?? null,
-      teacher_note: before?.teacher_note ?? null,
-      model_reply: before?.model_reply ?? null,
+      discussion: before?.discussion ?? [],
       round_number: before?.round_number ?? 1,
       origin: 'teacher',
       edited_by_teacher: true,
@@ -395,54 +396,73 @@ export class DataStore {
   }
 
   /**
-   * Her reply to the model's reasoning on one criterion.
+   * Adds one turn to the argument over a criterion.
    *
-   * Written against the score even when there is no score yet: she may well
-   * want to answer "this cannot be judged until the chapter exists" before any
-   * number is on it. Empty clears the note rather than storing a blank.
+   * The thread is the record of how the mark was arrived at, so turns are
+   * appended and never rewritten: an exchange she can edit after the fact is
+   * not evidence of anything. `points` is stamped on the turns that moved the
+   * score, which is what makes it readable a month later — not just who said
+   * what, but which sentence changed the number.
    */
-  setCriterionNote(submissionId: UUID, categoryId: UUID, note: string) {
+  addDiscussionTurn(
+    submissionId: UUID,
+    categoryId: UUID,
+    turn: { role: 'teacher' | 'model'; text: string; points?: number | null },
+  ) {
+    const text = turn.text.trim();
+    if (!text) return;
+
     const now = new Date().toISOString();
-    const text = note.trim();
     const before = this._criterionScores().find(
       (s) => s.submission_id === submissionId && s.category_id === categoryId,
     );
 
-    const written: GradingCriterionScore = {
-      id: before?.id ?? derivedId('criterion-score', `${submissionId}:${categoryId}`),
-      submission_id: submissionId,
-      category_id: categoryId,
-      points: before?.points ?? null,
-      previous_points: before?.previous_points ?? null,
-      status: before?.status ?? 'draft',
-      change_note: before?.change_note ?? null,
-      rationale: before?.rationale ?? null,
-      rationale_points: before?.rationale_points ?? null,
-      teacher_note: text || null,
-      /**
-       * Dropped whenever her note changes.
-       *
-       * An answer to a sentence she has since rewritten does not describe the
-       * exchange on screen — it describes one that no longer exists, and
-       * leaving it there would put words in the model's mouth about an
-       * objection it never read.
-       */
-      model_reply: text === (before?.teacher_note ?? '') ? (before?.model_reply ?? null) : null,
-      round_number: before?.round_number ?? 1,
-      /**
-       * Origin stays whatever it was.
-       *
-       * Replying to a drafted score does not make the score hers, and marking
-       * it `teacher` here would tell the next generated pass to leave the
-       * number alone — quietly freezing a score she only commented on.
-       */
-      origin: before?.origin ?? 'teacher',
-      edited_by_teacher: before?.edited_by_teacher ?? false,
-      scored_at: before?.scored_at ?? now,
-      created_at: before?.created_at ?? now,
-      updated_at: now,
+    const entry: DiscussionTurn = {
+      role: turn.role,
+      text,
+      at: now,
+      ...(turn.points === undefined ? {} : { points: turn.points }),
     };
 
+    const written: GradingCriterionScore = before
+      ? { ...before, discussion: [...before.discussion, entry], updated_at: now }
+      : {
+          id: derivedId('criterion-score', `${submissionId}:${categoryId}`),
+          submission_id: submissionId,
+          category_id: categoryId,
+          points: null,
+          previous_points: null,
+          status: 'draft',
+          change_note: null,
+          rationale: null,
+          rationale_points: null,
+          discussion: [entry],
+          round_number: 1,
+          /**
+           * Origin stays with whoever scored it. Arguing about a drafted score
+           * does not make the number hers, and marking it `teacher` here would
+           * tell the next generated pass to leave it alone — quietly freezing
+           * a score she only commented on.
+           */
+          origin: 'teacher',
+          edited_by_teacher: false,
+          scored_at: now,
+          created_at: now,
+          updated_at: now,
+        };
+
+    this._criterionScores.update((list) => [...list.filter((s) => s.id !== written.id), written]);
+    this.persist(() => this.repository.saveCriterionScore(written));
+  }
+
+  /** Clears the whole exchange, for one she would rather start again. */
+  clearDiscussion(submissionId: UUID, categoryId: UUID) {
+    const before = this._criterionScores().find(
+      (s) => s.submission_id === submissionId && s.category_id === categoryId,
+    );
+    if (!before?.discussion.length) return;
+
+    const written = { ...before, discussion: [], updated_at: new Date().toISOString() };
     this._criterionScores.update((list) => [...list.filter((s) => s.id !== written.id), written]);
     this.persist(() => this.repository.saveCriterionScore(written));
   }
@@ -475,7 +495,17 @@ export class DataStore {
       ...before,
       points,
       previous_points: moved ? before.points : before.previous_points,
-      model_reply: answer.reply,
+      discussion: [
+        ...before.discussion,
+        {
+          role: 'model' as const,
+          text: answer.reply,
+          at: now,
+          // Stamped only when it actually moved the mark, so the thread shows
+          // which sentence changed the number rather than implying every one did.
+          ...(points === before.points ? {} : { points }),
+        },
+      ],
       // The rationale follows the score it explains. Where her number stands,
       // so does the reasoning that was written for it.
       rationale: hers ? before.rationale : answer.rationale || before.rationale,

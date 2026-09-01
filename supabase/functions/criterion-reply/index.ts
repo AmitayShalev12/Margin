@@ -35,8 +35,14 @@ interface ReplyRequest {
   /** The score as it stands, and the reasoning she is answering. */
   points: number | null;
   rationale: string | null;
-  /** Her objection, verbatim. */
-  note: string;
+  /**
+   * The exchange so far, oldest first, ending with her.
+   *
+   * The whole thread rather than her last line: a model answering the end of
+   * an argument it cannot see repeats itself, and re-argues the point she
+   * conceded two turns back.
+   */
+  discussion: { role: 'teacher' | 'model'; text: string; points: number | null }[];
   /** The paper, as blocks. Trimmed by the client to what is worth sending. */
   blocks: { type: string; text: string }[];
   course_name: string;
@@ -80,6 +86,10 @@ const INSTRUCTIONS = [
   '',
   'Never exceed the criterion maximum. `points` may be null when the paper',
   'still does not support any judgement; say what is missing.',
+  '',
+  'This is a continuing conversation, not a fresh question. Do not restate',
+  'your earlier reasoning back at her, and do not re-argue a point she has',
+  'already answered — she can read what you said. Reply to her last message.',
 ].join('\n');
 
 function prompt(body: ReplyRequest): string {
@@ -99,8 +109,16 @@ function prompt(body: ReplyRequest): string {
     `# What you said about it`,
     body.rationale ?? '(no rationale was recorded)',
     ``,
-    `# What she wrote back`,
-    body.note,
+    `# The exchange so far`,
+    body.discussion
+      .map((t) => {
+        const who = t.role === 'teacher' ? 'She' : 'You';
+        const moved = t.points === null ? '' : ` [score at this point: ${t.points}]`;
+        return `${who}: ${t.text}${moved}`;
+      })
+      .join('\n'),
+    ``,
+    `Answer her last message.`,
     ``,
     `# The paper`,
     body.blocks.map((b) => b.text).join('\n'),
@@ -194,7 +212,9 @@ Deno.serve(async (request: Request) => {
     return json({ error: 'bad_request', key_source: keySource }, 400, headers);
   }
 
-  if (!body.note?.trim()) return json({ error: 'no_note', key_source: keySource }, 400, headers);
+  if (!body.discussion?.length) {
+    return json({ error: 'no_note', key_source: keySource }, 400, headers);
+  }
   if (!body.criterion?.name) {
     return json({ error: 'no_criterion', key_source: keySource }, 400, headers);
   }

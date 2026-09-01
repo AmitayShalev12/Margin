@@ -63,6 +63,20 @@ export type ScoringMode = 'comments_only' | 'scored';
  * Per submission and not per round: the form is one document that follows the
  * work, and `round_number` records which round last moved it.
  */
+/** One turn in the argument over a criterion. */
+export interface DiscussionTurn {
+  role: 'teacher' | 'model';
+  text: string;
+  at: ISODateTime;
+  /**
+   * The score as of this turn, on the turns that changed it.
+   *
+   * Undefined on a turn that only argued. Null is a real value here — "this
+   * cannot be judged yet" is a position either of them can take.
+   */
+  points?: number | null;
+}
+
 export interface GradingCriterionScore extends Timestamped {
   id: UUID;
   submission_id: UUID;
@@ -108,15 +122,18 @@ export interface GradingCriterionScore extends Timestamped {
    * answering, and a disagreement with both halves in one paragraph is not a
    * negotiation — it is one voice with no way to tell whose it is.
    */
-  teacher_note: string | null;
   /**
-   * The model's answer to her note — the other half of the exchange.
+   * The argument over this criterion, oldest first.
    *
-   * Cleared whenever `teacher_note` changes. An answer to a sentence she has
-   * since rewritten is not stale, it is wrong, and the only safe thing to do
-   * with it is delete it.
+   * "make the 'להגיב להסבר' a back and forth conversation and give it the
+   * option to change the score there." One round is a comment box; several is
+   * a discussion she can follow back afterwards and see how the number moved.
+   *
+   * `points` sits on the turns that changed the score, which is what makes the
+   * thread readable a month later — not just who said what, but which sentence
+   * moved the mark.
    */
-  model_reply: string | null;
+  discussion: DiscussionTurn[];
   round_number: number;
   origin: 'ai' | 'teacher';
   /** Once she has touched it, no generated score overwrites it. */

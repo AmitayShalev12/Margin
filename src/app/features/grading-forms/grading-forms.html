@@ -371,14 +371,32 @@
                     }
 
                     <!--
-                      Her reply.
+                      The argument over this criterion.
                       --------------------------------------------------------
-                      "אם הוא אומר, זה הסיבה שנתתי ציון כזה וכזה, אז אני אולי
-                      יכולה להגיב לו... למשא ומתן כזה." Hers, kept beside the
-                      model's reasoning rather than replacing it — a
-                      disagreement needs both halves on the page or it is not a
-                      disagreement.
+                      A thread rather than one exchange: she answers, it
+                      answers back, and either of them can move the number. The
+                      turns that changed the score say so, which is what makes
+                      it readable a month later — not just who said what, but
+                      which sentence moved the mark.
                     -->
+                    @if (criterion.thread.length) {
+                      <ol class="thread">
+                        @for (turn of criterion.thread; track $index) {
+                          <li class="turn" [class.is-mine]="turn.role === 'teacher'">
+                            <span class="turn-who">
+                              {{ turn.role === 'teacher' ? 'את' : 'המערכת' }}
+                            </span>
+                            <p class="turn-text"><app-bidi-text [value]="turn.text" /></p>
+                            @if (turn.points !== undefined) {
+                              <span class="turn-points">
+                                הניקוד כאן: {{ turn.points === null ? '—' : turn.points }}
+                              </span>
+                            }
+                          </li>
+                        }
+                      </ol>
+                    }
+
                     @if (isReplying(criterion.id)) {
                       <div class="reply-edit">
                         <textarea
@@ -394,7 +412,7 @@
                             class="btn btn-primary btn-sm"
                             (click)="saveReply(criterion.id)"
                           >
-                            שמירה
+                            שליחה
                           </button>
                           <button
                             type="button"
@@ -403,70 +421,76 @@
                           >
                             ביטול
                           </button>
-                          @if (criterion.note) {
-                            <button
-                              type="button"
-                              class="btn btn-plain btn-sm"
-                              (click)="deleteReply(criterion.id)"
-                            >
-                              מחיקה
-                            </button>
-                          }
                         </div>
                       </div>
-                    } @else if (criterion.note) {
-                      <div class="reply">
-                        <span class="reply-label">התגובה שלי</span>
-                        <p class="reply-body"><app-bidi-text [value]="criterion.note" /></p>
-                        <div class="reply-actions">
+                    } @else {
+                      <div class="reply-actions">
+                        <button
+                          type="button"
+                          class="btn btn-plain btn-sm"
+                          (click)="startReply(criterion.id)"
+                        >
+                          {{
+                            criterion.thread.length
+                              ? 'להוסיף לשיחה'
+                              : criterion.rationale
+                                ? 'להגיב להסבר'
+                                : 'הוספת הערה'
+                          }}
+                        </button>
+
+                        @if (replies.available && criterion.awaitingModel) {
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-sm"
+                            [disabled]="replies.isAsking(criterion.id)"
+                            (click)="askModel(criterion.id)"
+                          >
+                            {{ replies.isAsking(criterion.id) ? 'שולחת…' : 'מה הוא אומר על זה?' }}
+                          </button>
+                        }
+
+                        <!--
+                          The number, inside the argument. It is what the
+                          argument is about, and changing it here is a move in
+                          the argument rather than a separate act.
+                        -->
+                        <span class="thread-score">
+                          <span class="thread-score-label">הניקוד:</span>
+                          <input
+                            class="points"
+                            type="number"
+                            min="0"
+                            [attr.max]="criterion.maxPoints"
+                            inputmode="numeric"
+                            placeholder="—"
+                            [attr.aria-label]="'ניקוד ל' + criterion.name"
+                            [value]="criterion.display?.points ?? ''"
+                            (change)="
+                              setScoreFromThread(
+                                criterion.id,
+                                criterion.maxPoints,
+                                $any($event.target).value
+                              )
+                            "
+                          />
+                          <span class="out-of">/ {{ criterion.maxPoints }}</span>
+                        </span>
+
+                        @if (criterion.thread.length) {
                           <button
                             type="button"
                             class="btn btn-plain btn-sm"
-                            (click)="startReply(criterion.id, criterion.note)"
+                            (click)="clearThread(criterion.id)"
                           >
-                            עריכה
+                            לנקות את השיחה
                           </button>
-                          @if (replies.available && !criterion.modelReply) {
-                            <button
-                              type="button"
-                              class="btn btn-ghost btn-sm"
-                              [disabled]="replies.isAsking(criterion.id)"
-                              (click)="askModel(criterion.id)"
-                            >
-                              {{ replies.isAsking(criterion.id) ? 'שולחת…' : 'מה הוא אומר על זה?' }}
-                            </button>
-                          }
-                        </div>
+                        }
                       </div>
+                    }
 
-                      <!--
-                        Its answer.
-                        ------------------------------------------------------
-                        The half that makes this an exchange rather than a
-                        suggestion box. Marked as the model's, like its
-                        reasoning above, and gone the moment she rewrites the
-                        note it was answering.
-                      -->
-                      @if (criterion.modelReply) {
-                        <div class="rationale model-answer">
-                          <span class="rationale-label">התשובה שלו</span>
-                          <p class="rationale-body">
-                            <app-bidi-text [value]="criterion.modelReply" />
-                          </p>
-                        </div>
-                      }
-
-                      @if (replies.error(); as problem) {
-                        <p class="reply-error" role="alert">{{ problem }}</p>
-                      }
-                    } @else {
-                      <button
-                        type="button"
-                        class="btn btn-plain btn-sm reply-open"
-                        (click)="startReply(criterion.id, null)"
-                      >
-                        {{ criterion.rationale ? 'להגיב להסבר' : 'הוספת הערה' }}
-                      </button>
+                    @if (replies.error(); as problem) {
+                      <p class="reply-error" role="alert">{{ problem }}</p>
                     }
 
                     @if (criterion.changeNote) {

@@ -308,10 +308,10 @@ export class GradingForms {
           score.rationale_points !== null &&
           score.rationale_points !== score.points,
         rationaleFor: score?.rationale_points ?? null,
-        /** Her reply to the reasoning, or a remark of her own. Always hers. */
-        note: score?.teacher_note ?? null,
-        /** What it answered back. Cleared whenever she rewrites her note. */
-        modelReply: score?.model_reply ?? null,
+        /** The argument so far, oldest first. */
+        thread: score?.discussion ?? [],
+        /** True while it is her move — the model has not been asked yet. */
+        awaitingModel: score?.discussion.at(-1)?.role === 'teacher',
         /** 2.2 and 4.2 — hers to judge, never the model's. */
         mine: category.manual_only,
         entries: group?.entries ?? [],
@@ -396,15 +396,13 @@ export class GradingForms {
     return null;
   });
 
-  // -- her reply ------------------------------------------------------------
+  // -- the argument ---------------------------------------------------------
   //
-  // "אז אני אולי יכולה להגיב לו... שתהיה אופציה כזאת, למשא ומתן כזה."
-  //
-  // Her side of it. The model does not answer back — said plainly on screen
-  // rather than implied by a composer that looks like a chat and never
-  // replies, which would be a promise the app cannot keep.
+  // "make the 'להגיב להסבר' a back and forth conversation and give it the
+  // option to change the score there." One round was a comment box; several
+  // is a discussion she can follow back afterwards and see how the mark moved.
 
-  /** Which criterion's reply box is open. One at a time. */
+  /** Which criterion's composer is open. One at a time. */
   private readonly replyingTo = signal<UUID | null>(null);
   protected readonly replyDraft = signal('');
 
@@ -412,10 +410,8 @@ export class GradingForms {
     return this.replyingTo() === categoryId;
   }
 
-  protected startReply(categoryId: UUID, existing: string | null) {
-    // Opens on what she wrote last, so "edit" and "reply" are one control
-    // rather than two that behave differently.
-    this.replyDraft.set(existing ?? '');
+  protected startReply(categoryId: UUID) {
+    this.replyDraft.set('');
     this.replyingTo.set(categoryId);
   }
 
@@ -424,21 +420,52 @@ export class GradingForms {
     this.replyDraft.set('');
   }
 
+  /**
+   * Adds her turn to the thread.
+   *
+   * Appended, never rewritten: an exchange she can edit after the fact is not
+   * a record of how the mark was arrived at, it is a draft of one.
+   */
   protected saveReply(categoryId: UUID) {
     const id = this.submissionId();
     if (!id) return;
 
-    this.data.setCriterionNote(id, categoryId, this.replyDraft());
+    this.data.addDiscussionTurn(id, categoryId, {
+      role: 'teacher',
+      text: this.replyDraft(),
+    });
     this.cancelReply();
   }
 
-  /** Clearing it is saving an empty one — one path, so they cannot disagree. */
-  protected deleteReply(categoryId: UUID) {
+  /** Starts the argument over, for one she would rather not keep. */
+  protected clearThread(categoryId: UUID) {
+    const id = this.submissionId();
+    if (id) this.data.clearDiscussion(id, categoryId);
+  }
+
+  /**
+   * Her setting the score from inside the conversation.
+   *
+   * She asked for it here rather than only in the row above, and it belongs
+   * here: the number is what the argument is about, and changing it mid-thread
+   * is a move in the argument. Recorded as a turn so the thread shows which
+   * sentence moved the mark.
+   */
+  protected setScoreFromThread(categoryId: UUID, maxPoints: number | null, raw: string) {
     const id = this.submissionId();
     if (!id) return;
 
-    this.data.setCriterionNote(id, categoryId, '');
-    this.cancelReply();
+    const trimmed = raw.trim();
+    const points = trimmed === '' ? null : Number(trimmed);
+    if (points !== null && (!Number.isFinite(points) || points < 0)) return;
+    if (points !== null && maxPoints !== null && points > maxPoints) return;
+
+    this.data.setCriterionScore(id, categoryId, points);
+    this.data.addDiscussionTurn(id, categoryId, {
+      role: 'teacher',
+      text: points === null ? 'הורדתי את הניקוד בינתיים.' : `קבעתי ${points}.`,
+      points,
+    });
   }
 
   /**
@@ -611,8 +638,15 @@ export class GradingForms {
           // from the screen that says so, it would read as justifying her
           // number rather than the one it was written for.
           rationale: criterion.rationaleStale ? null : criterion.rationale,
-          // Hers, so it goes on the form whatever happened to the score.
-          teacherNote: criterion.note,
+          /**
+           * Her last word in the argument, not the whole thread.
+           *
+           * The document is her form, not a transcript: what belongs on it is
+           * the position she settled on. The exchange that got her there is on
+           * screen for whoever wants to follow it.
+           */
+          teacherNote:
+            [...criterion.thread].reverse().find((t) => t.role === 'teacher')?.text ?? null,
         })),
       })),
       paper: paper ? { points: paper.points, outOf: paper.outOf, percent: paper.percent } : null,
