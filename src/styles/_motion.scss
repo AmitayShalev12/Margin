@@ -87,3 +87,41 @@
     border-color var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
+
+// ---------------------------------------------------------------------------
+// Arriving on a screen.
+//
+// The first version put motion only on things that appear *within* a screen —
+// a section unfolding, a turn landing — which was correct and also invisible:
+// every screen she actually opens looked exactly as it had before, because
+// nothing on it had changed state. Restraint nobody can see is not restraint,
+// it is an unfinished job.
+//
+// Every screen shares `.page` and Angular rebuilds it on each navigation, so
+// staggering its children gives the whole app an entrance from one rule.
+//
+// Its *children*, not the wrapper: animating both stacks two movements on top
+// of each other and reads as a lurch. And children by position rather than by
+// class — an earlier attempt keyed on `.page > .card`, which matched almost
+// nothing, because most screens wrap their cards a level deeper. A selector
+// that silently matches nothing is the same failure as a button with no
+// handler: it looks done and does nothing.
+// ---------------------------------------------------------------------------
+
+.page > * {
+  animation: rise var(--dur) var(--ease) both;
+}
+
+/**
+ * A beat apart, and not many beats.
+ *
+ * Six children at 45ms is 270ms end to end — about where a stagger stops
+ * reading as liveliness and starts reading as a page being slow to draw.
+ * Capped at eight for the same reason: a list of thirty papers must not take a
+ * second and a half to arrive, so everything past the eighth comes in with it.
+ */
+@for $i from 2 through 8 {
+  .page > *:nth-child(#{$i}) {
+    animation-delay: #{($i - 1) * 45}ms;
+  }
+}
