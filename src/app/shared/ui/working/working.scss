@@ -1,0 +1,101 @@
+:host {
+  display: block;
+}
+
+.working {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface-sunk);
+}
+
+.dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  block-size: 1.25rem;
+  flex: 0 0 auto;
+}
+
+.dot {
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  animation: float 1.4s var(--ease) infinite;
+}
+
+/**
+ * Out of phase, so the three read as one movement rather than three.
+ *
+ * A fifth of a second apart: close enough that the eye follows it as a wave,
+ * far enough that they are never all at the top together, which is what makes
+ * a row of dots look like it is pulsing rather than drifting.
+ */
+.dot:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+/**
+ * Rising and settling, not blinking.
+ *
+ * Opacity alone reads as a broken image loading. Movement reads as something
+ * working, which is the whole claim being made — and the fade is only enough
+ * to soften the top of the arc.
+ */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.said {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+/**
+ * The elapsed count, and the reassurance after it.
+ *
+ * Quiet on purpose. It is there for the moment she starts wondering whether
+ * the page has died, and for nobody who is not already wondering.
+ */
+.note {
+  color: var(--c-ink-3);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+/**
+ * Without motion, the dots would sit frozen and say the opposite of what they
+ * are for. Held at their brightest instead, so the row still reads as present
+ * and deliberate rather than as an animation that failed to start — the
+ * elapsed counter beside it is what carries "still going" here.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+    opacity: 1;
+  }
+}

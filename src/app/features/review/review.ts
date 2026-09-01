@@ -30,6 +30,7 @@ import { SELECTION_REFUSAL, anchorFromSelection } from '../../core/presentation/
 import { submittedAt } from '../../core/presentation/submission-status';
 import { Viewport } from '../../core/viewport';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
+import { Working } from '../../shared/ui/working/working';
 import { ReliabilityPanel } from '../../shared/ui/reliability-panel/reliability-panel';
 
 /** A run of text as the template needs it, with its styling already decided. */
@@ -98,7 +99,7 @@ function commentCount(n: number): string {
 @Component({
   selector: 'app-review',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, BidiText, ReliabilityPanel],
+  imports: [RouterLink, BidiText, ReliabilityPanel, Working],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })

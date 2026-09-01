@@ -23,6 +23,7 @@ import { GradingFormCategory, UUID } from '../../core/models';
 import { KIND_LABEL, kindClass } from '../../core/presentation/annotation-kind';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
+import { Working } from '../../shared/ui/working/working';
 
 /**
  * The teacher's internal grading form.
@@ -38,7 +39,7 @@ import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 @Component({
   selector: 'app-grading-forms',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, RouterLink, BidiText, DatePipe],
+  imports: [PageHeader, RouterLink, BidiText, DatePipe, Working],
   templateUrl: './grading-forms.html',
   styleUrl: './grading-forms.scss',
 })

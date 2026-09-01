@@ -489,6 +489,10 @@
                       </div>
                     }
 
+                    @if (replies.isAsking(criterion.id)) {
+                      <app-working label="שולחת את התגובה שלך" />
+                    }
+
                     @if (replies.error(); as problem) {
                       <p class="reply-error" role="alert">{{ problem }}</p>
                     }

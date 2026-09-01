@@ -343,7 +343,15 @@
     @if (!hasComments()) {
       <div class="no-comments">
         @if (generator.isGenerating()) {
-          <p class="hint">קוראת את העבודה ומנסחת הערות… זה לוקח דקה או שתיים.</p>
+          <!--
+            A ninety-second wait with nothing moving reads as a frozen page,
+            and the honest response to a frozen page is to reload — which
+            throws the run away.
+          -->
+          <app-working
+            label="קוראת את העבודה ומנסחת הערות"
+            longRunNote="ריצה כזאת לוקחת בדרך כלל דקה עד שתיים."
+          />
         } @else {
           <p class="hint">
             אין עדיין הערות על העבודה הזו. אנסח טיוטה ראשונה בסגנון שלך, ואת תעברי עליה.
