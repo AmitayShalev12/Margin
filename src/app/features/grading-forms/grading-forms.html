@@ -204,7 +204,7 @@
             as a broken feature, and she cannot tell the two apart by looking.
           -->
           @if (failure(); as problem) {
-            <p class="score-error" role="alert">
+            <p class="score-error anim-rise" role="alert">
               {{ problem.message }}
               @if (problem.detail; as detail) {
                 <!-- The raw line. It is what tells a deploy apart from a model. -->
@@ -216,7 +216,7 @@
               A clean run that moved nothing. Said in whichever of the two ways
               it happened, because they need opposite fixes and look identical.
             -->
-            <p class="score-error" role="status">{{ note }}</p>
+            <p class="score-error anim-rise" role="status">{{ note }}</p>
           }
 
           <div class="unscored-actions">
@@ -269,7 +269,7 @@
               [attr.aria-expanded]="section.open"
               (click)="toggle(section.name)"
             >
-              <span class="chev" aria-hidden="true">{{ section.open ? '⌄' : '‹' }}</span>
+              <span class="chev" aria-hidden="true">‹</span>
               <span class="section-name">{{ section.name }}</span>
 
               @if (section.subtotal; as sub) {
@@ -283,7 +283,7 @@
             </button>
 
             @if (section.open) {
-              <ul class="criteria">
+              <ul class="criteria anim-unfold">
                 @for (criterion of section.criteria; track criterion.id) {
                   <li class="criterion">
                     <div class="criterion-head">
@@ -382,7 +382,7 @@
                     @if (criterion.thread.length) {
                       <ol class="thread">
                         @for (turn of criterion.thread; track $index) {
-                          <li class="turn" [class.is-mine]="turn.role === 'teacher'">
+                          <li class="turn anim-rise" [class.is-mine]="turn.role === 'teacher'">
                             <span class="turn-who">
                               {{ turn.role === 'teacher' ? 'את' : 'המערכת' }}
                             </span>
@@ -398,7 +398,7 @@
                     }
 
                     @if (isReplying(criterion.id)) {
-                      <div class="reply-edit">
+                      <div class="reply-edit anim-unfold">
                         <textarea
                           class="control reply-box"
                           rows="3"

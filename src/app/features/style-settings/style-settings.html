@@ -104,7 +104,7 @@
     </p>
 
     @if (importError(); as message) {
-      <p class="import-error" role="alert">{{ message }}</p>
+      <p class="import-error anim-rise" role="alert">{{ message }}</p>
     }
 
     @if (imported(); as count) {
@@ -118,7 +118,7 @@
     }
 
     @if (found().length) {
-      <div class="found">
+      <div class="found anim-unfold">
         @if (fromText()) {
           <p class="found-title">
             נמצאו {{ found().length }} פסקאות ב{{ fileName() }} — בלי הערות מסומנות

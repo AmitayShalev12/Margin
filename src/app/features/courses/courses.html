@@ -218,7 +218,7 @@
         </button>
 
         @if (isOpen(s.id)) {
-          <div class="kb-body">
+          <div class="kb-body anim-unfold">
             <ul class="kb-items">
               @for (item of s.items; track item.id) {
                 <li class="kb-item" [class.muted]="item.muted">
@@ -309,7 +309,7 @@
               was a display of records that could only arrive from elsewhere.
             -->
             @if (isAdding(s.id)) {
-              <div class="kb-form">
+              <div class="kb-form anim-unfold">
                 @if (s.add.of === 'material') {
                   <label class="field">
                     <span class="label">שם</span>

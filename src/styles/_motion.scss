@@ -1,0 +1,89 @@
+// ===========================================================================
+// Motion.
+//
+// One vocabulary, so the app moves the same way everywhere rather than each
+// screen inventing its own timing. Everything here is short: 120–220ms, which
+// is long enough to be followed and too short to be waited for. Motion that
+// makes a teacher wait is not polish, it is a tax she pays on every click.
+//
+// Every animation is there to explain a change — something appeared, something
+// opened, a number moved — and none of it is decoration. A thing that appears
+// with no motion has to be found again by eye; a thing that slides in has
+// already told you where to look.
+//
+// `_base.scss` reduces every duration to nothing under
+// `prefers-reduced-motion`, so none of this needs to guard itself. Vestibular
+// disorders make sliding panels genuinely unpleasant, and the setting is not a
+// preference to be second-guessed.
+// ===========================================================================
+
+/** Something arrived. Small rise, because a large one reads as a page change. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/** Something opened downward — a section, a form, a thread. */
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/**
+ * A value changed in place.
+ *
+ * The one case where a highlight earns itself: a number that changes with no
+ * motion at all is a number she has to notice, and on a form of seventeen of
+ * them she will not. Fades out rather than staying, so the form does not end
+ * up striped with everything she has ever touched.
+ */
+@keyframes settle {
+  0% {
+    background-color: var(--c-accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.anim-rise {
+  animation: rise var(--dur) var(--ease) both;
+}
+
+.anim-unfold {
+  animation: unfold var(--dur) var(--ease) both;
+}
+
+.anim-settle {
+  animation: settle 1.2s var(--ease);
+}
+
+/**
+ * Pressed.
+ *
+ * Touch has no hover, so on a phone this is the only feedback that a press
+ * registered before the screen changes. Scoped to `:active` so it costs
+ * nothing until a finger is down.
+ */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn {
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}

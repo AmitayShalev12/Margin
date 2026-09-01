@@ -355,14 +355,17 @@
 }
 
 .chev {
+  display: inline-block;
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1;
-  transition: transform 0.15s ease;
+  transition: transform var(--dur) var(--ease);
 }
 
+// Rotated rather than swapped for another character: a glyph change is
+// instant by nature, and the turn is what says the section is opening.
 .is-open .chev {
-  transform: none;
+  transform: rotate(-90deg);
 }
 
 .section-name {
