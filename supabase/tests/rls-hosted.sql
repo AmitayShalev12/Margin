@@ -239,8 +239,8 @@ begin
 
   begin
     set local role authenticated;
-    insert into public.course_rules (course_id, kind, title, body)
-    values (course_a, 'structure', 'סדר הפרקים', 'שיטה לפני ממצאים.');
+    insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values (course_a, teacher_a, 'structure', 'סדר הפרקים', 'שיטה לפני ממצאים.');
     reset role;
     passed := passed + 1; report := report || E'  ok    she can write a course rule\n';
   exception when others then
@@ -248,10 +248,43 @@ begin
     failed := failed + 1; report := report || format(E'  FAIL  she can write a course rule [%s: %s]\n', sqlstate, sqlerrm);
   end;
 
+  -- Owned by the teacher now, not by one course, so a rule she means
+  -- everywhere is one record rather than a copy per course. A row with no
+  -- course is therefore not a row with no owner.
   begin
     set local role authenticated;
-    insert into public.course_materials (course_id, kind, title)
-    values (course_a, 'syllabus', 'סילבוס הקורס');
+    insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values (null, teacher_a, 'sources', 'APA', 'מהדורה שביעית.');
+    reset role;
+    passed := passed + 1; report := report || E'  ok    she can write a rule for every course she teaches
+';
+  exception when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  she can write a rule for every course she teaches [%s: %s]
+', sqlstate, sqlerrm);
+  end;
+
+  begin
+    set local role authenticated;
+    insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values (null, teacher_b, 'sources', 'APA', 'כלל של מורה אחרת.');
+    reset role;
+    failed := failed + 1; report := report || E'  FAIL  a global rule cannot be planted on another teacher [it was allowed]
+';
+  exception when insufficient_privilege then
+    reset role;
+    passed := passed + 1; report := report || E'  ok    a global rule cannot be planted on another teacher
+';
+  when others then
+    reset role;
+    failed := failed + 1; report := report || format(E'  FAIL  a global rule cannot be planted on another teacher [wrong error %s: %s]
+', sqlstate, sqlerrm);
+  end;
+
+  begin
+    set local role authenticated;
+    insert into public.course_materials (course_id, teacher_id, kind, title)
+    values (course_a, teacher_a, 'syllabus', 'סילבוס הקורס');
     reset role;
     passed := passed + 1; report := report || E'  ok    she can write a course material\n';
   exception when others then

@@ -503,6 +503,7 @@ function rule(
   return {
     id: seedId(id),
     course_id: COURSE_ID,
+    teacher_id: TEACHER_ID,
     kind,
     title: body,
     body,
@@ -543,6 +544,7 @@ function material(
   return {
     id: seedId(id),
     course_id: COURSE_ID,
+    teacher_id: TEACHER_ID,
     kind,
     title,
     notes,

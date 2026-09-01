@@ -255,3 +255,111 @@ describe('editing what is already saved', () => {
     expect(store.courseMaterials().some((m) => m.id === material.id)).toBe(false);
   });
 });
+
+/**
+ * Several courses, and years within them.
+ *
+ * One row per course-year, grouped by name: "סמינריון תשפ״ו" and "סמינריון
+ * תשפ״ז" are separate courses sharing a title, which is what the data already
+ * looked like. Each year keeps its own roster, assignments and papers.
+ *
+ * The tests that matter are the ones about leakage. A rule written for one
+ * course appearing in another would reach the model as an instruction she
+ * never gave for that class.
+ */
+describe('more than one course', () => {
+  function twoCourses() {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    const first = store.course()!;
+    const second = store.createCourse('סמינריון', 'תשפ״ז')!;
+    page.fixture.detectChanges();
+    return { page, store, first, second };
+  }
+
+  it('keeps every course, rather than only the first', () => {
+    const { store } = twoCourses();
+
+    expect(store.courses().length).toBe(2);
+  });
+
+  it('switches between them', () => {
+    const { store, first, second } = twoCourses();
+    expect(store.course()?.id).toBe(second.id);
+
+    store.selectCourse(first.id);
+
+    expect(store.course()?.id).toBe(first.id);
+  });
+
+  /** A stale link should leave her where she was, not blank the screen. */
+  it('ignores a course she does not have', () => {
+    const { store, second } = twoCourses();
+
+    store.selectCourse('no-such-course');
+
+    expect(store.course()?.id).toBe(second.id);
+  });
+
+  /**
+   * The leak that would matter. A rule she wrote for one class must not turn
+   * up as an instruction in another.
+   */
+  it('keeps a course’s own rules to itself', () => {
+    const { store, first, second } = twoCourses();
+
+    store.selectCourse(first.id);
+    store.addCourseRule('language', 'כלל של הקורס הראשון', 'teacher');
+
+    store.selectCourse(second.id);
+
+    expect(store.courseRules().some((r) => r.body === 'כלל של הקורס הראשון')).toBe(false);
+  });
+
+  it('shows a global rule in every course', () => {
+    const { store, first, second } = twoCourses();
+
+    store.selectCourse(first.id);
+    store.addCourseRule('sources', 'APA מהדורה שביעית', 'teacher', 'all');
+
+    store.selectCourse(second.id);
+
+    expect(store.courseRules().some((r) => r.body === 'APA מהדורה שביעית')).toBe(true);
+  });
+
+  /**
+   * Shared, not copied — the distinction she chose. One record, so a
+   * correction lands everywhere instead of leaving stale duplicates in the
+   * courses she was not looking at.
+   */
+  it('corrects a global rule in every course at once', () => {
+    const { store, first, second } = twoCourses();
+    store.selectCourse(first.id);
+    const rule = store.addCourseRule('sources', 'APA מהדורה שישית', 'teacher', 'all')!;
+
+    store.editCourseRule(rule.id, 'APA מהדורה שביעית');
+
+    store.selectCourse(second.id);
+    expect(store.courseRules().find((r) => r.id === rule.id)?.body).toBe('APA מהדורה שביעית');
+    // One record, not two.
+    expect(store.allCourseRules().filter((r) => r.id === rule.id).length).toBe(1);
+  });
+
+  it('sends a global source to the model in every course', () => {
+    const { store, first, second } = twoCourses();
+    store.selectCourse(first.id);
+    store.addSource('האקדמיה ללשון', 'https://hebrew-academy.org.il', 'כתיב מלא', 'all');
+
+    store.selectCourse(second.id);
+
+    expect(store.sources().some((m) => m.title === 'האקדמיה ללשון')).toBe(true);
+  });
+
+  it('groups the years under one course name', () => {
+    const { page } = twoCourses();
+
+    const text = (page.fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('תשפ״ו');
+    expect(text).toContain('תשפ״ז');
+  });
+});

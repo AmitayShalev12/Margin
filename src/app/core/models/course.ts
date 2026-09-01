@@ -58,7 +58,15 @@ export type CourseRuleOrigin = 'teacher' | 'web';
 
 export interface CourseRule extends Timestamped {
   id: UUID;
-  course_id: UUID;
+  /**
+   * The course this applies to, or null for every course she teaches.
+   *
+   * APA is APA in all of them. Shared rather than copied, so correcting one
+   * corrects it everywhere instead of leaving stale duplicates in the courses
+   * she was not looking at.
+   */
+  course_id: UUID | null;
+  teacher_id: UUID;
   kind: CourseRuleKind;
   title: string;
   body: string;
@@ -82,7 +90,9 @@ export type CourseMaterialKind =
  */
 export interface CourseMaterial extends Timestamped {
   id: UUID;
-  course_id: UUID;
+  /** The course this belongs to, or null for every course she teaches. */
+  course_id: UUID | null;
+  teacher_id: UUID;
   kind: CourseMaterialKind;
   title: string;
   notes: string | null;

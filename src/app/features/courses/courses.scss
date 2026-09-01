@@ -327,3 +327,52 @@
   line-height: 1.6;
   resize: vertical;
 }
+
+// -- which course, and which year of it --------------------------------------
+
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.picker-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.picker-name {
+  font-weight: 600;
+}
+
+.picker-years {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.picker-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.add-year {
+  align-self: flex-start;
+}
+
+// A rule that applies everywhere, said on the row — so she knows before
+// editing it that the change lands in every course, not just this one.
+.kb-global {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+
+.scope {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}

@@ -122,7 +122,17 @@ export class DataStore {
    * the first write against one was refused by RLS for a reason that looked
    * like a permissions bug rather than "this record was never yours".
    */
-  private readonly _course = signal<Course | null>(null);
+  /**
+   * Every course she has, and which of them is on screen.
+   *
+   * `_courses` holds one row per course-year — "סמינריון תשפ״ו" and
+   * "סמינריון תשפ״ז" are separate rows sharing a name, which is what the data
+   * already looked like. The screen groups them by name and offers the years
+   * underneath; nothing had to move for that, and each year keeps its own
+   * roster, assignments and papers, which is the truth about how she teaches.
+   */
+  private readonly _courses = signal<Course[]>([]);
+  private readonly _selectedCourseId = signal<UUID | null>(null);
   private readonly _assignment = signal<Assignment | null>(null);
   private readonly _submissions = signal<Submission[]>([]);
   private readonly _rounds = signal<SubmissionRound[]>([]);
@@ -159,8 +169,27 @@ export class DataStore {
   readonly persistError = this._persistError.asReadonly();
 
   readonly students = this._students.asReadonly();
-  readonly courseRules = this._courseRules.asReadonly();
-  readonly courseMaterials = this._courseMaterials.asReadonly();
+  /**
+   * The rules in force here: this course's, plus the ones she made global.
+   *
+   * `course_id === null` means every course she teaches. Filtered at the point
+   * of reading rather than copied at the point of writing, so correcting a
+   * global rule corrects it everywhere at once — which is the difference she
+   * chose between sharing and copying.
+   */
+  readonly courseRules = computed(() => {
+    const here = this._course()?.id ?? null;
+    return this._courseRules().filter((r) => r.course_id === null || r.course_id === here);
+  });
+
+  readonly courseMaterials = computed(() => {
+    const here = this._course()?.id ?? null;
+    return this._courseMaterials().filter((m) => m.course_id === null || m.course_id === here);
+  });
+
+  /** Everything on record, across every course. For the knowledge-base screen. */
+  readonly allCourseRules = this._courseRules.asReadonly();
+  readonly allCourseMaterials = this._courseMaterials.asReadonly();
   readonly gradingCategories = this._gradingCategories.asReadonly();
   readonly gradingEntries = this._gradingEntries.asReadonly();
   readonly allCriterionScores = this._criterionScores.asReadonly();
@@ -187,6 +216,26 @@ export class DataStore {
    *
    * Folder ids come from the persisted map when set, else from the record.
    */
+  /** Every course, newest year first, for the picker. */
+  readonly courses = computed(() =>
+    [...this._courses()].sort(
+      (a, b) => b.year.localeCompare(a.year) || a.name.localeCompare(b.name),
+    ),
+  );
+
+  /**
+   * The course she is working in.
+   *
+   * Falls back to the first rather than to nothing: an account with courses
+   * but no selection is one keystroke from looking like an account with no
+   * courses at all, and the screens below read `course()` as "is she set up".
+   */
+  private readonly _course = computed<Course | null>(() => {
+    const all = this._courses();
+    const picked = all.find((c) => c.id === this._selectedCourseId());
+    return picked ?? all[0] ?? null;
+  });
+
   readonly course = computed<Course | null>(() => {
     const course = this._course();
     if (!course) return null;
@@ -201,6 +250,16 @@ export class DataStore {
       drive_folder_id: this.folders()[assignment.id] ?? assignment.drive_folder_id,
     };
   });
+
+  /**
+   * Switch to another course, or another year of the same one.
+   *
+   * Ignores an id she does not own rather than blanking the screen — a stale
+   * link or a course she has since deleted should leave her where she was.
+   */
+  selectCourse(id: UUID) {
+    if (this._courses().some((c) => c.id === id)) this._selectedCourseId.set(id);
+  }
 
   /** True once she has a course. Everything else waits on it. */
   readonly hasCourse = computed(() => !!this._course());
@@ -470,7 +529,9 @@ export class DataStore {
    * table, no migration and no third RLS policy to keep in step.
    */
   readonly sources = computed(() =>
-    this._courseMaterials().filter((m) => m.kind === 'reference' && m.active),
+    // The scoped list, so a source she marked global reaches the model in
+    // every course rather than only the one she added it in.
+    this.courseMaterials().filter((m) => m.kind === 'reference' && m.active),
   );
 
   /**
@@ -547,7 +608,9 @@ export class DataStore {
    * One code path, so a test cannot pass against rules the app does not use.
    */
   applySnapshot(snapshot: PersistedSnapshot): void {
-    if (snapshot.courses.length) this._course.set(snapshot.courses[0]);
+    // All of them, not the first. Keeping only one was what made the app
+    // single-course: the other rows were loaded and then thrown away.
+    if (snapshot.courses.length) this._courses.set(snapshot.courses);
     if (snapshot.assignments.length) this._assignment.set(snapshot.assignments[0]);
     if (snapshot.students.length) this._students.set(snapshot.students);
     if (snapshot.courseRules.length) this._courseRules.set(snapshot.courseRules);
@@ -654,7 +717,9 @@ export class DataStore {
       updated_at: now,
     };
 
-    this._course.set(course);
+    this._courses.update((list) => [...list.filter((c) => c.id !== course.id), course]);
+    // A course she just created is the one she wants to be looking at.
+    this._selectedCourseId.set(course.id);
     this.persist(() => this.repository.saveCourse(course));
     // The course row is enqueued first, so the headings that point at it
     // cannot reach Postgres before their parent.
@@ -782,15 +847,29 @@ export class DataStore {
    * background that defers to them. Writing a rule of hers as `web` would
    * quietly demote it.
    */
-  addCourseRule(kind: CourseRuleKind, body: string, origin: CourseRuleOrigin): CourseRule | null {
+  addCourseRule(
+    kind: CourseRuleKind,
+    body: string,
+    origin: CourseRuleOrigin,
+    /**
+     * `'all'` writes it with no course, which is what makes it global.
+     *
+     * APA is APA everywhere she teaches. Shared rather than copied, so
+     * correcting it later corrects it in every course rather than leaving
+     * stale duplicates in the ones she was not looking at.
+     */
+    scope: 'course' | 'all' = 'course',
+  ): CourseRule | null {
     const course = this._course();
     const text = body.trim();
     if (!course || !text) return null;
+    const teacherId = course.teacher_id;
 
     const now = new Date().toISOString();
     const rule: CourseRule = {
       id: newId(),
-      course_id: course.id,
+      course_id: scope === 'all' ? null : course.id,
+      teacher_id: teacherId,
       kind,
       // The rule is its own title. She writes one sentence, not a heading and
       // a body, and inventing a title from the first few words reads as a
@@ -822,7 +901,12 @@ export class DataStore {
    * any leading bullet or numbering she had in the document — `1.`, `-`, `•` —
    * because that is the list's furniture rather than part of the rule.
    */
-  addCourseRules(kind: CourseRuleKind, text: string, origin: CourseRuleOrigin): number {
+  addCourseRules(
+    kind: CourseRuleKind,
+    text: string,
+    origin: CourseRuleOrigin,
+    scope: 'course' | 'all' = 'course',
+  ): number {
     const lines = text
       .split(/\r?\n/)
       .map((line) => line.replace(/^\s*(?:[-–—•*]|\d+[.)])\s*/, '').trim())
@@ -830,7 +914,7 @@ export class DataStore {
 
     let added = 0;
     for (const line of lines) {
-      if (this.addCourseRule(kind, line, origin)) added += 1;
+      if (this.addCourseRule(kind, line, origin, scope)) added += 1;
     }
     return added;
   }
@@ -849,16 +933,20 @@ export class DataStore {
     title: string,
     content: string,
     notes?: string,
+    /** `'all'` makes it a material every course of hers can see. */
+    scope: 'course' | 'all' = 'course',
   ): CourseMaterial | null {
     const course = this._course();
     const name = title.trim();
     const text = content.trim();
     if (!course || !name || !text) return null;
+    const teacherId = course.teacher_id;
 
     const now = new Date().toISOString();
     const material: CourseMaterial = {
       id: newId(),
-      course_id: course.id,
+      course_id: scope === 'all' ? null : course.id,
+      teacher_id: teacherId,
       kind,
       title: name,
       notes: notes?.trim() || null,
@@ -902,15 +990,23 @@ export class DataStore {
    * `notes` — which is why the field beside it asks what to take from the
    * source rather than treating the link as self-explanatory.
    */
-  addSource(title: string, url: string, notes: string): CourseMaterial | null {
+  addSource(
+    title: string,
+    url: string,
+    notes: string,
+    /** APA applies to every course she teaches, so this one is usually 'all'. */
+    scope: 'course' | 'all' = 'course',
+  ): CourseMaterial | null {
     const course = this._course();
     const name = title.trim();
     if (!course || !name) return null;
+    const teacherId = course.teacher_id;
 
     const now = new Date().toISOString();
     const source: CourseMaterial = {
       id: newId(),
-      course_id: course.id,
+      course_id: scope === 'all' ? null : course.id,
+      teacher_id: teacherId,
       kind: 'reference',
       title: name,
       notes: notes.trim() || null,
@@ -1071,7 +1167,7 @@ export class DataStore {
     if (rubric.weights.length) {
       const weights = rubric.weights.map((w) => ({ name: w.name, percent: w.percent }));
       const written: Course = { ...course, grade_weights: weights, updated_at: now };
-      this._course.set(written);
+      this._courses.update((list) => list.map((c) => (c.id === written.id ? written : c)));
       this.persist(() => this.repository.saveCourse(written));
     }
 
@@ -1173,7 +1269,8 @@ export class DataStore {
    * account has none of.
    */
   reset(): void {
-    this._course.set(null);
+    this._courses.set([]);
+    this._selectedCourseId.set(null);
     this._assignment.set(null);
     this._submissions.set([]);
     this._rounds.set([]);

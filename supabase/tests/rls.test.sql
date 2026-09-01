@@ -12,7 +12,7 @@
 -- nothing behind.
 
 begin;
-select plan(44);
+select plan(47);
 
 -- ---------------------------------------------------------------------------
 -- Two teachers, each with a course, an assignment, a student and a submission.
@@ -149,15 +149,38 @@ select lives_ok(
 -- startup, where a refusal reads as a missing row rather than as a permission.
 
 select lives_ok(
-  $$insert into public.course_rules (course_id, kind, title, body)
-    values ('c0000000-0000-4000-8000-00000000000a', 'structure',
+  $$insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values ('c0000000-0000-4000-8000-00000000000a', 'aaaaaaaa-0000-4000-8000-000000000001', 'structure',
             'סדר הפרקים', 'שיטה לפני ממצאים.')$$,
   'she can write a course rule');
 
 select lives_ok(
-  $$insert into public.course_materials (course_id, kind, title)
-    values ('c0000000-0000-4000-8000-00000000000a', 'syllabus', 'סילבוס הקורס')$$,
+  $$insert into public.course_materials (course_id, teacher_id, kind, title)
+    values ('c0000000-0000-4000-8000-00000000000a', 'aaaaaaaa-0000-4000-8000-000000000001', 'syllabus', 'סילבוס הקורס')$$,
   'she can write a course material');
+
+-- Rules and materials are owned by the teacher now, not by one course, so
+-- that a rule she means everywhere is one record rather than a copy per
+-- course. A row with no course is therefore not a row with no owner.
+
+select lives_ok(
+  $$insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values (null, 'aaaaaaaa-0000-4000-8000-000000000001', 'sources', 'APA', 'מהדורה שביעית.')$$,
+  'she can write a rule that applies to every course she teaches');
+
+select throws_ok(
+  $$insert into public.course_rules (course_id, teacher_id, kind, title, body)
+    values (null, 'bbbbbbbb-0000-4000-8000-000000000002', 'sources', 'APA', 'כלל של מורה אחרת.')$$,
+  '42501',
+  null,
+  'but never one owned by another teacher');
+
+select throws_ok(
+  $$insert into public.course_materials (course_id, teacher_id, kind, title)
+    values (null, 'bbbbbbbb-0000-4000-8000-000000000002', 'syllabus', 'סילבוס של מורה אחרת')$$,
+  '42501',
+  null,
+  'nor a material owned by another teacher');
 
 select lives_ok(
   $$insert into public.grading_form_categories (id, course_id, name, origin)

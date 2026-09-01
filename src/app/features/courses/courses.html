@@ -41,6 +41,75 @@
       <button type="button" class="btn btn-primary" (click)="createCourse()">יצירת הקורס</button>
     </div>
   } @else {
+    <!--
+      Which course, and which year of it.
+      ------------------------------------------------------------------------
+      One row per course-year, grouped by name. Shown only when there is more
+      than one, because a picker with a single option is furniture.
+    -->
+    @if (hasChoice() || addingCourse()) {
+      <div class="card picker">
+        @for (group of courseGroups(); track group.name) {
+          <div class="picker-group">
+            <span class="picker-name">{{ group.name }}</span>
+            <span class="picker-years">
+              @for (year of group.years; track year.id) {
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [class.btn-primary]="year.current"
+                  [class.btn-ghost]="!year.current"
+                  (click)="select(year.id)"
+                >
+                  {{ year.year }}
+                </button>
+              }
+            </span>
+          </div>
+        }
+
+        @if (addingCourse()) {
+          <div class="setup-fields">
+            <label class="field">
+              <span class="label">שם הקורס</span>
+              <input
+                class="control"
+                type="text"
+                [value]="courseName()"
+                (input)="courseName.set($any($event.target).value)"
+              />
+            </label>
+            <label class="field field-narrow">
+              <span class="label">שנה</span>
+              <input
+                class="control"
+                type="text"
+                placeholder="תשפ״ז"
+                [value]="courseYear()"
+                (input)="courseYear.set($any($event.target).value)"
+              />
+            </label>
+          </div>
+          <div class="picker-actions">
+            <button type="button" class="btn btn-primary btn-sm" (click)="createCourse()">
+              יצירה
+            </button>
+            <button type="button" class="btn btn-plain btn-sm" (click)="cancelNewCourse()">
+              ביטול
+            </button>
+          </div>
+        } @else {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="startNewCourse()">
+            קורס או שנה נוספת
+          </button>
+        }
+      </div>
+    } @else {
+      <button type="button" class="btn btn-plain btn-sm add-year" (click)="startNewCourse()">
+        קורס או שנה נוספת
+      </button>
+    }
+
     @if (!assignment()) {
       <div class="card setup">
         <p class="setup-title">ועכשיו העבודה שהן מגישות</p>
@@ -208,6 +277,10 @@
                         <span class="kb-note">{{ item.note }}</span>
                       }
                     </span>
+                    @if (item.global) {
+                      <!-- Says where a change to it would land. -->
+                      <span class="kb-tag kb-global">לכל הקורסים</span>
+                    }
                     <span class="kb-tag">{{ item.tag }}</span>
                     <span class="kb-row-actions">
                       <button
@@ -259,6 +332,20 @@
                     [value]="draftBody()"
                     (input)="draftBody.set($any($event.target).value)"
                   ></textarea>
+                </label>
+
+                <!--
+                  One record for every course, not a copy in each: correcting
+                  it later corrects them all, rather than leaving stale
+                  duplicates in the courses she was not looking at.
+                -->
+                <label class="scope">
+                  <input
+                    type="checkbox"
+                    [checked]="addForAll()"
+                    (change)="addForAll.set($any($event.target).checked)"
+                  />
+                  <span>לכל הקורסים שלי, לא רק לזה</span>
                 </label>
 
                 <!--

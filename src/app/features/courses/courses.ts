@@ -15,6 +15,8 @@ interface KbItem {
    */
   of: 'rule' | 'material';
   id: string;
+  /** True when it applies to every course, not only the one on screen. */
+  global: boolean;
   text: string;
   tag: string;
   note: string | null;
@@ -86,6 +88,7 @@ export class Courses {
       return;
     }
     this.setupError.set(null);
+    this.addingCourse.set(false);
     this.courseName.set('');
     this.courseYear.set('');
   }
@@ -143,6 +146,7 @@ export class Courses {
         items: myRules.map((r) => ({
           of: 'rule' as const,
           id: r.id,
+          global: r.course_id === null,
           text: r.body,
           tag: 'שלי',
           note: null,
@@ -159,6 +163,7 @@ export class Courses {
         items: syllabus.map((m) => ({
           of: 'material' as const,
           id: m.id,
+          global: m.course_id === null,
           text: m.title,
           tag: 'מסמך',
           note: m.notes,
@@ -175,6 +180,7 @@ export class Courses {
         items: models.map((m) => ({
           of: 'material' as const,
           id: m.id,
+          global: m.course_id === null,
           text: m.title,
           tag: 'עבודה',
           note: m.notes,
@@ -191,6 +197,7 @@ export class Courses {
         items: corrections.map((m) => ({
           of: 'material' as const,
           id: m.id,
+          global: m.course_id === null,
           text: m.title,
           tag: m.notes ?? 'דוגמה',
           note: null,
@@ -207,6 +214,7 @@ export class Courses {
         items: webRules.map((r) => ({
           of: 'rule' as const,
           id: r.id,
+          global: r.course_id === null,
           text: r.body,
           tag: r.active ? 'פעיל' : 'כבוי',
           note: null,
@@ -238,6 +246,15 @@ export class Courses {
   // cosmetic — it is an instruction being followed.
 
   /** Which item is open for editing, and the text as it stands. */
+  /**
+   * Whether what she is adding belongs to this course or to all of them.
+   *
+   * APA is APA everywhere she teaches. Shared rather than copied: one record,
+   * so correcting it later corrects every course instead of leaving stale
+   * duplicates in the ones she was not looking at.
+   */
+  protected readonly addForAll = signal(false);
+
   protected readonly editingItem = signal<string | null>(null);
   protected readonly editDraft = signal('');
   /** Named before deleting, because a list of similar lines is easy to misclick. */
@@ -280,6 +297,59 @@ export class Courses {
     else this.data.deleteCourseMaterial(id);
 
     this.confirmingDelete.set(null);
+  }
+
+  // -- several courses, several years ---------------------------------------
+  //
+  // One row per course-year, grouped by name: "סמינריון תשפ״ו" and
+  // "סמינריון תשפ״ז" are separate courses sharing a title. That is what the
+  // data already looked like, and it is the truth about how she teaches —
+  // each year has its own roster, its own assignments and its own papers.
+
+  /** Her courses, one entry per name, with its years underneath. */
+  protected readonly courseGroups = computed(() => {
+    const order: string[] = [];
+    const byName = new Map<string, { id: string; year: string; current: boolean }[]>();
+    const here = this.data.course()?.id;
+
+    for (const course of this.data.courses()) {
+      if (!byName.has(course.name)) {
+        order.push(course.name);
+        byName.set(course.name, []);
+      }
+      byName.get(course.name)!.push({
+        id: course.id,
+        year: course.year,
+        current: course.id === here,
+      });
+    }
+
+    return order.map((name) => ({
+      name,
+      years: byName.get(name)!,
+      current: byName.get(name)!.some((y) => y.current),
+    }));
+  });
+
+  /** Shown only once there is more than one thing to choose between. */
+  protected readonly hasChoice = computed(() => this.data.courses().length > 1);
+
+  protected readonly addingCourse = signal(false);
+
+  protected select(id: string) {
+    this.data.selectCourse(id);
+  }
+
+  protected startNewCourse() {
+    // Prefilled with the name she is already in, because the common case by
+    // far is the same course a year later.
+    this.courseName.set(this.data.course()?.name ?? '');
+    this.courseYear.set('');
+    this.addingCourse.set(true);
+  }
+
+  protected cancelNewCourse() {
+    this.addingCourse.set(false);
   }
 
   protected isAdding(id: string): boolean {
@@ -385,14 +455,22 @@ export class Courses {
   );
 
   protected save(section: KbSection) {
+    const scope = this.addForAll() ? 'all' : 'course';
     const written =
       section.add.of === 'rule'
         ? this.data.addCourseRules(
             sectionRuleKind(section.id),
             this.draftBody(),
             section.add.origin,
+            scope,
           )
-        : this.data.addCourseMaterial(section.add.kind, this.draftTitle(), this.draftBody());
+        : this.data.addCourseMaterial(
+            section.add.kind,
+            this.draftTitle(),
+            this.draftBody(),
+            undefined,
+            scope,
+          );
 
     if (!written) {
       this.addError.set(
@@ -406,6 +484,7 @@ export class Courses {
     this.adding.set(null);
     this.draftBody.set('');
     this.draftTitle.set('');
+    this.addForAll.set(false);
     this.addError.set(null);
   }
 
