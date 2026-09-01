@@ -338,3 +338,10 @@
   font-size: 0.8rem;
   line-height: 1.5;
 }
+
+// The confirmation that gates learning from prose. Not a formality: a marked
+// paper is mostly the student's writing, and importing it as her style would
+// teach the model to write like a seminar student and call it her voice.
+.mine-check {
+  margin-block: var(--s-2);
+}

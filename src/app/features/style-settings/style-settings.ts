@@ -2,7 +2,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 
 import { ModelKey } from '../../core/ai/model-key';
 import { DataStore } from '../../core/data/data-store';
-import { DocxError, ImportedComment, readDocxComments } from '../../core/import/docx-comments';
+import {
+  DocxError,
+  ImportedComment,
+  readDocxComments,
+  readDocxText,
+} from '../../core/import/docx-comments';
 import { buildStyleProfile, countDecisions, deriveTraits } from '../../core/learning/style-profile';
 import { kindClass } from '../../core/presentation/annotation-kind';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
@@ -147,6 +152,10 @@ export class StyleSettings {
 
   /** The comments belonging to the authors she has ticked. */
   protected readonly selected = computed(() => {
+    // Prose has no authors to choose between — the file is hers or it is not,
+    // and that is the single question the confirmation asks.
+    if (this.fromText()) return this.found();
+
     const authors = this.chosenAuthors();
     return this.found().filter((c) => authors.has(c.author));
   });
@@ -168,25 +177,94 @@ export class StyleSettings {
     this.authors.set([]);
     this.fileName.set(file.name);
 
+    this.fromText.set(false);
+    this.mine.set(false);
+
     try {
-      const { comments, authors } = await readDocxComments(await file.arrayBuffer());
+      const name = file.name.toLowerCase();
 
-      this.found.set(comments);
-      this.authors.set(authors);
-      // One author is not a choice; tick her and let the teacher press save.
-      this.chosenAuthors.set(new Set(authors.length === 1 ? [authors[0].name] : []));
+      if (name.endsWith('.docx')) {
+        const bytes = await file.arrayBuffer();
+        const { comments, authors } = await readDocxComments(bytes);
 
-      if (!comments.length) {
-        this.importError.set(
-          'לא מצאתי הערות בקובץ הזה. יכול להיות שסימנת על נייר, או שזה קובץ אחר.',
-        );
+        if (comments.length) {
+          this.found.set(comments);
+          this.authors.set(authors);
+          // One author is not a choice; tick her and let the teacher press save.
+          this.chosenAuthors.set(new Set(authors.length === 1 ? [authors[0].name] : []));
+          return;
+        }
+
+        // No tracked comments, but there is a document. Fall through to its
+        // prose rather than refusing — she asked to be able to drop in
+        // anything, and a Word file she typed her feedback into directly is
+        // exactly the case the comment reader cannot see.
+        this.offerText(await readDocxText(bytes));
+        return;
       }
+
+      if (name.endsWith('.txt') || name.endsWith('.md')) {
+        this.offerText(await file.text());
+        return;
+      }
+
+      // Named rather than swallowed, with the step that fixes it — the same
+      // wording as the knowledge base, because it is the same problem.
+      this.importError.set(
+        name.endsWith('.doc')
+          ? 'זה קובץ Word מהפורמט הישן (.doc). אפשר לפתוח אותו ב־Word, "שמירה בשם" ולבחור .docx.'
+          : name.endsWith('.pdf')
+            ? 'אני יודעת לקרוא קובצי Word (.docx) וטקסט, לא PDF. אפשר לפתוח את ה־PDF ב־Word ולשמור כ־.docx.'
+            : 'אני יודעת לקרוא קובצי Word (.docx) וקובצי טקסט.',
+      );
     } catch (error) {
       this.importError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
     } finally {
       this.reading.set(false);
     }
   }
+
+  /**
+   * A file with no tracked comments in it: paragraphs, offered for her to
+   * confirm.
+   *
+   * The confirmation is the whole point and is not a formality. A marked
+   * student paper is mostly the *student's* writing, and importing its prose
+   * as her style would teach the model to write like a seminar student and
+   * call it her voice — a mistake that would be invisible until every drafted
+   * comment sounded subtly wrong and nothing said why.
+   *
+   * So text is never learned from until she has said it is hers.
+   */
+  private offerText(text: string) {
+    const paragraphs = text
+      .split(/\n{1,}/)
+      .map((line) => line.trim())
+      // Headings and stray labels are not sentences in her voice.
+      .filter((line) => line.length >= 25);
+
+    if (!paragraphs.length) {
+      this.importError.set('לא מצאתי בקובץ הזה טקסט שאפשר ללמוד ממנו.');
+      return;
+    }
+
+    this.fromText.set(true);
+    this.authors.set([]);
+    this.chosenAuthors.set(new Set());
+    this.found.set(
+      paragraphs.map((body, index) => ({ id: `p${index}`, quote: null, body, author: '' })),
+    );
+  }
+
+  /** True when the candidates are prose, not tracked comments. */
+  protected readonly fromText = signal(false);
+  /** She has confirmed the prose is her own writing. Required before saving. */
+  protected readonly mine = signal(false);
+
+  /** Nothing is learned from prose until she has said it is hers. */
+  protected readonly canSave = computed(() =>
+    this.fromText() ? this.mine() && this.found().length > 0 : this.selected().length > 0,
+  );
 
   protected toggleAuthor(name: string) {
     this.chosenAuthors.update((current) => {
@@ -211,6 +289,8 @@ export class StyleSettings {
     this.found.set([]);
     this.authors.set([]);
     this.chosenAuthors.set(new Set());
+    this.fromText.set(false);
+    this.mine.set(false);
   }
 
   protected discard() {

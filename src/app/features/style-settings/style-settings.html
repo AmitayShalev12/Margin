@@ -55,15 +55,15 @@
       {{ reading() ? 'קוראת את הקובץ…' : 'הוספת דוגמאות מהכתיבה שלי' }}
       <input
         type="file"
-        accept=".docx"
+        accept=".docx,.txt,.md"
         class="file-input"
         [disabled]="reading()"
         (change)="chooseFile($event)"
       />
     </label>
     <p class="hint">
-      קובץ Word ‎(.docx)‎ מעבודה שכבר בדקת — אני קוראת משם את ההערות שכתבת ואת המשפטים שעליהם כתבת
-      אותן. הקובץ עצמו לא נשמר בשום מקום.
+      כל קובץ Word ‎(.docx)‎ או טקסט. אם יש בו הערות מסומנות אקרא אותן ואת המשפטים שעליהם נכתבו; אם
+      אין, אציג לך את הפסקאות ואשאל אם הן שלך. הקובץ עצמו לא נשמר בשום מקום.
     </p>
 
     @if (importError(); as message) {
@@ -82,26 +82,49 @@
 
     @if (found().length) {
       <div class="found">
-        <p class="found-title">נמצאו {{ found().length }} הערות ב{{ fileName() }}</p>
+        @if (fromText()) {
+          <p class="found-title">
+            נמצאו {{ found().length }} פסקאות ב{{ fileName() }} — בלי הערות מסומנות
+          </p>
 
-        <!--
-          Asked, not assumed. A paper can carry a colleague's comments, or the
-          student's own replies, and learning to write in someone else's voice
-          is worse than learning nothing.
-        -->
-        <p class="found-note">מי מהן שלך?</p>
-        <div class="authors">
-          @for (author of authors(); track author.name) {
-            <label class="author">
-              <input
-                type="checkbox"
-                [checked]="isChosen(author.name)"
-                (change)="toggleAuthor(author.name)"
-              />
-              <span>{{ author.name }} ({{ author.count }})</span>
-            </label>
-          }
-        </div>
+          <!--
+            The question that has to be asked before anything is learned.
+            ------------------------------------------------------------------
+            A marked student paper is mostly the *student's* writing. Importing
+            its prose as her style would teach the model to write like a
+            seminar student and call it her voice — and nothing would say so:
+            every drafted comment would simply start sounding subtly wrong.
+          -->
+          <label class="author mine-check">
+            <input
+              type="checkbox"
+              [checked]="mine()"
+              (change)="mine.set($any($event.target).checked)"
+            />
+            <span>הטקסט הזה נכתב על ידי, ואפשר ללמוד ממנו</span>
+          </label>
+        } @else {
+          <p class="found-title">נמצאו {{ found().length }} הערות ב{{ fileName() }}</p>
+
+          <!--
+            Asked, not assumed. A paper can carry a colleague's comments, or the
+            student's own replies, and learning to write in someone else's voice
+            is worse than learning nothing.
+          -->
+          <p class="found-note">מי מהן שלך?</p>
+          <div class="authors">
+            @for (author of authors(); track author.name) {
+              <label class="author">
+                <input
+                  type="checkbox"
+                  [checked]="isChosen(author.name)"
+                  (change)="toggleAuthor(author.name)"
+                />
+                <span>{{ author.name }} ({{ author.count }})</span>
+              </label>
+            }
+          </div>
+        }
 
         @if (preview().length) {
           <ul class="preview">
@@ -123,10 +146,10 @@
           <button
             type="button"
             class="btn btn-primary btn-sm"
-            [disabled]="!selected().length"
+            [disabled]="!canSave()"
             (click)="save()"
           >
-            ללמוד מ{{ selected().length }} הערות
+            ללמוד מ{{ selected().length }} {{ fromText() ? 'פסקאות' : 'הערות' }}
           </button>
           <button type="button" class="btn btn-plain btn-sm" (click)="discard()">ביטול</button>
         </div>
