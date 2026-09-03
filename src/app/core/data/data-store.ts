@@ -1706,9 +1706,20 @@ export class DataStore {
     const address = email?.trim().toLowerCase() || null;
 
     for (const student of this._students()) {
-      if (address && student.drive_account_email?.toLowerCase() === address) {
-        return { student, on: 'email' };
-      }
+      /**
+       * Both address fields, because they are filled at different moments.
+       *
+       * `email` is what she types when adding a girl to the roster;
+       * `drive_account_email` is the account confirmed later against a shared
+       * folder. Checking only the second let a duplicate typed at the point of
+       * adding straight through — which is the exact moment this is supposed
+       * to catch one.
+       */
+      const known = [student.drive_account_email, student.email]
+        .filter(Boolean)
+        .map((value) => value!.toLowerCase());
+
+      if (address && known.includes(address)) return { student, on: 'email' };
     }
 
     for (const student of this._students()) {

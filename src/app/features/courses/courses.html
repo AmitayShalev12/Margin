@@ -140,16 +140,72 @@
       <p class="setup-title">התלמידות</p>
 
       @if (students().length) {
+        <!-- A roster of thirty is a list she scrolls; a name is faster. -->
+        @if (students().length > 6) {
+          <label class="field roster-search">
+            <span class="sr-only">חיפוש תלמידה</span>
+            <input
+              class="control"
+              type="search"
+              placeholder="חיפוש שם"
+              [value]="studentSearch()"
+              (input)="studentSearch.set($any($event.target).value)"
+            />
+          </label>
+        }
+
         <ul class="roster-list">
-          @for (student of students(); track student.id) {
+          @for (student of shownStudents(); track student.id) {
             <li class="roster-row">
-              <span class="roster-name">{{ student.full_name }}</span>
-              @if (student.drive_account_email) {
-                <span class="roster-account ltr">{{ student.drive_account_email }}</span>
-              } @else if (student.email) {
-                <span class="roster-account ltr">{{ student.email }}</span>
+              @if (removingStudent() === student.id) {
+                <!--
+                  Named before she goes, and warned about what goes with her.
+                  A student carries her papers, their comments and their
+                  scores — a year of marking behind one press.
+                -->
+                <span class="roster-name">
+                  למחוק את {{ student.full_name }} ואת כל העבודות שלה?
+                </span>
+                <span class="roster-actions">
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    (click)="removeStudent(student.id)"
+                  >
+                    מחיקה
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-plain btn-sm"
+                    (click)="cancelRemoveStudent()"
+                  >
+                    ביטול
+                  </button>
+                </span>
+              } @else {
+                <span class="roster-name">{{ student.full_name }}</span>
+                @if (student.drive_account_email) {
+                  <span class="roster-account ltr">{{ student.drive_account_email }}</span>
+                } @else if (student.email) {
+                  <span class="roster-account ltr">{{ student.email }}</span>
+                }
+                <span class="roster-actions">
+                  <button
+                    type="button"
+                    class="btn btn-plain btn-sm"
+                    (click)="askRemoveStudent(student.id)"
+                  >
+                    מחיקה
+                  </button>
+                </span>
               }
             </li>
+          } @empty {
+            <!--
+              A filter that hides everyone looks exactly like an empty roster,
+              so the two say different things.
+            -->
+            <li class="roster-row setup-note">אין תלמידה בשם הזה.</li>
           }
         </ul>
       } @else {
@@ -179,6 +235,30 @@
           />
         </label>
       </div>
+      <!--
+        Already on the roster.
+        ----------------------------------------------------------------------
+        Both answers are reasonable — the same girl with a new address, or two
+        different girls who share a name — and guessing either loses a year of
+        someone's marked work or splits one girl across two rows. So it asks.
+      -->
+      @if (clashMessage(); as message) {
+        <div class="clash anim-rise">
+          <p class="clash-line">{{ message }}</p>
+          <div class="clash-actions">
+            <button type="button" class="btn btn-primary btn-sm" (click)="replaceClashing()">
+              זו אותה תלמידה — לעדכן אותה
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="addAnyway()">
+              תלמידה אחרת — להוסיף בכל זאת
+            </button>
+            <button type="button" class="btn btn-plain btn-sm" (click)="cancelClash()">
+              ביטול
+            </button>
+          </div>
+        </div>
+      }
+
       <button type="button" class="btn btn-ghost btn-sm" (click)="addStudent()">
         הוספת תלמידה
       </button>

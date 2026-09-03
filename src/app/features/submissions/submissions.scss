@@ -179,3 +179,61 @@
   color: var(--c-ink-3);
   text-align: center;
 }
+
+// -- searching, and adding a paper by hand -----------------------------------
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-end: var(--s-3);
+}
+
+.tools-search {
+  flex: 1 1 14rem;
+}
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-block-end: var(--s-3);
+}
+
+.upload-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.file-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-error {
+  margin: 0;
+  color: var(--c-danger);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+// The row is a link; its buttons must not look like part of the link target.
+.row-actions {
+  display: inline-flex;
+  gap: var(--s-1);
+  flex: 0 0 auto;
+}

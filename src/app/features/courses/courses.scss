@@ -376,3 +376,38 @@
   font-size: var(--fs-sm);
   cursor: pointer;
 }
+
+// -- roster: searching, and removing someone ---------------------------------
+
+.roster-search {
+  margin-block-end: var(--s-3);
+}
+
+.roster-actions {
+  display: inline-flex;
+  gap: var(--s-1);
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
+
+// Already on the roster. Both answers are reasonable, so neither is the
+// default and the panel stays until she picks one.
+.clash {
+  margin-block: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--c-attention, #c8a44d);
+  border-radius: var(--r-md);
+  background: var(--c-surface-sunk);
+}
+
+.clash-line {
+  margin: 0 0 var(--s-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.clash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}

@@ -64,6 +64,81 @@
     </div>
   }
 
+  <div class="tools">
+    <label class="field tools-search">
+      <span class="sr-only">חיפוש עבודה</span>
+      <input
+        class="control"
+        type="search"
+        placeholder="חיפוש לפי שם תלמידה או שם קובץ"
+        [value]="search()"
+        (input)="search.set($any($event.target).value)"
+      />
+    </label>
+
+    <!--
+      A paper straight off her desktop.
+      ------------------------------------------------------------------------
+      Everything else here arrives through the sync, which needs the girl to
+      have shared a folder and Drive to be connected — a chain with several
+      places to be stuck waiting on somebody else.
+    -->
+    <button type="button" class="btn btn-ghost btn-sm" (click)="openUpload()">
+      הוספת עבודה מקובץ
+    </button>
+  </div>
+
+  @if (uploading()) {
+    <div class="card upload anim-unfold">
+      <p class="upload-title">עבודה מקובץ, בלי דרייב</p>
+
+      <label class="field">
+        <span class="label">של מי העבודה</span>
+        <select
+          class="control"
+          [value]="uploadFor()"
+          (change)="uploadFor.set($any($event.target).value)"
+        >
+          @for (student of roster(); track student.id) {
+            <option [value]="student.id">{{ student.full_name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="label">שם העבודה (לא חובה)</span>
+        <input
+          class="control"
+          type="text"
+          [value]="uploadTitle()"
+          (input)="uploadTitle.set($any($event.target).value)"
+        />
+      </label>
+
+      <div class="upload-actions">
+        <label class="btn btn-primary btn-sm file-button">
+          {{ reading() ? 'קוראת את הקובץ…' : 'בחירת קובץ Word' }}
+          <input
+            type="file"
+            accept=".docx"
+            class="file-input"
+            [disabled]="reading()"
+            (change)="chooseUpload($event)"
+          />
+        </label>
+        <button type="button" class="btn btn-plain btn-sm" (click)="closeUpload()">ביטול</button>
+      </div>
+
+      @if (uploadError(); as message) {
+        <p class="upload-error anim-rise" role="alert">{{ message }}</p>
+      }
+
+      <p class="hint">
+        הקובץ נקרא כאן ונשמר כעבודה. אין צורך בשיתוף תיקייה ואין צורך בחשבון Drive של התלמידה.
+      </p>
+    </div>
+  }
+
   <ul class="list">
     @for (row of rows(); track row.id) {
       <li [class]="row.statusClass">
@@ -74,6 +149,37 @@
               <span class="file ltr">{{ row.file }}</span>
             </span>
             <span class="status"> <span class="dot" aria-hidden="true"></span>{{ row.line }} </span>
+          </span>
+          <span class="row-actions">
+            @if (removing() === row.id) {
+              <!--
+                Named before it goes, and it takes the comments with it.
+                A row is a link to the review screen, so these swallow the
+                click rather than opening the paper she is deleting.
+              -->
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                (click)="remove(row.id); $event.preventDefault(); $event.stopPropagation()"
+              >
+                מחיקה
+              </button>
+              <button
+                type="button"
+                class="btn btn-plain btn-sm"
+                (click)="cancelRemove(); $event.preventDefault(); $event.stopPropagation()"
+              >
+                ביטול
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-plain btn-sm"
+                (click)="askRemove(row.id, $event)"
+              >
+                מחיקה
+              </button>
+            }
           </span>
           <svg
             class="go"

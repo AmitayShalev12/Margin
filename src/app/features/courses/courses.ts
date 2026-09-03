@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../../core/data/data-store';
+import { normaliseName } from '../../core/drive/file-name';
 import { DocxError, readDocxText } from '../../core/import/docx-comments';
 import { CourseMaterialKind, CourseRuleOrigin } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
@@ -103,15 +104,114 @@ export class Courses {
     this.assignmentTitle.set('');
   }
 
+  // -- the roster -----------------------------------------------------------
+
+  /** Filters the list by name. Empty shows everyone. */
+  protected readonly studentSearch = signal('');
+
+  /**
+   * The roster as filtered, and the count either side of the filter.
+   *
+   * A search that hides everything looks identical to a roster that is empty,
+   * so the screen has to be able to say which it is.
+   */
+  protected readonly shownStudents = computed(() => {
+    const query = normaliseName(this.studentSearch());
+    const all = this.data.students();
+    if (!query) return all;
+
+    return all.filter(
+      (student) =>
+        normaliseName(student.full_name).includes(query) ||
+        (student.drive_account_email ?? student.email ?? '').toLowerCase().includes(query),
+    );
+  });
+
+  /** Which student she is being asked to confirm removing. */
+  protected readonly removingStudent = signal<string | null>(null);
+
+  protected askRemoveStudent(id: string) {
+    this.removingStudent.set(id);
+  }
+
+  protected cancelRemoveStudent() {
+    this.removingStudent.set(null);
+  }
+
+  protected removeStudent(id: string) {
+    this.data.deleteStudent(id);
+    this.removingStudent.set(null);
+  }
+
+  /**
+   * A name or address already on the roster, and what she wants done about it.
+   *
+   * Held rather than acted on: replacing a student and adding a second girl
+   * with the same name are both reasonable, and guessing between them either
+   * loses a year of somebody's marked work or quietly splits one girl across
+   * two rows.
+   */
+  protected readonly clash = signal<{ id: string; name: string; on: 'name' | 'email' } | null>(
+    null,
+  );
+
+  protected readonly clashMessage = computed(() => {
+    const found = this.clash();
+    if (!found) return null;
+
+    return found.on === 'email'
+      ? `הכתובת הזאת כבר רשומה על ${found.name}.`
+      : `${found.name} כבר ברשימה.`;
+  });
+
   protected addStudent() {
-    const created = this.data.addStudent(this.studentName(), this.studentEmail());
+    const name = this.studentName();
+    const email = this.studentEmail();
+
+    const found = this.data.findStudentClash(name, email);
+    if (found && !this.clash()) {
+      // Asked once, then obeyed. A second press with the prompt already open
+      // is her answer, not a repeat of the question.
+      this.clash.set({ id: found.student.id, name: found.student.full_name, on: found.on });
+      return;
+    }
+
+    const created = this.data.addStudent(name, email);
     if (!created) {
       this.setupError.set('צריך שם מלא של התלמידה.');
       return;
     }
+
     this.setupError.set(null);
+    this.clash.set(null);
     this.studentName.set('');
     this.studentEmail.set('');
+  }
+
+  /** She meant the girl already there: keep one row and update its address. */
+  protected replaceClashing() {
+    const found = this.clash();
+    const email = this.studentEmail().trim();
+    if (!found) return;
+
+    if (email) this.data.setStudentDriveAccount(found.id, email);
+
+    this.clash.set(null);
+    this.studentName.set('');
+    this.studentEmail.set('');
+  }
+
+  /** Two different girls with the same name. Both belong on the roster. */
+  protected addAnyway() {
+    this.data.addStudent(this.studentName(), this.studentEmail());
+
+    this.clash.set(null);
+    this.studentName.set('');
+    this.studentEmail.set('');
+  }
+
+  protected cancelClash() {
+    this.clash.set(null);
   }
 
   protected readonly subtitle = computed(() => {

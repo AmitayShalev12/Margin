@@ -61,6 +61,15 @@ function make() {
       startAdding(id: string): void;
       toggle(id: string): void;
       startEditItem(id: string, text: string): void;
+      studentName: { set(v: string): void };
+      studentEmail: { set(v: string): void };
+      addStudent(): void;
+      clashMessage(): string | null;
+      replaceClashing(): void;
+      addAnyway(): void;
+      studentSearch: { set(v: string): void };
+      shownStudents(): { full_name: string }[];
+      removeStudent(id: string): void;
       editDraft: { set(v: string): void };
       saveEditItem(of: 'rule' | 'material', id: string): void;
       askDelete(id: string): void;
@@ -361,5 +370,112 @@ describe('more than one course', () => {
     const text = (page.fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('תשפ״ו');
     expect(text).toContain('תשפ״ז');
+  });
+});
+
+/**
+ * The roster: finding someone, removing someone, and being told when a name
+ * is already there.
+ *
+ * "אופצייה למחיקת שם תלמידה", "חיפוש שם", "המזהה יהיה כפול לא רק המייל אלא גם
+ * השם ובאם יש כפל הוא יתריע על כך וישאל האם להחליף או להוסיף."
+ */
+describe('the roster', () => {
+  function withStudents(...names: string[]) {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    for (const name of names) store.addStudent(name);
+    page.fixture.detectChanges();
+    return { page, store };
+  }
+
+  it('finds a student by name', () => {
+    const { page } = withStudents('נועה ברקוביץ', 'שירה אלמוג', 'יעל דהן');
+
+    page.component.studentSearch.set('שירה');
+    page.fixture.detectChanges();
+
+    expect(page.component.shownStudents().map((s) => s.full_name)).toEqual(['שירה אלמוג']);
+  });
+
+  /** ברקוביץ׳ and ברקוביץ' are one surname typed on two keyboards. */
+  it('finds her past the geresh', () => {
+    const { page } = withStudents('נועה ברקוביץ׳');
+
+    page.component.studentSearch.set("ברקוביץ'");
+    page.fixture.detectChanges();
+
+    expect(page.component.shownStudents()).toHaveLength(1);
+  });
+
+  it('removes a student', () => {
+    const { page, store } = withStudents('נועה ברקוביץ');
+    const student = store.students()[0];
+
+    page.component.removeStudent(student.id);
+
+    expect(store.students()).toHaveLength(0);
+  });
+});
+
+describe('adding a student who may already be there', () => {
+  function addTwice(first: string, second: string, email?: string) {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    store.addStudent(first, email);
+    page.fixture.detectChanges();
+
+    page.component.studentName.set(second);
+    if (email) page.component.studentEmail.set(email);
+    page.component.addStudent();
+    page.fixture.detectChanges();
+
+    return { page, store };
+  }
+
+  /**
+   * The whole point: neither answer is guessed. Replacing loses a year of
+   * someone's marked work; adding blindly splits one girl across two rows.
+   */
+  it('asks rather than deciding', () => {
+    const { page, store } = addTwice('נועה ברקוביץ', 'נועה ברקוביץ');
+
+    expect(page.component.clashMessage()).toContain('כבר ברשימה');
+    // Nothing written until she answers.
+    expect(store.students()).toHaveLength(1);
+  });
+
+  it('names the address when that is what clashed', () => {
+    const { page } = addTwice('נועה ברקוביץ', 'שם אחר', 'noa@school.org.il');
+
+    expect(page.component.clashMessage()).toContain('הכתובת');
+  });
+
+  it('adds the second girl when she says they are different people', () => {
+    const { page, store } = addTwice('נועה ברקוביץ', 'נועה ברקוביץ');
+
+    page.component.addAnyway();
+
+    expect(store.students()).toHaveLength(2);
+  });
+
+  it('keeps one row when she says it is the same girl', () => {
+    const { page, store } = addTwice('נועה ברקוביץ', 'נועה ברקוביץ');
+
+    page.component.replaceClashing();
+
+    expect(store.students()).toHaveLength(1);
+  });
+
+  it('lets a genuinely new student straight in', () => {
+    const page = make();
+    const store = TestBed.inject(DataStore);
+    store.addStudent('נועה ברקוביץ');
+
+    page.component.studentName.set('שירה אלמוג');
+    page.component.addStudent();
+
+    expect(store.students()).toHaveLength(2);
+    expect(page.component.clashMessage()).toBeNull();
   });
 });
