@@ -152,6 +152,43 @@ export class LocalRepository extends Repository {
     });
   }
 
+  async deleteStudents(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.students = snapshot.students.filter((s) => !gone.has(s.id));
+      // The local store has no foreign keys, so the cascade Postgres does for
+      // free has to be spelled out — otherwise a reload brings back a paper
+      // belonging to a girl who is no longer on the roster.
+      const orphaned = new Set(
+        snapshot.submissions.filter((s) => gone.has(s.student_id)).map((s) => s.id),
+      );
+      snapshot.submissions = snapshot.submissions.filter((s) => !gone.has(s.student_id));
+      snapshot.rounds = snapshot.rounds.filter((r) => !orphaned.has(r.submission_id));
+      snapshot.annotations = snapshot.annotations.filter((a) => !orphaned.has(a.submission_id));
+      snapshot.gradingEntries = snapshot.gradingEntries.filter(
+        (e) => !orphaned.has(e.submission_id),
+      );
+      snapshot.criterionScores = snapshot.criterionScores.filter(
+        (s) => !orphaned.has(s.submission_id),
+      );
+      snapshot.studentEmails = snapshot.studentEmails.filter((e) => !orphaned.has(e.submission_id));
+    });
+  }
+
+  async deleteSubmissions(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.submissions = snapshot.submissions.filter((s) => !gone.has(s.id));
+      snapshot.rounds = snapshot.rounds.filter((r) => !gone.has(r.submission_id));
+      snapshot.annotations = snapshot.annotations.filter((a) => !gone.has(a.submission_id));
+      snapshot.gradingEntries = snapshot.gradingEntries.filter((e) => !gone.has(e.submission_id));
+      snapshot.criterionScores = snapshot.criterionScores.filter((s) => !gone.has(s.submission_id));
+      snapshot.studentEmails = snapshot.studentEmails.filter((e) => !gone.has(e.submission_id));
+    });
+  }
+
   async deleteCourseRules(ids: readonly UUID[]): Promise<void> {
     if (ids.length === 0) return;
     const gone = new Set(ids);

@@ -172,6 +172,18 @@ export abstract class Repository {
    * duplicate, a paste of the wrong paragraph — and leaving it greyed out
    * forever is clutter she cannot clear.
    */
+  /**
+   * Removes a student, or a paper, and everything hanging off it.
+   *
+   * Postgres cascades: rounds, annotations, grading entries, criterion scores,
+   * the drafted message and the reliability checks all carry
+   * `on delete cascade`. Nothing here has to enumerate them, and nothing here
+   * should try — a list of children maintained by hand drifts from the schema
+   * and leaves orphans nobody looks for.
+   */
+  abstract deleteStudents(ids: readonly UUID[]): Promise<void>;
+  abstract deleteSubmissions(ids: readonly UUID[]): Promise<void>;
+
   abstract deleteCourseRules(ids: readonly UUID[]): Promise<void>;
   abstract deleteCourseMaterials(ids: readonly UUID[]): Promise<void>;
 

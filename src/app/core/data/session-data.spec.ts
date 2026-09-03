@@ -48,6 +48,8 @@ class RecordingRepository extends Repository {
   saveFeedbackLog = async () => undefined;
   deleteAnnotations = async () => undefined;
   deleteFeedbackLogs = async () => undefined;
+  deleteStudents = async () => undefined;
+  deleteSubmissions = async () => undefined;
   deleteCourseRules = async () => undefined;
   deleteCourseMaterials = async () => undefined;
   saveDriveFolder = async () => undefined;

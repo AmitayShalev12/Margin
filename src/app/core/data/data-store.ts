@@ -2,9 +2,11 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { buildCategories } from '../grading/categories';
 import { buildEntries } from '../grading/entries';
+import { normaliseName } from '../drive/file-name';
 import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
 import {
+  DocumentBlock,
   CommentTone,
   DiscussionTurn,
   Annotation,
@@ -1548,6 +1550,172 @@ export class DataStore {
 
     this._feedbackLogs.update((list) => list.filter((l) => l.id !== logged.id));
     this.persist(() => this.repository.deleteFeedbackLogs([logged.id]));
+  }
+
+  /**
+   * A paper put in by hand, with no Drive and no shared folder.
+   *
+   * "חלון להכנסת עבודה כקובץ באופן מידי ללא שיתוף ממייל או דרייב." Everything
+   * until now arrived through the sync, which needs the girl to have shared a
+   * folder and the teacher to have connected Drive — a chain with several
+   * places to be waiting on somebody else. Sometimes she simply has the file.
+   *
+   * The submission carries no Drive linkage at all, and that is recorded
+   * rather than faked: `drive_file_id` stays null, so nothing later tries to
+   * post comments back to a document that was never in a folder, and the
+   * screens can say where this one came from.
+   */
+  addUploadedSubmission(input: {
+    studentId: UUID;
+    title: string | null;
+    blocks: DocumentBlock[];
+    text: string;
+    fileName: string;
+  }): Submission | null {
+    const assignment = this._assignment();
+    if (!assignment || !input.blocks.length) return null;
+
+    const now = new Date().toISOString();
+    const submission: Submission = {
+      id: newId(),
+      assignment_id: assignment.id,
+      student_id: input.studentId,
+      status: 'new',
+      current_round: 1,
+      title: input.title?.trim() || null,
+      drive_file_id: null,
+      // Kept, because it is the only trace of where this came from and she
+      // will want to know which file she uploaded when two look alike.
+      drive_file_name: input.fileName,
+      drive_mime_type: null,
+      drive_web_view_link: null,
+      drive_owner_email: null,
+      drive_creator_email: null,
+      drive_created_at: null,
+      drive_modified_at: null,
+      drive_revision_count: null,
+      drive_metadata_raw: null,
+      last_synced_at: null,
+      word_count: input.text.trim().split(/\s+/).filter(Boolean).length,
+      presentation_score: null,
+      ongoing_score: null,
+      created_at: now,
+      updated_at: now,
+    };
+
+    this.addSubmission(submission);
+    this.addRound({
+      id: newId(),
+      submission_id: submission.id,
+      round_number: 1,
+      document_text: input.text,
+      document_blocks: input.blocks,
+      drive_revision_id: null,
+      received_at: now,
+      scoring: null,
+      // Nothing has been sent and nothing drafted: this paper has just walked
+      // in. Stated rather than left undefined, so the review screen reads it
+      // as a fresh round rather than as a record it half-understands.
+      notes_sent_at: null,
+      ai_summary: null,
+      ai_summary_confirmed_at: null,
+      created_at: now,
+      updated_at: now,
+    });
+
+    return submission;
+  }
+
+  // -- removing things ------------------------------------------------------
+  //
+  // Asked for across the board: "אופצייה למחיקת שם תלמידה", "אופצייה למחיקת
+  // שורה כשהוא לוקח מידע מהדרייב", "בכלל מחיקה בכל חלון". Every list in the
+  // app could be added to and none could be corrected, so a girl who left the
+  // course, a duplicate row from a re-sync, or a paper synced from the wrong
+  // folder stayed on screen for the rest of the year.
+
+  /**
+   * Removes a student and everything of hers.
+   *
+   * Her papers, their rounds, their comments and their scores go too. Postgres
+   * cascades them; the local mirror does the same by hand, because a delete
+   * that leaves the paper behind puts a submission on screen belonging to
+   * nobody — and the roster is what every screen resolves a name through.
+   *
+   * Nothing in Drive is touched. Her folder and the student's own document are
+   * hers, and this removes what Margin holds, not what the girl wrote.
+   */
+  deleteStudent(id: UUID) {
+    if (!this._students().some((s) => s.id === id)) return;
+
+    const orphaned = new Set(
+      this._submissions()
+        .filter((s) => s.student_id === id)
+        .map((s) => s.id),
+    );
+
+    this._students.update((list) => list.filter((s) => s.id !== id));
+    this._submissions.update((list) => list.filter((s) => s.student_id !== id));
+    this._rounds.update((list) => list.filter((r) => !orphaned.has(r.submission_id)));
+    this._annotations.update((list) => list.filter((a) => !orphaned.has(a.submission_id)));
+    this._gradingEntries.update((list) => list.filter((e) => !orphaned.has(e.submission_id)));
+    this._criterionScores.update((list) => list.filter((c) => !orphaned.has(c.submission_id)));
+    this._studentEmails.update((list) => list.filter((e) => !orphaned.has(e.submission_id)));
+
+    this.persist(() => this.repository.deleteStudents([id]));
+  }
+
+  /**
+   * Removes one paper — a row synced from the wrong folder, a duplicate, a
+   * draft she does not want marked.
+   *
+   * The student stays. Deleting a paper is not deleting the girl, and the two
+   * being one button is how a roster loses someone by accident.
+   */
+  deleteSubmission(id: UUID) {
+    if (!this._submissions().some((s) => s.id === id)) return;
+
+    this._submissions.update((list) => list.filter((s) => s.id !== id));
+    this._rounds.update((list) => list.filter((r) => r.submission_id !== id));
+    this._annotations.update((list) => list.filter((a) => a.submission_id !== id));
+    this._gradingEntries.update((list) => list.filter((e) => e.submission_id !== id));
+    this._criterionScores.update((list) => list.filter((c) => c.submission_id !== id));
+    this._studentEmails.update((list) => list.filter((e) => e.submission_id !== id));
+
+    this.persist(() => this.repository.deleteSubmissions([id]));
+  }
+
+  /**
+   * Who this name or address already belongs to.
+   *
+   * "המזהה יהיה כפול לא רק המייל אלא גם השם" — a roster keyed on the address
+   * alone lets the same girl in twice under two mail accounts, and one keyed
+   * on the name alone refuses two genuinely different girls called נועה. So
+   * both are checked, and what comes back is the row that clashed rather than
+   * a boolean: the screen has to be able to say *which* student it means
+   * before asking whether to replace her or add another.
+   *
+   * Names are compared with the geresh normalised, because ברקוביץ׳ and
+   * ברקוביץ' are the same surname typed on two keyboards.
+   */
+  findStudentClash(
+    fullName: string,
+    email?: string | null,
+  ): { student: Student; on: 'name' | 'email' } | null {
+    const name = normaliseName(fullName);
+    const address = email?.trim().toLowerCase() || null;
+
+    for (const student of this._students()) {
+      if (address && student.drive_account_email?.toLowerCase() === address) {
+        return { student, on: 'email' };
+      }
+    }
+
+    for (const student of this._students()) {
+      if (name && normaliseName(student.full_name) === name) return { student, on: 'name' };
+    }
+
+    return null;
   }
 
   /** The year-end form for one student, generated and then hers to edit. */

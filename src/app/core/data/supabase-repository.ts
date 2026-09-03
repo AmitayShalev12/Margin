@@ -264,6 +264,14 @@ export class SupabaseRepository extends Repository {
     await this.upsert(TABLES.learningFeedbackLogs, log, 'id');
   }
 
+  async deleteStudents(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.students, ids);
+  }
+
+  async deleteSubmissions(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.submissions, ids);
+  }
+
   async deleteCourseRules(ids: readonly UUID[]): Promise<void> {
     await this.deleteRows(TABLES.courseRules, ids);
   }
