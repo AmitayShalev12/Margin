@@ -40,11 +40,10 @@ const NAME_CHUNK = 12;
 const MAX_SHARED_PAGES = 5;
 
 /** What a handed-in paper can be. Anything else shared with her is not one. */
-const DOCUMENT_MIMES = [
-  GOOGLE_DOC_MIME,
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword',
-];
+/** A Word file, which Drive stores as bytes rather than as a Doc. */
+export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const DOCUMENT_MIMES = [GOOGLE_DOC_MIME, DOCX_MIME, 'application/msword'];
 
 /**
  * A string literal for a Drive query.
@@ -618,6 +617,32 @@ export class DriveApi {
 
     if (response.ok) return (await response.json()) as T;
     throw this.failure(response, await response.text().catch(() => ''));
+  }
+
+  /**
+   * The raw bytes of a file, for the formats Drive will not hand over as
+   * structured content.
+   *
+   * A Word file in her folder is not a Google Doc: the Docs API cannot open it
+   * and `files.get` only describes it. Downloading and parsing it here is the
+   * only way its text ever reaches the app, and until this existed such a
+   * paper synced as a row with a name and nothing else in it.
+   */
+  async downloadFile(fileId: string): Promise<ArrayBuffer> {
+    const token = await this.auth.accessToken();
+    if (!token) throw new DriveError('unauthorized', 'No Drive access token');
+
+    let response: Response;
+    try {
+      response = await fetch(`${DRIVE_BASE}/files/${fileId}?alt=media&supportsAllDrives=true`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (cause) {
+      throw new DriveError('network', String(cause));
+    }
+
+    if (!response.ok) throw this.failure(response, await response.text().catch(() => ''));
+    return response.arrayBuffer();
   }
 
   private async get<T>(url: string): Promise<T> {

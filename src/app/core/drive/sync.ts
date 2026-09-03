@@ -1,3 +1,4 @@
+import { readDocxBlocks } from '../import/docx-blocks';
 import { Injectable, inject } from '@angular/core';
 
 import { DataStore } from '../data/data-store';
@@ -12,7 +13,7 @@ import {
 } from '../models';
 import { blocksToText, countWords, extractDocumentBlocks } from './docs-extract';
 import { parseSubmissionName, searchPrefixes } from './file-name';
-import { DriveApi, DriveError } from './drive-api';
+import { DOCX_MIME, DriveApi, DriveError } from './drive-api';
 import {
   DriveFile,
   DriveMetadataSnapshot,
@@ -853,18 +854,50 @@ export class SyncService {
    * text left null rather than with a mangled approximation of it.
    */
   private async readDocument(file: DriveFile): Promise<ExtractedDocument | null> {
-    if (file.mimeType !== GOOGLE_DOC_MIME) return null;
+    if (file.mimeType === GOOGLE_DOC_MIME) {
+      const doc = await this.api.getDocument(file.id);
+      const blocks = extractDocumentBlocks(doc);
+      if (blocks.length === 0) return null;
 
-    const doc = await this.api.getDocument(file.id);
-    const blocks = extractDocumentBlocks(doc);
-    if (blocks.length === 0) return null;
+      return {
+        blocks,
+        text: blocksToText(blocks),
+        wordCount: countWords(blocks),
+        revisionId: doc.revisionId ?? null,
+      };
+    }
 
-    return {
-      blocks,
-      text: blocksToText(blocks),
-      wordCount: countWords(blocks),
-      revisionId: doc.revisionId ?? null,
-    };
+    /**
+     * A Word file in her folder.
+     *
+     * These were always listed — `.docx` is in `DOCUMENT_MIMES` and the row
+     * appeared — and then read as nothing, because this method returned null
+     * for anything that was not a Google Doc. The paper sat in the list with a
+     * name and no text, and every screen downstream needs `document_blocks`:
+     * no drafting, no scoring, no review. A student who exports from Word
+     * rather than writing in Docs was invisible to the whole app.
+     *
+     * The Docs API cannot open one, so the bytes are downloaded and parsed
+     * here with the same reader the style import uses.
+     */
+    if (file.mimeType === DOCX_MIME) {
+      const blocks = await readDocxBlocks(await this.api.downloadFile(file.id));
+      if (blocks.length === 0) return null;
+
+      return {
+        blocks,
+        text: blocksToText(blocks),
+        wordCount: countWords(blocks),
+        // Drive versions a binary file, but its revision id is not the Docs
+        // one and nothing here compares them. Null rather than a value that
+        // looks like the other kind.
+        revisionId: null,
+      };
+    }
+
+    // `.doc` reaches here. It is a different format entirely — not a zip, not
+    // XML — and is left unread rather than half-read.
+    return null;
   }
 
   private fail(outcome: SyncOutcome, message: string): SyncOutcome {

@@ -44,7 +44,7 @@ export class DocxError extends Error {
   }
 }
 
-function parseXml(xml: string, part: string): Document {
+export function parseXml(xml: string, part: string): Document {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.getElementsByTagName('parsererror').length) {
     throw new DocxError('הקובץ לא נקרא. יכול להיות שהוא פגום.', `Malformed XML in ${part}`);
