@@ -532,17 +532,25 @@ export class SyncService {
       }
 
       /**
-       * Nobody claimed this was coursework.
+       * A shared file nobody on the roster claims.
        *
-       * The narrow shared query asks by owner, so this should not happen at
-       * all — but if Drive ever returns something outside it, the honest
-       * response is to leave it alone, not to tell her a colleague's memo
-       * failed to attribute. Every other reason is still reported: a shared
-       * file that *is* a student's and still produced nothing is exactly the
-       * kind of thing she needs to see.
+       * This used to be dropped in silence, on the reasoning that the shared
+       * query asks by owner and would therefore only ever return students'
+       * own documents — so anything unattributed had to be a colleague's memo
+       * and reporting it would be noise.
+       *
+       * The reasoning was wrong in the case that actually happens. A teacher
+       * who saves a girl's paper into her *own* second Drive account and
+       * shares it across is not the owner Margin knows, and the file is not
+       * named to the convention either — so it failed both tests and then
+       * vanished with nothing on screen to say it had ever been seen. Her
+       * report was exactly that: "הוא פשוט לא מראה את זה... הוא כאילו מסנן".
+       *
+       * A file she cannot see is not something she can fix. Reported now, and
+       * the screen offers to attach it to a student by hand — which is the
+       * teacher making the assertion the naming convention was standing in
+       * for, and a better assertion than a filename.
        */
-      if (result === 'no_student' && source === 'shared') continue;
-
       outcome.unmatched.push({ name: file.name ?? file.id, reason: result });
     }
   }

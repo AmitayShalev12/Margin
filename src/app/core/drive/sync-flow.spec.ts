@@ -294,6 +294,8 @@ describe('SyncService', () => {
    * colleagues' drafts and years of paperwork — so a document that merely
    * mentions a student must not take over her submission and overwrite the
    * text her comments are anchored to.
+   *
+   * That refusal is unchanged. What changed is that it is no longer silent.
    */
   it('refuses a shared document that only mentions a student', async () => {
     api.sharedByName = [
@@ -309,8 +311,28 @@ describe('SyncService', () => {
 
     expect(store.submissionByDriveFile('shared-mention')).toBeUndefined();
     expect(store.submissionByDriveFile('shared-nodash')).toBeUndefined();
-    // Not reported as a problem either: nobody said either was coursework.
-    expect(result.unmatched).toEqual([]);
+  });
+
+  /**
+   * And says it saw them.
+   *
+   * This used to assert the opposite — that neither was reported, on the
+   * reasoning that nobody had claimed either was coursework. True of the
+   * colleague's memo, and badly wrong about the second one: a real student's
+   * paper, named without the convention, dropped in silence.
+   *
+   * That is the failure the teacher actually hit. She saved a girl's paper
+   * into her own second Drive account, shared it across, called it
+   * "סמינריון רבקי מטוב", and it never appeared — no row, no warning, nothing
+   * to say the file had been seen at all. A paper she cannot see is a paper
+   * she cannot attach, and the screen offers exactly that once it is named.
+   */
+  it('still tells her it found them', async () => {
+    api.sharedByName = [shiraFile({ id: 'shared-nodash', name: 'שירה אלמוג עבודת גמר' })];
+
+    const result = await sync.syncNow();
+
+    expect(result.unmatched.map((f) => f.name)).toContain('שירה אלמוג עבודת גמר');
   });
 
   /**

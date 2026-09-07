@@ -340,6 +340,9 @@ export class Review {
   protected reveal(annotationId: string) {
     this.tapRun(annotationId);
     this.found.set(annotationId);
+    // Kept past the highlight's four seconds: the way back has to outlast the
+    // glow, or it disappears exactly when she looks up and wants it.
+    this.cameFrom.set(annotationId);
 
     requestAnimationFrame(() => {
       /**
@@ -361,6 +364,49 @@ export class Review {
     setTimeout(() => {
       if (this.found() === annotationId) this.found.set(null);
     }, 4000);
+  }
+
+  // -- the way back ---------------------------------------------------------
+  //
+  // "לקח אותי למקום בעבודה, אז צריך להיות גם כפתור חזור, תחזיר אותי, חזרה
+  // להערה... כי אז אחרת אני חצי מהזמן גוללת."
+  //
+  // Jumping to the place in the paper was only half a journey. On a paper long
+  // enough to need forty comments, finding the comment again is a scroll every
+  // single time — which is the same complaint that produced the jump button in
+  // the first place, in the other direction.
+
+  /** The comment she jumped from, until she goes back or jumps again. */
+  protected readonly cameFrom = signal<string | null>(null);
+
+  /**
+   * True when she arrived here from the grading form.
+   *
+   * `comment` is the query parameter that link carries, so its presence is the
+   * record of where she came from — and going back to a form she never opened
+   * would be a button that guesses.
+   */
+  protected readonly fromGradingForm = computed(() => !!this.comment());
+
+  /** Back to the comment card, wherever the page has scrolled to since. */
+  protected backToComment() {
+    const id = this.cameFrom();
+    if (!id) return;
+
+    this.found.set(id);
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-comment="${id}"]`)
+        ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+
+    setTimeout(() => {
+      if (this.found() === id) this.found.set(null);
+    }, 4000);
+  }
+
+  protected dismissBack() {
+    this.cameFrom.set(null);
   }
 
   // -- a comment of her own --------------------------------------------------

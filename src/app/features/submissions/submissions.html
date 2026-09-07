@@ -55,9 +55,15 @@
           · <a class="btn btn-ghost btn-sm" routerLink="/courses">הגדרת הדרייב</a>
         }
         @if (unmatched().length) {
+          <!--
+            Naming what was skipped is only half of it. A file she can see but
+            cannot act on is still a file she cannot hand in — so this points
+            at the place where she says whose it is.
+          -->
           <div class="unmatched">
             {{ unmatched().length }} קבצים לא שויכו לתלמידה:
             <span class="ltr">{{ unmatched().join(', ') }}</span>
+            <a class="btn btn-ghost btn-sm" routerLink="/courses">לשייך אותם לתלמידה</a>
           </div>
         }
       </div>

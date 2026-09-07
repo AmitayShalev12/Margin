@@ -206,7 +206,13 @@
               @if (s.open) {
                 <div class="group-body">
                   @for (c of s.comments; track c.id) {
-                    <div class="comment" [class]="c.kindClass" [class.is-resolved]="c.isResolved">
+                    <div
+                      class="comment"
+                      [class]="c.kindClass"
+                      [class.is-resolved]="c.isResolved"
+                      [class.is-found]="found() === c.id"
+                      [attr.data-comment]="c.id"
+                    >
                       <div class="comment-head">
                         <span class="tag">{{ c.kindLabel }}</span>
                         <span class="state">{{ c.stateLabel }}</span>
@@ -457,5 +463,29 @@
         }
       }
     }
+  </div>
+}
+
+<!--
+  The way back.
+  ============================================================================
+  Jumping to the place in the paper was half a journey: finding the comment
+  again was a scroll every time — the same complaint that produced the jump
+  button, in the other direction.
+
+  Outlasts the highlight deliberately. The glow fades after four seconds and
+  the way back has to still be there when she looks up.
+
+  At the top level and fixed, so it survives the scroll it exists to undo.
+-->
+@if (cameFrom()) {
+  <div class="back-bar anim-rise" role="region" aria-label="חזרה להערה">
+    <button type="button" class="btn btn-primary btn-sm" (click)="backToComment()">
+      חזרה להערה
+    </button>
+    @if (fromGradingForm()) {
+      <a class="btn btn-ghost btn-sm" routerLink="/grading-forms">חזרה לטופס ההערכה</a>
+    }
+    <button type="button" class="btn btn-plain btn-sm" (click)="dismissBack()">סגירה</button>
   </div>
 }
