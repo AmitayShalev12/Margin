@@ -14,6 +14,7 @@ function student(
     email: null,
     class_name: null,
     drive_account_email,
+    drive_folder_id: null,
     notes: null,
     active: true,
     created_at: '',

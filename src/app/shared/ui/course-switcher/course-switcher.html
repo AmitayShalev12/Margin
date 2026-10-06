@@ -1,0 +1,87 @@
+<div class="switcher">
+  <button
+    type="button"
+    class="trigger"
+    [attr.aria-expanded]="open()"
+    aria-haspopup="menu"
+    (click)="toggle()"
+  >
+    <span class="trigger-label">{{ label() }}</span>
+    <span class="chev" aria-hidden="true">‹</span>
+  </button>
+
+  @if (open()) {
+    <!--
+      A backdrop rather than a blur handler: the menu sits above page content
+      she can scroll, and a click anywhere outside should put it away.
+    -->
+    <div class="backdrop" (click)="close()"></div>
+
+    <div class="menu" role="menu">
+      @if (groups().length) {
+        <ul class="groups">
+          @for (group of groups(); track group.name) {
+            <li class="group">
+              <span class="group-name">{{ group.name }}</span>
+              <span class="years">
+                @for (year of group.years; track year.id) {
+                  <button
+                    type="button"
+                    role="menuitem"
+                    class="year"
+                    [class.is-current]="year.current"
+                    [attr.aria-current]="year.current ? 'true' : null"
+                    (click)="choose(year.id)"
+                  >
+                    {{ year.year }}
+                  </button>
+                }
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="none">עוד אין קורס. אפשר ליצור אחד כאן.</p>
+      }
+
+      @if (adding()) {
+        <div class="add">
+          <label class="field">
+            <span class="label">שם הקורס</span>
+            <input
+              id="switcher-course-name"
+              class="control"
+              type="text"
+              [value]="draftName()"
+              (input)="draftName.set($any($event.target).value)"
+            />
+          </label>
+          <label class="field">
+            <span class="label">שנה</span>
+            <input
+              id="switcher-course-year"
+              class="control"
+              type="text"
+              placeholder="תשפ״ז"
+              [value]="draftYear()"
+              (input)="draftYear.set($any($event.target).value)"
+            />
+          </label>
+
+          @if (error(); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
+
+          <div class="add-actions">
+            <button type="button" class="btn btn-primary btn-sm" (click)="create()">יצירה</button>
+            <button type="button" class="btn btn-plain btn-sm" (click)="cancelAdd()">ביטול</button>
+          </div>
+        </div>
+      } @else {
+        <button type="button" class="btn btn-ghost btn-sm add-open" (click)="startAdd()">
+          קורס או שנה נוספת
+        </button>
+      }
+    </div>
+  }
+</div>

@@ -5,13 +5,14 @@ import { filter } from 'rxjs';
 import { NAV_ITEMS, PRIMARY_NAV, SECONDARY_NAV } from './core/navigation';
 import { SupabaseService } from './core/supabase/supabase';
 import { SignIn } from './features/sign-in/sign-in';
+import { CourseSwitcher } from './shared/ui/course-switcher/course-switcher';
 import { Icon } from './shared/ui/icon/icon';
 import { SaveError } from './shared/ui/save-error/save-error';
 
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, SignIn, SaveError],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, SignIn, SaveError, CourseSwitcher],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

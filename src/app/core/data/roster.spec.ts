@@ -177,3 +177,78 @@ describe('noticing that a student is already there', () => {
     expect(store.findStudentClash('תלמידה חדשה לגמרי', 'new@school.org.il')).toBeNull();
   });
 });
+
+/**
+ * Pointing a girl at her own Drive folder.
+ *
+ * The client asked for the folder address to sit beside the name on the home
+ * screen — it is how she checks whether anything was uploaded at all. What she
+ * will paste there is whatever the browser put on her clipboard, which is a
+ * full URL with a `?usp=sharing` tail, not the bare id every Drive call needs.
+ * Storing the URL as typed would look saved and work nowhere.
+ */
+describe('the folder of a student', () => {
+  it('keeps the id out of a pasted address', () => {
+    const store = boot();
+    const student = store.students()[0];
+
+    store.setStudentFolder(
+      student.id,
+      'https://drive.google.com/drive/folders/1A2b3C4d5E6f7G8h?usp=sharing',
+    );
+
+    expect(store.students().find((s) => s.id === student.id)?.drive_folder_id).toBe(
+      '1A2b3C4d5E6f7G8h',
+    );
+  });
+
+  it('takes a bare id as it is', () => {
+    const store = boot();
+    const student = store.students()[0];
+
+    store.setStudentFolder(student.id, '  1A2b3C4d5E6f7G8h  ');
+
+    expect(store.students().find((s) => s.id === student.id)?.drive_folder_id).toBe(
+      '1A2b3C4d5E6f7G8h',
+    );
+  });
+
+  /**
+   * Anything that is neither is refused rather than stored. A folder name, or
+   * the "Share" dialog's wording, would sit on the row looking like a working
+   * link and open nothing.
+   */
+  it('refuses something that is not a folder, and says so', () => {
+    const store = boot();
+    const student = store.students()[0];
+    store.setStudentFolder(student.id, '1A2b3C4d5E6f7G8h');
+
+    const saved = store.setStudentFolder(student.id, 'התיקייה של נועה');
+
+    expect(saved).toBe(false);
+    // And the folder that was working is still there. Wiping it on a bad paste
+    // would be a silent loss of the one address the home screen links to.
+    expect(store.students().find((s) => s.id === student.id)?.drive_folder_id).toBe(
+      '1A2b3C4d5E6f7G8h',
+    );
+  });
+
+  it('clears the folder when she empties the field', () => {
+    const store = boot();
+    const student = store.students()[0];
+    store.setStudentFolder(student.id, '1A2b3C4d5E6f7G8h');
+
+    store.setStudentFolder(student.id, '   ');
+
+    expect(store.students().find((s) => s.id === student.id)?.drive_folder_id).toBeNull();
+  });
+
+  it('leaves every other girl alone', () => {
+    const store = boot();
+    const [first, second] = store.students();
+
+    store.setStudentFolder(first.id, '1A2b3C4d5E6f7G8h');
+
+    expect(store.students().find((s) => s.id === second.id)?.drive_folder_id).toBeNull();
+  });
+});

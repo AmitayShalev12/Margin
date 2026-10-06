@@ -11,6 +11,15 @@ export interface Student extends Timestamped, OwnedByTeacher {
    * module (Phase 5) to notice when a file was created by someone else.
    */
   drive_account_email: string | null;
+  /**
+   * Her own Drive folder, when she has one.
+   *
+   * Null is ordinary: work also arrives through the course-wide folder or by
+   * sharing a document. A folder of her own is simply the arrangement that
+   * scales best — the teacher opens one place and everything of that girl's is
+   * in it.
+   */
+  drive_folder_id: string | null;
   notes: string | null;
   active: boolean;
 }

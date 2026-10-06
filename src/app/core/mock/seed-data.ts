@@ -109,6 +109,7 @@ export const STUDENTS: Student[] = STUDENT_SEEDS.map((s) => ({
   email: null,
   class_name: s.class_name,
   drive_account_email: null,
+  drive_folder_id: null,
   notes: null,
   active: true,
   created_at: daysAgo(320),

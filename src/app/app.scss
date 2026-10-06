@@ -60,6 +60,7 @@
   z-index: 20;
   display: flex;
   align-items: center;
+  gap: var(--s-3);
   height: 3.25rem;
   padding-inline: var(--s-4);
   background: color-mix(in srgb, var(--c-paper) 88%, transparent);
@@ -169,10 +170,18 @@
     flex-direction: row;
   }
 
-  .topbar,
   .tabbar,
   .sheet,
   .sheet-backdrop {
+    display: none;
+  }
+
+  /*
+   * The bar stays on desktop now: it carries the course selector, which has to
+   * be reachable from every screen rather than from the one screen that owns
+   * the control. The wordmark drops out — the rail is carrying it there.
+   */
+  .topbar .mobile-only {
     display: none;
   }
 

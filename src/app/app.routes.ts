@@ -4,7 +4,7 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
   {
     path: 'dashboard',
-    title: 'מה ממתין לי · Margin',
+    title: 'התלמידות שלי · Margin',
     loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
   },
   {

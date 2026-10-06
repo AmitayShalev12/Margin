@@ -45,9 +45,16 @@
     </nav>
 
     <div class="column">
-      <!-- Mobile only: a slim bar, brand and nothing else competing with it. -->
+      <!--
+        The course she is working in, at the top of every screen.
+
+        On desktop the rail already carries the brand, so the bar there is the
+        course and nothing else. On mobile the wordmark stays, because the rail
+        is not on screen to carry it.
+      -->
       <header class="topbar">
-        <span class="wordmark" dir="ltr">Margin</span>
+        <span class="wordmark mobile-only" dir="ltr">Margin</span>
+        <app-course-switcher />
       </header>
 
       <main id="main" class="main" tabindex="-1">

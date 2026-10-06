@@ -1,45 +1,191 @@
 <div class="page">
-  <app-page-header title="מה ממתין לי" [subtitle]="subtitle()" />
+  <app-page-header title="התלמידות שלי" [subtitle]="subtitle()" />
 
-  @if (waiting().length) {
-    <div class="stack">
-      @for (w of waiting(); track w.id) {
-        <a class="waiting" [class]="w.statusClass" [routerLink]="['/review', w.id]">
-          <span class="top">
-            <span class="student">{{ w.student }}</span>
-            <span class="when">{{ w.when }}</span>
-          </span>
-          <span class="line">{{ w.line }}</span>
-          <span class="course">{{ w.course }}</span>
-        </a>
-      }
-    </div>
-
-    <div class="more">
-      <a class="btn btn-plain" routerLink="/submissions">כל העבודות</a>
-    </div>
-  } @else {
-    <div class="empty">
-      <svg
-        width="34"
-        height="34"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="#bcd6d1"
-        stroke-width="1.4"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M20 4c-7 1-11 4-13 8l-2 6" />
-        <path d="M9 15c4-1 7-4 8-8" />
-        <path d="M5 19h6" />
-      </svg>
-      <p class="empty-title">הכול מטופל.</p>
-      <p class="empty-sub">
-        אין עבודות שממתינות לך כרגע. כשתגיע עבודה חדשה מהדרייב, היא תופיע כאן.
-      </p>
-      <a class="btn btn-ghost" routerLink="/submissions">לעבודות שכבר נשלחו</a>
-    </div>
+  @if (data.students().length) {
+    <label class="field roster-search">
+      <span class="sr-only">חיפוש תלמידה</span>
+      <input
+        class="control"
+        type="search"
+        placeholder="חיפוש לפי שם"
+        [value]="search()"
+        (input)="search.set($any($event.target).value)"
+      />
+    </label>
   }
+
+  @if (draftError(); as message) {
+    <p class="draft-error" role="alert">{{ message }}</p>
+  }
+
+  <ul class="roster">
+    @for (row of rows(); track row.id) {
+      <li class="student">
+        <div class="head">
+          <span class="name">{{ row.name }}</span>
+
+          <!--
+            Her folder, as an address she can open. The client asked for the
+            folder to live beside the name — it is how she checks whether a
+            girl uploaded anything at all, and until now it was nowhere on
+            screen.
+          -->
+          @if (folderFor() === row.id) {
+            <form class="folder-edit" (submit)="saveFolder(row.id); $event.preventDefault()">
+              <label class="field">
+                <span class="sr-only">קישור לתיקייה בדרייב</span>
+                <input
+                  class="control"
+                  type="text"
+                  dir="ltr"
+                  placeholder="https://drive.google.com/drive/folders/…"
+                  [value]="folderDraft()"
+                  (input)="folderDraft.set($any($event.target).value)"
+                />
+              </label>
+              <div class="folder-actions">
+                <button type="submit" class="btn btn-primary btn-sm">שמירה</button>
+                <button type="button" class="btn btn-plain btn-sm" (click)="cancelFolder()">
+                  ביטול
+                </button>
+              </div>
+              @if (folderError(); as message) {
+                <p class="folder-errorline" role="alert">{{ message }}</p>
+              }
+            </form>
+          } @else if (row.folder; as folder) {
+            <span class="folder">
+              <a
+                class="folder-link"
+                [href]="folderLink(folder)"
+                target="_blank"
+                rel="noopener"
+                dir="ltr"
+                >{{ folder }}</a
+              >
+              <button
+                type="button"
+                class="btn btn-plain btn-sm"
+                (click)="startFolder(row.id, folder)"
+              >
+                שינוי
+              </button>
+            </span>
+          } @else {
+            <button
+              type="button"
+              class="btn btn-plain btn-sm"
+              (click)="startFolder(row.id, row.folder)"
+            >
+              הוספת תיקייה
+            </button>
+          }
+        </div>
+
+        <!--
+          Her state in one line. "קבצים שנקלטו" and not "קבצים בתיקייה": the
+          app only knows the papers it holds, and a folder may have more in it
+          that never came through. Saying otherwise would be a number she
+          could check and find wrong.
+        -->
+        <p class="rollup">
+          <span class="stat">{{ row.files }} קבצים שנקלטו</span>
+          @if (row.files) {
+            <span class="stat">{{ row.checked }} מתוכם נבדקו</span>
+          }
+          @if (row.comments) {
+            <span class="stat">הערות שהוכרעו: {{ row.decided }}/{{ row.comments }}</span>
+            @if (row.toFix) {
+              <span class="stat stat-fix">{{ row.toFix }} לתיקון</span>
+            }
+          } @else if (row.files) {
+            <span class="stat stat-quiet">עוד אין טיוטת הערות</span>
+          }
+        </p>
+
+        @if (row.percent !== null) {
+          <!--
+            How far the review got, as the share of comments she has ruled on.
+            Not a page number: the paper is held as paragraphs, and the drafting
+            pass reads all of it at once, so there is no page to point at.
+          -->
+          <div
+            class="bar"
+            role="progressbar"
+            [attr.aria-valuenow]="row.percent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-label]="'הערות שהוכרעו עבור ' + row.name"
+          >
+            <span class="bar-fill" [style.inline-size.%]="row.percent"></span>
+          </div>
+        }
+
+        <div class="row-actions">
+          <!--
+            The two things she does from here: put a file on this girl's row,
+            and draft the comments for it. Both were several screens away.
+          -->
+          <button type="button" class="btn btn-ghost btn-sm" (click)="openUpload(row.id)">
+            הוספת קובץ
+          </button>
+
+          @if (row.latestId; as submissionId) {
+            @if (draftingId() === submissionId) {
+              <app-working label="מנסחת הערות" />
+            } @else {
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="draftingId() !== null"
+                (click)="draft(submissionId)"
+              >
+                כתיבת טיוטה
+              </button>
+              <a class="btn btn-plain btn-sm" [routerLink]="['/review', submissionId]">
+                לעבודה האחרונה
+              </a>
+            }
+          }
+        </div>
+
+        @if (uploadFor() === row.id) {
+          <div class="upload">
+            @if (reading()) {
+              <app-working label="קוראת את הקובץ" />
+            } @else {
+              <label class="btn btn-primary btn-sm upload-pick">
+                בחירת קובץ Word
+                <input
+                  class="sr-only"
+                  type="file"
+                  accept=".docx"
+                  (change)="chooseFile(row.id, $event)"
+                />
+              </label>
+              <button type="button" class="btn btn-plain btn-sm" (click)="closeUpload()">
+                ביטול
+              </button>
+            }
+            @if (uploadError(); as message) {
+              <p class="upload-error" role="alert">{{ message }}</p>
+            }
+          </div>
+        }
+      </li>
+    } @empty {
+      <li class="empty">
+        @if (data.students().length) {
+          <p class="empty-title">אין תלמידה בשם הזה.</p>
+          <p class="empty-sub">אפשר לנקות את החיפוש כדי לראות את כל הרשימה.</p>
+        } @else {
+          <p class="empty-title">עוד אין תלמידות.</p>
+          <p class="empty-sub">
+            אפשר להוסיף אותן במסך הקורסים, או לחבר את הדרייב והן ייקלטו מהתיקיות.
+          </p>
+          <a class="btn btn-ghost" routerLink="/courses">למסך הקורסים</a>
+        }
+      </li>
+    }
+  </ul>
 </div>

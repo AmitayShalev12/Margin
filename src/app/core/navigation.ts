@@ -15,7 +15,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/dashboard', label: 'היום', longLabel: 'מה ממתין לי', icon: 'home', primary: true },
+  { path: '/dashboard', label: 'תלמידות', longLabel: 'התלמידות שלי', icon: 'home', primary: true },
   {
     path: '/submissions',
     label: 'עבודות',

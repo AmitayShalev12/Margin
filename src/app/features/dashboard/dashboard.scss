@@ -1,56 +1,157 @@
-// A waiting card. The spine on the inline-start edge carries the status hue,
-// so the shape of the queue is readable before any of the text is.
-.waiting {
-  display: block;
-  background: var(--c-surface);
-  border: 1px solid var(--c-line);
-  border-inline-start: 4px solid var(--st-ink);
-  border-radius: var(--r-lg);
-  padding: var(--s-4);
-  box-shadow: var(--sh-1);
-  color: inherit;
-  text-decoration: none;
-  transition: background var(--dur-fast) var(--ease);
+// The roster. One card per girl, and everything about her on it: the folder,
+// how much has come in, how far the marking got, and the two buttons.
 
-  &:hover {
-    background: var(--st-wash);
-  }
+.roster-search {
+  display: block;
+  max-width: 24rem;
 }
 
-.top {
+.roster {
+  list-style: none;
+  margin: var(--s-4) 0 0;
+  padding: 0;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  flex-direction: column;
   gap: var(--s-3);
 }
 
 .student {
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  padding: var(--s-4);
+  box-shadow: var(--sh-1);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+}
+
+.name {
   font-family: var(--font-doc);
   font-size: var(--fs-lg);
   font-weight: 500;
 }
 
-.when {
-  font-size: var(--fs-sm);
-  color: var(--c-ink-4);
-  flex: 0 0 auto;
+// -- her folder -------------------------------------------------------------
+
+.folder {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
 }
 
-.line {
-  display: block;
-  margin-block-start: 6px;
-  color: var(--c-ink-2);
-}
-
-.course {
-  display: block;
-  margin-block-start: var(--s-3);
+// An LTR id inside an RTL line: isolated so the punctuation around it stays
+// where it was written.
+.folder-link {
+  unicode-bidi: isolate;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--fs-sm);
   color: var(--c-ink-3);
 }
 
-.more {
-  margin-block-start: var(--s-5);
+.folder-edit {
+  flex: 1 1 18rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+
+  .field {
+    flex: 1 1 16rem;
+  }
+}
+
+.folder-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+// -- where she is up to -----------------------------------------------------
+
+.rollup {
+  margin: var(--s-2) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-3);
+  font-size: var(--fs-sm);
+  color: var(--c-ink-2);
+}
+
+// Each number is its own run, so a Hebrew line full of European digits does
+// not reorder around them.
+.stat {
+  unicode-bidi: isolate;
+}
+
+.stat-fix {
+  color: var(--c-danger);
+  font-weight: 600;
+}
+
+.stat-quiet {
+  color: var(--c-ink-4);
+}
+
+.bar {
+  margin-block-start: var(--s-3);
+  block-size: 6px;
+  border-radius: var(--r-full);
+  background: var(--c-surface-sunk);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  background: var(--c-accent);
+  transition: inline-size var(--dur) var(--ease);
+}
+
+// -- the buttons ------------------------------------------------------------
+
+.row-actions {
+  margin-block-start: var(--s-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.upload {
+  margin-block-start: var(--s-3);
+  padding-block-start: var(--s-3);
+  border-block-start: 1px solid var(--c-line);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+// A file input is unstylable and ugly; the label is the button, and the input
+// is the visually hidden thing it is bound to.
+.upload-pick {
+  cursor: pointer;
+}
+
+.upload-error,
+.folder-errorline,
+.draft-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--c-danger);
+  font-size: var(--fs-sm);
+}
+
+.draft-error {
+  margin-block-start: var(--s-3);
 }
 
 // -- empty state ------------------------------------------------------------
@@ -64,7 +165,7 @@
 }
 
 .empty-title {
-  margin: 14px 0 0;
+  margin: 0;
   font-family: var(--font-doc);
   font-size: 20px;
 }

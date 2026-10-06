@@ -110,6 +110,24 @@ const IDLE: SyncState = {
   unmatched: [],
 };
 
+/**
+ * The folder id inside whatever she pasted.
+ *
+ * Drive folder URLs look like `https://drive.google.com/drive/folders/<id>?usp=sharing`,
+ * and the id is the only part that matters. Taking the whole URL would store a
+ * string no API call can use, and it would look saved.
+ */
+function folderIdFrom(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+
+  const fromUrl = /\/folders\/([A-Za-z0-9_-]+)/.exec(text);
+  if (fromUrl) return fromUrl[1];
+
+  // Already an id: no slashes, no spaces.
+  return /^[A-Za-z0-9_-]{10,}$/.test(text) ? text : null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DataStore {
   private readonly repository = inject(Repository);
@@ -1302,6 +1320,7 @@ export class DataStore {
       email: email?.trim() || null,
       class_name: null,
       drive_account_email: null,
+      drive_folder_id: null,
       notes: null,
       active: true,
       created_at: now,
@@ -1683,6 +1702,34 @@ export class DataStore {
     this._studentEmails.update((list) => list.filter((e) => e.submission_id !== id));
 
     this.persist(() => this.repository.deleteSubmissions([id]));
+  }
+
+  /**
+   * Points a student at her own Drive folder.
+   *
+   * Accepts either a folder id or the address she copied out of the browser —
+   * nobody has a folder id to hand, and a field that silently rejects the URL
+   * she pasted is a field she will conclude is broken.
+   *
+   * Returns false when she typed something that is not a folder at all, and
+   * leaves what was there alone. The alternative — storing null — would wipe a
+   * working folder the moment she pasted the wrong thing, and tell her nothing;
+   * clearing the field is how she clears the folder, and that still works.
+   */
+  setStudentFolder(studentId: UUID, idOrUrl: string): boolean {
+    const folder = folderIdFrom(idOrUrl);
+    if (folder === null && idOrUrl.trim()) return false;
+
+    let written: Student | undefined;
+    this._students.update((list) =>
+      list.map((s) => {
+        if (s.id !== studentId || s.drive_folder_id === folder) return s;
+        written = { ...s, drive_folder_id: folder, updated_at: new Date().toISOString() };
+        return written;
+      }),
+    );
+    if (written) this.persist(() => this.repository.saveStudent(written!));
+    return true;
   }
 
   /**

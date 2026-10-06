@@ -20,6 +20,7 @@ function student(id: string, full_name: string, active = true): Student {
     email: null,
     class_name: null,
     drive_account_email: null,
+    drive_folder_id: null,
     notes: null,
     active,
     created_at: '',

@@ -17,6 +17,7 @@ function student(overrides: Partial<Student> = {}): Student {
     email: null,
     class_name: null,
     drive_account_email: 'noa@school.org.il',
+    drive_folder_id: null,
     notes: null,
     active: true,
     created_at: '',
