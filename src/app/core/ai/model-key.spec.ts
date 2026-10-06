@@ -141,3 +141,116 @@ describe('what the screen knows about the key', () => {
     expect(service.usingOwnKey()).toBe(false);
   });
 });
+
+/**
+ * Choosing the model.
+ *
+ * The pin in `model-config.ts` is a guess about what is good and cheap on the
+ * day it was written, and the catalogue moves under it. What is tested here is
+ * that the list is *asked for* rather than carried in the app, and that the
+ * default remains reachable — a setting she can enter and not leave is worse
+ * than no setting.
+ */
+describe('choosing the model', () => {
+  const LISTING = {
+    models: [
+      { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', pro: false },
+      { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', pro: true },
+    ],
+    fallback: 'gemini-3.6-flash',
+  };
+
+  it('asks the server for the list instead of carrying one', async () => {
+    const service = make();
+    reply = { status: 200, json: LISTING };
+
+    await service.loadModels();
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].body).toEqual({ list: true });
+    expect(service.models()?.map((m) => m.id)).toEqual([
+      'gemini-3.8-flash',
+      'gemini-3.1-pro-preview',
+    ]);
+  });
+
+  it('reports the server default until she chooses', async () => {
+    const service = make();
+    reply = { status: 200, json: { set: true, hint: 'a1b2', model: null } };
+    await service.refresh();
+    reply = { status: 200, json: LISTING };
+    await service.loadModels();
+
+    expect(service.activeModel()).toBe('gemini-3.6-flash');
+    expect(service.onDefaultModel()).toBe(true);
+    expect(service.onProModel()).toBe(false);
+  });
+
+  it('sends her choice and then reports it as active', async () => {
+    const service = make();
+    reply = { status: 200, json: LISTING };
+    await service.loadModels();
+
+    reply = { status: 200, json: { set: true, hint: 'a1b2', model: 'gemini-3.1-pro-preview' } };
+    await service.chooseModel('gemini-3.1-pro-preview');
+
+    expect(sent.at(-1)?.body).toEqual({ model: 'gemini-3.1-pro-preview' });
+    expect(service.activeModel()).toBe('gemini-3.1-pro-preview');
+    expect(service.onDefaultModel()).toBe(false);
+  });
+
+  /**
+   * The cost warning has to keep being true after the moment she picked it.
+   * A warning shown once, as she clicks, is one she has forgotten by the time
+   * the bill does the talking.
+   */
+  it('keeps saying a Pro model is a Pro model', async () => {
+    const service = make();
+    reply = { status: 200, json: LISTING };
+    await service.loadModels();
+    reply = { status: 200, json: { set: true, hint: 'a1b2', model: 'gemini-3.1-pro-preview' } };
+    await service.chooseModel('gemini-3.1-pro-preview');
+
+    expect(service.onProModel()).toBe(true);
+
+    // And stops the moment she moves off it.
+    reply = { status: 200, json: { set: true, hint: 'a1b2', model: 'gemini-3.8-flash' } };
+    await service.chooseModel('gemini-3.8-flash');
+    expect(service.onProModel()).toBe(false);
+  });
+
+  /** The way back. Null is a choice, not a blank. */
+  it('can go back to the default', async () => {
+    const service = make();
+    reply = { status: 200, json: { set: true, hint: 'a1b2', model: null } };
+
+    await service.chooseModel(null);
+
+    expect(sent.at(-1)?.body).toEqual({ model: null });
+    expect(service.onDefaultModel()).toBe(true);
+  });
+
+  /**
+   * A model id that is merely stored looks exactly like one that works, right
+   * up to a marking run failing for a reason she cannot connect to a dropdown
+   * she touched last week. The server refuses it; this says so in her words.
+   */
+  it('says so when the model is not available on her key', async () => {
+    const service = make();
+    reply = { status: 400, json: { error: 'model_unavailable' } };
+
+    const saved = await service.chooseModel('gemini-9-imaginary');
+
+    expect(saved).toBe(false);
+    expect(service.error()).toContain('לא זמין');
+  });
+
+  it('explains that a model choice needs her own key', async () => {
+    const service = make();
+    reply = { status: 409, json: { error: 'needs_own_key' } };
+
+    await service.chooseModel('gemini-3.1-pro-preview');
+
+    expect(service.error()).toContain('מפתח משלך');
+  });
+});

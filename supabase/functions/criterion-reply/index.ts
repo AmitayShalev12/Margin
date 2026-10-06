@@ -143,33 +143,44 @@ function statusFor(code: AnnotateErrorCode): number {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Her own key when she has one, the shared key otherwise. Never returned. */
-async function teacherKey(request: Request): Promise<string | null> {
+/**
+ * Her own key and model when she has set them, nulls otherwise.
+ *
+ * The key is read here and used here: never returned, never logged, never sent
+ * to the browser. The model travels with it because it is a property of the
+ * key that will pay for it — the Pro tiers are paid-only, and a model choice
+ * stored against the shared key could never run.
+ */
+async function teacherCredentials(
+  request: Request,
+): Promise<{ key: string | null; model: string | null }> {
+  const none = { key: null, model: null };
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authorization = request.headers.get('Authorization');
-  if (!url || !serviceRole || !authorization?.startsWith('Bearer ')) return null;
+  if (!url || !serviceRole || !authorization?.startsWith('Bearer ')) return none;
 
   try {
     const who = await fetch(`${url}/auth/v1/user`, {
       headers: { Authorization: authorization, apikey: serviceRole },
     });
-    if (!who.ok) return null;
+    if (!who.ok) return none;
 
     const { id } = (await who.json()) as { id?: string };
-    if (!id) return null;
+    if (!id) return none;
 
     const rows = await fetch(
-      `${url}/rest/v1/model_credentials?teacher_id=eq.${id}&select=api_key`,
+      `${url}/rest/v1/model_credentials?teacher_id=eq.${id}&select=api_key,model`,
       { headers: { apikey: serviceRole, Authorization: `Bearer ${serviceRole}` } },
     );
-    if (!rows.ok) return null;
+    if (!rows.ok) return none;
 
-    const [row] = (await rows.json()) as { api_key?: string }[];
-    return row?.api_key ?? null;
+    const [row] = (await rows.json()) as { api_key?: string; model?: string | null }[];
+    return { key: row?.api_key ?? null, model: row?.model ?? null };
   } catch (error) {
-    console.error('criterion-reply: could not read the teacher key', error);
-    return null;
+    // Logged without the response body, which would carry the key.
+    console.error('criterion-reply: could not read the teacher credentials, using the shared key', error);
+    return none;
   }
 }
 
@@ -200,10 +211,19 @@ Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
   if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, headers);
 
-  const hers = await teacherKey(request);
-  const apiKey = hers ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
+  const hers = await teacherCredentials(request);
+  const apiKey = hers.key ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
   if (!apiKey) return json({ error: 'missing_api_key' }, 500, headers);
-  const keySource = hers ? 'teacher' : 'shared';
+
+  /**
+   * Her model when she has chosen one, the server's pin otherwise.
+   *
+   * Spread rather than mutated: everything else about the config — the budget,
+   * the retry policy, the token ceiling — is the same whichever model runs, and
+   * a copy keeps one request from changing what the next one sees.
+   */
+  const config = { ...MODEL_CONFIG, model: hers.model ?? MODEL_CONFIG.model };
+  const keySource = hers.key ? 'teacher' : 'shared';
 
   let body: ReplyRequest;
   try {
@@ -220,7 +240,7 @@ Deno.serve(async (request: Request) => {
   }
 
   const requestBody = buildRequestBody({
-    config: MODEL_CONFIG,
+    config,
     systemInstruction: INSTRUCTIONS,
     input: prompt(body),
     schema: SCHEMA,

@@ -381,6 +381,66 @@
       @if (modelKey.error(); as message) {
         <p class="key-error" role="alert">{{ message }}</p>
       }
+
+      <!--
+        Which model runs. A setting rather than a constant, so moving between
+        them is one click instead of a deploy — the pin in the code is a guess
+        about what is good and cheap today, and Google ships a new Flash
+        generation every few months.
+
+        The list comes from Google on her key, never from a list in the repo:
+        that list would be a claim about Google's catalogue that nobody keeps
+        up to date.
+      -->
+      @if (modelKey.status()?.set) {
+        <div class="model-pick">
+          <h3 class="sub-title">המודל</h3>
+
+          @if (modelKey.models(); as models) {
+            <label class="field">
+              <span class="label">המודל שמריץ את הבדיקה</span>
+              <select
+                class="control"
+                [disabled]="modelKey.busy()"
+                (change)="chooseModel($any($event.target).value)"
+              >
+                <option value="" [selected]="modelKey.onDefaultModel()">
+                  ברירת המחדל ({{ modelKey.activeModel() }})
+                </option>
+                @for (model of models; track model.id) {
+                  <option [value]="model.id" [selected]="modelKey.status()?.model === model.id">
+                    {{ model.label }}{{ model.pro ? ' — בתשלום' : '' }}
+                  </option>
+                }
+              </select>
+            </label>
+
+            <!--
+              Said while she is on it, not once when she picks it. A warning
+              that appears for a second and never again is one she will have
+              forgotten by the time the bill does the talking.
+            -->
+            @if (modelKey.onProModel()) {
+              <p class="hint warn">
+                מודל Pro עולה פי כמה ממודל Flash, וכל בדיקה קוראת עבודה שלמה. זה יורד מהחיוב של
+                המפתח שלך.
+              </p>
+            }
+          } @else {
+            <p class="hint">
+              אפשר לבחור על איזה מודל של Gemini רצות הבדיקות. הרשימה נטענת מגוגל לפי המפתח שלך.
+            </p>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              [disabled]="modelKey.busy()"
+              (click)="modelKey.loadModels()"
+            >
+              {{ modelKey.busy() ? 'טוענת…' : 'הצגת המודלים' }}
+            </button>
+          }
+        </div>
+      }
     </div>
   }
 

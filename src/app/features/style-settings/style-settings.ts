@@ -110,6 +110,15 @@ export class StyleSettings {
     await this.modelKey.clear();
   }
 
+  /**
+   * The empty option means "whatever the server is configured with", which is
+   * a real choice and not a blank — she may well want to come back to it after
+   * trying a model that turned out slower or dearer.
+   */
+  protected async chooseModel(id: string) {
+    await this.modelKey.chooseModel(id || null);
+  }
+
   protected readonly counts = computed(() =>
     countDecisions(this.data.feedbackLogs(), this.data.styleExamples()),
   );

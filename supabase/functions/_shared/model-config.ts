@@ -1,17 +1,29 @@
 /**
- * The model behind the annotation pass — one place, on purpose.
+ * The **default** model behind the annotation pass.
  *
- * This is a **cost decision, not a technical one**: Google AI Studio's free
- * tier needs no billing account, which is what makes the drafting pass free to
- * run while the app is still being built. It is expected to change.
+ * It stopped being the only one: a teacher with her own key chooses her model
+ * in "הסגנון שלי", it is stored on `model_credentials.model`, and the run uses
+ * it in place of what is pinned here. This is the fallback for an account that
+ * has never touched that setting, which is every account until somebody does.
+ *
+ * Keeping it a *fallback* rather than a constant matters because this pin is a
+ * guess about what is good and cheap on the day it was written, and Google
+ * ships a new Flash generation every few months. An account that never opens
+ * the setting should move with the default; one that chose deliberately should
+ * not be overridden by a deploy.
  *
  * Swapping provider should be an edit here plus one new adapter beside
  * `gemini.ts` — nothing in `annotate/index.ts` and nothing client-side.
  *
- * ⚠️ Free tier means Google may use submitted content to improve their models.
- * Keep this pointed at seeded or synthetic documents until someone decides to
- * move to a paid tier. Real student work should not go through it as it
- * stands.
+ * ⚠️ Confidentiality. On the **free** tier Google may use submitted content to
+ * improve their models, so a free-tier key must see seeded or synthetic
+ * documents only — not real student work. ליאורה's papers are her students'
+ * and were given on the condition they go no further, and that condition is
+ * not met by the free tier. A **paid** key is the thing that changes this:
+ * paid-tier traffic is not used for training, which is what would make real
+ * work permissible. The tier is a property of the key, not of this file, so
+ * nothing here can establish it — whoever supplies the key has to know which
+ * they supplied.
  */
 
 export type ModelProvider = 'gemini';
@@ -19,11 +31,20 @@ export type ModelProvider = 'gemini';
 export interface ModelConfig {
   provider: ModelProvider;
   /**
-   * `gemini-3.6-flash` is the current free-tier flagship (checked against
-   * ai.google.dev, August 2026). Newer Gemini releases at the time of writing
-   * are specialised — Live, TTS, Omni video — not general text models.
+   * The default model id.
    *
-   * Must stay on a Flash-tier model: Pro tiers are paid-only.
+   * `gemini-3.6-flash` was the free-tier flagship when this was pinned (August
+   * 2026). A `models` call on 6 October 2026 listed `gemini-3.7-flash` and
+   * `gemini-3.8-flash` as well, so this pin is already two generations behind
+   * — left alone deliberately, because moving the default moves every account
+   * that never chose, and that is a decision to take on purpose rather than in
+   * passing.
+   *
+   * The old rule here said a Flash tier was mandatory because Pro is paid-only.
+   * That is still true of the *shared* key and no longer true of the app: a
+   * teacher on her own paid key may pick a Pro model, and the screen tells her
+   * what it costs before she does. Nothing may point the **shared** key at a
+   * Pro model, which is why this constant stays on Flash.
    */
   model: string;
   /** Env var holding the key. Read server-side only, never sent to a client. */

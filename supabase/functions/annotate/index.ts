@@ -29,7 +29,7 @@ import {
   retryDelayMs,
   type Interaction,
 } from '../_shared/gemini.ts';
-import { MODEL_CONFIG, type AnnotateErrorCode } from '../_shared/model-config.ts';
+import { MODEL_CONFIG, type AnnotateErrorCode, type ModelConfig } from '../_shared/model-config.ts';
 
 // ---------------------------------------------------------------------------
 // Wire contract. Canonical definition: src/app/core/ai/contract.ts.
@@ -449,11 +449,12 @@ function affordable(waitMs: number, remainingMs: number): boolean {
 async function generate(
   apiKey: string,
   body: AnnotateRequest,
+  config: ModelConfig,
 ): Promise<
   { ok: true; text: string } | { ok: false; code: AnnotateErrorCode; quota?: string | null }
 > {
   const requestBody = buildRequestBody({
-    config: MODEL_CONFIG,
+    config,
     systemInstruction: `${INSTRUCTIONS}\n\n${knowledgeBase(body)}`,
     input: documentMessage(body),
     schema: responseSchema(body.allowed_kinds, body.scoring === 'scored'),
@@ -550,40 +551,43 @@ async function generate(
 }
 
 /**
- * The signed-in teacher's own Gemini key, if she has saved one.
+ * Her own key and model when she has set them, nulls otherwise.
  *
- * Service-role read against a table the browser cannot touch, keyed on the
- * caller's own id, so a teacher can only ever spend her own quota. Returns
- * null for anything at all that goes wrong — no key, no session, no table —
- * because every one of those means "use the shared key", not "stop".
+ * The key is read here and used here: never returned, never logged, never sent
+ * to the browser. The model travels with it because it is a property of the
+ * key that will pay for it — the Pro tiers are paid-only, and a model choice
+ * stored against the shared key could never run.
  */
-async function teacherKey(request: Request): Promise<string | null> {
+async function teacherCredentials(
+  request: Request,
+): Promise<{ key: string | null; model: string | null }> {
+  const none = { key: null, model: null };
   const url = Deno.env.get('SUPABASE_URL');
   const serviceRole = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authorization = request.headers.get('Authorization');
-  if (!url || !serviceRole || !authorization?.startsWith('Bearer ')) return null;
+  if (!url || !serviceRole || !authorization?.startsWith('Bearer ')) return none;
 
   try {
     const who = await fetch(`${url}/auth/v1/user`, {
       headers: { Authorization: authorization, apikey: serviceRole },
     });
-    if (!who.ok) return null;
+    if (!who.ok) return none;
 
     const { id } = (await who.json()) as { id?: string };
-    if (!id) return null;
+    if (!id) return none;
 
     const rows = await fetch(
-      `${url}/rest/v1/model_credentials?teacher_id=eq.${id}&select=api_key`,
+      `${url}/rest/v1/model_credentials?teacher_id=eq.${id}&select=api_key,model`,
       { headers: { apikey: serviceRole, Authorization: `Bearer ${serviceRole}` } },
     );
-    if (!rows.ok) return null;
+    if (!rows.ok) return none;
 
-    const [row] = (await rows.json()) as { api_key?: string }[];
-    return row?.api_key ?? null;
+    const [row] = (await rows.json()) as { api_key?: string; model?: string | null }[];
+    return { key: row?.api_key ?? null, model: row?.model ?? null };
   } catch (error) {
     // Logged without the response body, which would carry the key.
-    console.error('annotate: could not read the teacher key, using the shared one', error);
-    return null;
+    console.error('annotate: could not read the teacher credentials, using the shared key', error);
+    return none;
   }
 }
 
@@ -611,9 +615,18 @@ Deno.serve(async (request: Request) => {
    * run. The alternative is that a hiccup in one table stops her marking, and
    * the shared key is a working state, not a compromise of anything.
    */
-  const hers = await teacherKey(request);
-  const apiKey = hers ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
+  const hers = await teacherCredentials(request);
+  const apiKey = hers.key ?? Deno.env.get(MODEL_CONFIG.apiKeyEnvVar);
   if (!apiKey) return json({ error: 'missing_api_key' }, 500, headers);
+
+  /**
+   * Her model when she has chosen one, the server's pin otherwise.
+   *
+   * Spread rather than mutated: everything else about the config — the budget,
+   * the retry policy, the token ceiling — is the same whichever model runs, and
+   * a copy keeps one request from changing what the next one sees.
+   */
+  const config = { ...MODEL_CONFIG, model: hers.model ?? MODEL_CONFIG.model };
 
   /**
    * Which key this run spent, reported on every answer including the failures.
@@ -627,7 +640,7 @@ Deno.serve(async (request: Request) => {
    *
    * Says which key, never anything about it.
    */
-  const keySource = hers ? 'teacher' : 'shared';
+  const keySource = hers.key ? 'teacher' : 'shared';
 
   let body: AnnotateRequest;
   try {
@@ -644,7 +657,7 @@ Deno.serve(async (request: Request) => {
   }
 
   try {
-    const generated = await generate(apiKey, body);
+    const generated = await generate(apiKey, body, config);
     if (!generated.ok) {
       // The rate-limit case above all: "too many requests" means one thing on
       // her own quota and another entirely on a key shared with everyone.
