@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
@@ -20,6 +21,12 @@ export interface StudentRow {
   /** Of those, the ones she has finished with. */
   checked: number;
   latestId: UUID | null;
+  /**
+   * Words in her latest paper, as the nearest honest answer to "how long is
+   * this". Null when the file has not been read — a Drive row can exist before
+   * its document has been fetched, and 0 would read as an empty paper.
+   */
+  words: number | null;
   comments: number;
   decided: number;
   /** What the student has to go and fix: the comments she stood behind. */
@@ -44,7 +51,7 @@ export interface StudentRow {
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PageHeader, Working],
+  imports: [DecimalPipe, RouterLink, PageHeader, Working],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -105,6 +112,7 @@ export class Dashboard {
         files: hers.length,
         checked: hers.filter((s) => s.status === 'notes_sent' || s.status === 'finalized').length,
         latestId: latest?.id ?? null,
+        words: latest?.word_count ?? null,
         comments: mine.length,
         decided,
         toFix: mine.filter((a) => a.status === 'accepted' || a.status === 'edited').length,

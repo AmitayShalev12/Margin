@@ -38,6 +38,7 @@ interface Row {
   files: number;
   checked: number;
   latestId: string | null;
+  words: number | null;
   comments: number;
   decided: number;
   toFix: number;
@@ -319,5 +320,49 @@ describe('what the row actually renders', () => {
     expect(link?.getAttribute('href')).toBe(
       'https://drive.google.com/drive/folders/1A2b3C4d5E6f7G8h',
     );
+  });
+});
+
+describe('how long the paper is', () => {
+  /**
+   * "עד איזה עמוד" has no answer here — the app holds paragraphs and never saw
+   * a page — so the row reports length as words instead, which it does know.
+   */
+  it('reports the word count of her latest paper', () => {
+    const { store, component } = make();
+    const row = component.rows().find((r) => r.latestId);
+    const latest = store.submissions().find((s) => s.id === row!.latestId);
+
+    expect(latest!.word_count).toBeGreaterThan(0);
+    expect(row!.words).toBe(latest!.word_count);
+  });
+
+  it('renders it on the row', () => {
+    const { fixture } = make();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('מילים');
+    expect(text).toContain('4,200');
+  });
+
+  /**
+   * Absent rather than zero. A Drive row exists before its document has been
+   * fetched, and "0 מילים" would read as an empty paper rather than an unread
+   * one — a difference she would act on.
+   */
+  it('says nothing at all when the file has not been read', () => {
+    const { store, component, fixture } = make();
+    const row = component.rows().find((r) => r.latestId)!;
+    store.updateSubmission(row.latestId!, { word_count: null });
+    fixture.detectChanges();
+
+    expect(component.rows().find((r) => r.id === row.id)!.words).toBeNull();
+
+    // Her row, and not the page: every other row still says "4,200 מילים",
+    // which ends in the same characters as "0 מילים".
+    const index = component.rows().findIndex((r) => r.id === row.id);
+    const rollup = (fixture.nativeElement as HTMLElement).querySelectorAll('.rollup')[index];
+    expect(rollup.textContent).not.toContain('מילים');
+    expect(rollup.textContent).toContain('קבצים שנקלטו');
   });
 });

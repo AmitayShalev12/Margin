@@ -93,6 +93,16 @@
           @if (row.files) {
             <span class="stat">{{ row.checked }} מתוכם נבדקו</span>
           }
+          <!--
+            How long the paper is. The nearest honest answer to "עד איזה עמוד",
+            given that the app holds paragraphs and never saw a page. Absent
+            rather than zero when the file has not been read yet: a Drive row
+            exists before its document is fetched, and "0 מילים" would read as
+            an empty paper rather than as an unread one.
+          -->
+          @if (row.words !== null) {
+            <span class="stat">{{ row.words | number }} מילים</span>
+          }
           @if (row.comments) {
             <span class="stat">הערות שהוכרעו: {{ row.decided }}/{{ row.comments }}</span>
             @if (row.toFix) {
