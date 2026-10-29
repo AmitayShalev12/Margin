@@ -252,6 +252,12 @@ scopes it — which is how `.btn-sm` and the form fields both silently failed be
 ring. `.label` is scoped to `.field`, because `.label` is also the caption class of the `app-working`
 spinner.
 
+### Picker
+
+`.picker` is a row of `.pick` pills choosing one of several (which student, which draft), 36px like
+`.btn-sm`, `.is-active` on the chosen one and an optional `.pick-count` inside. It scrolls sideways on a
+phone instead of wrapping.
+
 ### Spacing Scale
 
 4px base: `--s-1` 4 · `--s-2` 8 · `--s-3` 12 · `--s-4` 16 · `--s-5` 20 · `--s-6` 24 · `--s-8` 32 ·

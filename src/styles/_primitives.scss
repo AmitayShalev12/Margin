@@ -289,6 +289,53 @@ select.control {
   color: var(--c-ok);
 }
 
+// -- picker -----------------------------------------------------------------
+//
+// A row of pill buttons choosing one of several — which student, which draft.
+// The grading form and the email screen each had a copy of this; the copies
+// were identical, and both were 34px tall, a size below `.btn-sm`. One
+// definition now, at `.btn-sm`'s 36px. Scrolls sideways on a phone rather than
+// wrapping, so the screen below it does not move as the list grows.
+//
+// Usage: `<div class="picker" role="tablist"><button class="pick">…</button></div>`.
+
+.picker {
+  display: flex;
+  gap: var(--s-2);
+  overflow-x: auto;
+  padding-block-end: var(--s-2);
+  margin-block-end: var(--s-5);
+}
+
+.pick {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-block-size: 2.25rem;
+  padding: 6px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+
+  &.is-active {
+    background: var(--c-accent-soft);
+    border-color: transparent;
+    color: var(--c-accent-strong);
+    font-weight: 600;
+  }
+}
+
+.pick-count {
+  unicode-bidi: isolate;
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+}
+
 // -- document type ----------------------------------------------------------
 
 .doc-text {

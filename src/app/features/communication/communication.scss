@@ -1,41 +1,5 @@
-.picker {
-  display: flex;
-  gap: var(--s-2);
-  overflow-x: auto;
-  padding-block-end: var(--s-2);
-  margin-block-end: var(--s-5);
-}
-
 .variants {
   margin-block-end: var(--s-3);
-}
-
-.pick {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  border: 1px solid var(--c-line);
-  background: var(--c-surface);
-  border-radius: var(--r-full);
-  padding: 6px 14px;
-  font: inherit;
-  font-size: var(--fs-sm);
-  color: var(--c-ink-2);
-  cursor: pointer;
-
-  &.is-active {
-    background: var(--c-accent-soft);
-    border-color: transparent;
-    color: var(--c-accent-strong);
-    font-weight: 600;
-  }
-}
-
-.pick-count {
-  unicode-bidi: isolate;
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
 }
 
 .pick-sent {
