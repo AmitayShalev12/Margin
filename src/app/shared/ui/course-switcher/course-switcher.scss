@@ -12,6 +12,7 @@
   align-items: center;
   gap: var(--s-2);
   max-width: 100%;
+  min-block-size: 2.25rem; // `.btn-sm`'s height; it was 33px, small for a thumb
   padding: var(--s-1) var(--s-2);
   border: 1px solid transparent;
   border-radius: var(--r-sm);

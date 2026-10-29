@@ -109,6 +109,8 @@
   margin-block-start: var(--s-5);
 
   summary {
+    // The text alone is 20px tall — too small a target for a thumb.
+    padding-block: var(--s-2);
     cursor: pointer;
     font-size: var(--fs-sm);
     color: var(--c-ink-3);
