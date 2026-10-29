@@ -1,3 +1,5 @@
+@use '../../../styles/tokens' as *;
+
 .kb {
   background: var(--c-surface);
   border: 1px solid var(--c-line);
@@ -78,6 +80,7 @@
 
 .kb-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: 10px;
   background: var(--k-soft);
@@ -293,7 +296,14 @@
 .kb-row-actions {
   display: inline-flex;
   gap: var(--s-1);
-  flex: 0 0 auto;
+  // On a phone the rule takes the width and its actions drop to a line of their
+  // own; beside it they left the rule a column a few words wide.
+  flex: 1 0 100%;
+  justify-content: flex-end;
+
+  @media (min-width: $bp-md) {
+    flex: 0 0 auto;
+  }
 }
 
 .kb-edit {
