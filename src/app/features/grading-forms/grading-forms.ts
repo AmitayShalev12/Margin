@@ -383,10 +383,14 @@ export class GradingForms {
     const totals = this.totals();
     if (totals.complete) return null;
 
+    // The name, not `key`. The key is the model's matching handle: her number
+    // when the heading starts with one, and the row's database id when it does
+    // not — so on any unnumbered rubric this sentence used to read out UUIDs.
+    // Her numbered headings carry the number in the name anyway.
     const mine = this.sections()
       .flatMap((section) => section.criteria)
       .filter((criterion) => criterion.mine && !criterion.display)
-      .map((criterion) => criterion.key);
+      .map((criterion) => criterion.name);
 
     if (totals.awaiting > 0) {
       return `נותרו ${totals.awaiting} סעיפים שהמערכת עוד לא ניקדה.`;

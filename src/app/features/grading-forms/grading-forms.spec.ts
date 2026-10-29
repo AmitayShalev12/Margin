@@ -15,7 +15,26 @@ import {
   SubmissionRound,
 } from '../../core/models';
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
+import { SupabaseService } from '../../core/supabase/supabase';
 import { GradingForms } from './grading-forms';
+
+/**
+ * A configured backend, stated rather than inherited.
+ *
+ * Without this the screen read the real `SupabaseService`, whose
+ * `isConfigured` comes from whatever is in the developer's environment file.
+ * The model's turn in an argument is offered only when a backend exists, so
+ * one test here passed with real credentials filled in and failed on a fresh
+ * checkout — which is exactly the state the environment file ships in.
+ */
+class FakeSupabase {
+  isConfigured = true;
+  teacherId = 'teacher-1';
+  functionsUrl = 'https://project.supabase.co/functions/v1';
+  client = {
+    auth: { getSession: async () => ({ data: { session: { access_token: 'jwt' } } }) },
+  };
+}
 
 /**
  * The score sheet, rendered.
@@ -163,6 +182,7 @@ function render(rows: Partial<PersistedSnapshot> = {}) {
       provideRouter([]),
       { provide: Repository, useClass: LocalRepository },
       { provide: AnnotationGenerator, useValue: generator },
+      { provide: SupabaseService, useValue: new FakeSupabase() },
     ],
   });
 
@@ -565,8 +585,29 @@ describe('what is holding the paper score up', () => {
       criterionScores: [score({ category_id: 'cat-1', points: 3 })],
     });
 
-    expect(page.text()).toContain('2.2');
+    expect(page.text()).toContain('2.2 מקורות');
     expect(page.text()).toContain('רק את מנקדת');
+  });
+
+  /**
+   * The case the test above could not see. A numbered heading's matching key
+   * *is* its number, so "2.2" passed whether the sentence used the key or the
+   * name. An unnumbered one's key is its database id — and that id is what she
+   * was shown. Learned headings, the starting set and anything she types
+   * herself are all unnumbered.
+   */
+  it('names an unnumbered criterion by its heading, never by its id', () => {
+    const page = render({
+      gradingCategories: [
+        category({ id: 'cat-1', name: 'סקירת ספרות', max_points: 4 }),
+        category({ id: 'cat-unnumbered', name: 'עריכה ועימוד', max_points: 3, manual_only: true }),
+      ],
+      criterionScores: [score({ category_id: 'cat-1', points: 3 })],
+    });
+
+    const blocking = page.fixture.nativeElement.querySelector('.blocking');
+    expect(blocking?.textContent).toContain('עריכה ועימוד');
+    expect(blocking?.textContent).not.toContain('cat-unnumbered');
   });
 
   it('says nothing once the paper is fully scored', () => {
