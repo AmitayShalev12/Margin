@@ -102,7 +102,7 @@
   overflow: hidden;
 
   li + li {
-    border-block-start: 1px solid #eef1ec;
+    border-block-start: 1px solid var(--c-line-soft);
   }
 }
 
@@ -115,7 +115,7 @@
   text-decoration: none;
 
   &:hover {
-    background: #fbfcfa;
+    background: var(--c-paper);
   }
 }
 

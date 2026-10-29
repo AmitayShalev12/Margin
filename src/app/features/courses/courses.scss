@@ -6,7 +6,7 @@
 }
 
 .kb-section + .kb-section {
-  border-block-start: 1px solid #eef1ec;
+  border-block-start: 1px solid var(--c-line-soft);
 }
 
 .kb-head {
@@ -87,7 +87,7 @@
 
   &.muted {
     background: transparent;
-    border-color: #eef1ec;
+    border-color: var(--c-line-soft);
   }
 }
 
@@ -185,31 +185,13 @@
   inline-size: 100%;
 }
 
+// How the setup fields share a row. Their look is the global `.field`.
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
   flex: 1 1 12rem;
 }
 
 .field-narrow {
   flex: 0 1 8rem;
-}
-
-.label {
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-}
-
-.control {
-  font: inherit;
-  font-size: var(--fs-sm);
-  padding: var(--s-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-sm);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  inline-size: 100%;
 }
 
 .roster-list {
@@ -395,7 +377,7 @@
 .clash {
   margin-block: var(--s-3);
   padding: var(--s-3);
-  border: 1px solid var(--c-attention, #c8a44d);
+  border: 1px solid var(--c-attention);
   border-radius: var(--r-md);
   background: var(--c-surface-sunk);
 }

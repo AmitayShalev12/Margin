@@ -70,31 +70,11 @@ h1 {
   }
 }
 
+// The field's look is the global `.field` / `.label` / `.control` — the
+// same as every other field in the app, so the first screen she sees is not
+// the one that looks different.
 .field {
-  display: block;
   margin-block-end: var(--s-3);
-}
-
-.field-label {
-  display: block;
-  font-size: var(--fs-sm);
-  color: var(--c-ink-3);
-  margin-block-end: var(--s-2);
-}
-
-.input {
-  width: 100%;
-  padding: 10px var(--s-3);
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  font: inherit;
-  font-size: var(--fs-base);
-
-  &:focus-visible {
-    outline: 2px solid var(--c-ink-2);
-    outline-offset: 1px;
-  }
 }
 
 .error {

@@ -94,7 +94,7 @@
   font-size: var(--fs-base);
   color: var(--c-ink-4);
   text-decoration: line-through;
-  text-decoration-color: #dfe3dc;
+  text-decoration-color: var(--c-line);
 }
 
 .after {
@@ -313,30 +313,58 @@
 // The key is never rendered. Only whether one is set, and its last four
 // characters, which is what lets her tell one key from another.
 
+// Drawn the same as its sibling panel `.tone` — same padding, same corners.
+// It had 12px corners and its own padding, which put two panels side by side
+// on one screen that did not quite match.
 .model-key {
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  padding: var(--s-4);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
 }
 
 .key-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+}
+
+.key-done,
+.key-error {
+  margin: var(--s-3) 0 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
 }
 
 .key-done {
-  margin: 0.6rem 0 0;
-  color: var(--ok-fg, #1c6b3f);
-  font-size: 0.8rem;
+  color: var(--c-ok);
 }
 
 .key-error {
-  margin: 0.6rem 0 0;
-  color: var(--danger-fg, #a3282d);
-  font-size: 0.8rem;
-  line-height: 1.5;
+  color: var(--c-danger);
+}
+
+// The model choice: a sub-section of the key panel, divided from it by the
+// same hairline a list uses between its rows.
+.model-pick {
+  margin-block-start: var(--s-4);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--c-line-soft);
+
+  .btn {
+    margin-block-start: var(--s-2);
+  }
+}
+
+// The Pro cost warning. Drawn as the app's other attention notices are
+// (communication's `.failure`), so it reads as a warning and not as one more
+// grey hint — which is what it was, unstyled, when it shipped.
+.warn {
+  margin-block-start: var(--s-3);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-attention-soft);
+  color: var(--c-attention);
 }
 
 // The confirmation that gates learning from prose. Not a formality: a marked

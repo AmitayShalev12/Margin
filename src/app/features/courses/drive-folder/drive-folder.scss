@@ -88,26 +88,7 @@
   border-block-start: 1px solid var(--c-line);
 }
 
-.field {
-  display: block;
-}
-
-.label {
-  display: block;
-  font-size: var(--fs-sm);
-  color: var(--c-ink-3);
-  margin-block-end: var(--s-2);
-}
-
-.input {
-  width: 100%;
-  min-height: 2.75rem;
-  padding-inline: var(--s-3);
-  border: 1px solid var(--c-line-strong);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  font-size: var(--fs-base);
-}
+// `.field` and `.label` are global primitives (_primitives.scss).
 
 .error {
   margin: var(--s-2) 0 0;

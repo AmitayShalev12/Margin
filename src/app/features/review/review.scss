@@ -335,7 +335,7 @@
   color: var(--c-accent-strong);
 
   &:hover {
-    background: #d3e6e1;
+    background: color-mix(in srgb, var(--c-accent-soft), var(--c-accent-line));
   }
 }
 
@@ -394,7 +394,7 @@
   padding: 0 14px 10px;
 
   li + li .m-item {
-    border-block-start: 1px solid #eef1ec;
+    border-block-start: 1px solid var(--c-line-soft);
   }
 }
 
@@ -450,7 +450,7 @@
 .raw {
   display: block;
   margin-block-start: 4px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   color: var(--c-ink-4);
   unicode-bidi: isolate;
@@ -523,6 +523,42 @@
   flex: 1;
   font-size: var(--fs-sm);
   color: var(--c-ink-3);
+}
+
+// -- the way back to a comment ----------------------------------------------
+//
+// "Jumping to a comment's place in the paper was half a journey." The markup
+// and the logic for this bar shipped in 705dc41 with a comment saying it was
+// "fixed, so it survives the scroll it exists to undo" — and no CSS at all. So
+// it rendered as a plain row after the whole document: the one place she
+// would never look having just scrolled up to a highlight.
+//
+// Fixed, centred, floating just above the action bar. The lift is the action
+// bar's own height: 12px padding either side of a 44px button, plus its 1px
+// top border — and on mobile, the tab bar and safe area it also clears.
+
+.back-bar {
+  --action-bar-h: calc(2 * 12px + 2.75rem + 1px);
+
+  position: fixed;
+  // Above the action bar (25), under the comment sheet's backdrop (40): when
+  // the sheet is open it owns the screen, and this can wait behind it.
+  z-index: 26;
+  inset-inline: 0;
+  inset-block-end: calc(var(--action-bar-h) + var(--s-3) + var(--bottom-nav-h) + var(--safe-bottom));
+  inline-size: fit-content;
+  max-inline-size: calc(100% - 2 * var(--s-4));
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-full);
+  box-shadow: var(--sh-3);
 }
 
 // -- mobile sheet -----------------------------------------------------------
@@ -612,6 +648,11 @@
 
   .action-bar {
     padding-block-end: 12px;
+  }
+
+  // No tab bar on desktop, so only the action bar to clear.
+  .back-bar {
+    inset-block-end: calc(var(--action-bar-h) + var(--s-3));
   }
 
   .doc-title {
@@ -743,12 +784,12 @@
 // reconsider everything she has already settled.
 
 .act-undo {
-  color: var(--muted);
+  color: var(--c-ink-3);
 }
 
 .posted-note {
   margin: 0;
-  color: var(--warn-fg, #7a5a00);
+  color: var(--c-attention);
   font-size: 0.75rem;
   line-height: 1.4;
 }

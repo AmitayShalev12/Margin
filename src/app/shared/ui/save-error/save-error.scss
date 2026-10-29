@@ -6,10 +6,10 @@
   inset-inline: 0;
   z-index: 200;
   background: var(--c-danger-soft);
-  border-block-end: 1px solid rgba(140, 59, 59, 0.25);
+  border-block-end: 1px solid color-mix(in srgb, var(--c-danger) 25%, transparent);
   box-shadow: var(--sh-2);
   padding: 10px var(--s-4);
-  padding-block-start: max(10px, var(--safe-top, 10px));
+  padding-block-start: max(10px, var(--safe-top));
 }
 
 .save-error-inner {

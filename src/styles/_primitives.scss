@@ -57,6 +57,28 @@
 }
 
 // -- text -------------------------------------------------------------------
+//
+// The heading scale inside a page, below the page title (`app-page-header`):
+//
+//   section-title  — an h2 that opens a section. 18px, the document face.
+//                    Most screens already titled their sections this way under
+//                    a name of their own (batch-title, post-title, group-name);
+//                    this is that same look with a name anyone can reuse.
+//   sub-title      — an h3 grouping a few controls inside a section. Small,
+//                    the UI face, set by weight rather than by size.
+
+.section-title {
+  font-size: var(--fs-lg);
+  margin-block-end: var(--s-3);
+}
+
+.sub-title {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-2);
+  margin-block-end: var(--s-2);
+}
 
 .section-label {
   font-size: var(--fs-sm);
@@ -90,6 +112,10 @@
   color: var(--c-ink);
   font-size: var(--fs-base);
   font-weight: 600;
+  // `<a class="btn">` is how a button that navigates is written here, and the
+  // global `a` rule underlines it. Without this every such button — "לעבודה
+  // האחרונה", "לרשימת העבודות" — rendered as an underlined link in a box.
+  text-decoration: none;
   cursor: pointer;
   transition:
     background var(--dur-fast) var(--ease),
@@ -107,7 +133,7 @@
 
 .btn-primary {
   background: var(--c-accent);
-  color: #fff;
+  color: var(--c-on-accent);
 
   &:hover:not(:disabled) {
     background: var(--c-accent-strong);
@@ -154,6 +180,83 @@
 
 .btn-block {
   width: 100%;
+}
+
+// -- form fields ------------------------------------------------------------
+//
+// One definition, global, for the same reason as `.btn-sm` above. These were
+// written five different ways in five component stylesheets — 10px corners
+// here, 6px there, 13px text in one form and 15px in the next — and four
+// screens defined them nowhere at all, so the home-screen search, the
+// submissions search, the course switcher and the grading form's inputs were
+// raw browser fields: square, 2px grey bevel, 29px tall, beside 44px rounded
+// buttons.
+//
+// Usage: `<label class="field"><span class="label">…</span><input class="control"></label>`.
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+// Scoped to `.field` on purpose. `.label` is also the caption class of the
+// `app-working` spinner, and an unscoped rule would leak colour and spacing
+// into every loading state in the app. Every form label sits inside a `.field`.
+.field .label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--c-ink-2);
+}
+
+.control {
+  inline-size: 100%;
+  min-height: 2.75rem; // matches `.btn`, so a field and its button line up
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+
+  &::placeholder {
+    color: var(--c-ink-4);
+  }
+
+  &:hover:not(:disabled):not(:focus) {
+    border-color: var(--c-ink-4);
+  }
+
+  // A text field shows focus on every focus, not only keyboard focus: the
+  // caret alone is too thin to find on a page, and nobody is surprised by it.
+  &:focus {
+    outline: none;
+    border-color: var(--c-accent);
+    box-shadow: 0 0 0 3px var(--c-accent-soft);
+  }
+
+  &:disabled {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink-3);
+    cursor: not-allowed;
+  }
+}
+
+textarea.control {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+// Room for the native arrow, which sits on the inline-end side — the left, in
+// RTL — so the padding has to be logical too.
+select.control {
+  padding-inline-end: var(--s-8);
+  cursor: pointer;
 }
 
 // -- chips / status ---------------------------------------------------------

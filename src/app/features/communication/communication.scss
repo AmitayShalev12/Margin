@@ -55,7 +55,7 @@
   margin: 0 0 var(--s-4);
   padding: var(--s-3);
   border-radius: var(--r-md);
-  background: var(--c-warn-soft, var(--c-surface-sunk));
+  background: var(--c-attention-soft);
   color: var(--c-ink-2);
   font-size: var(--fs-sm);
 }
@@ -68,38 +68,7 @@
   gap: var(--s-4);
 }
 
-.field {
-  display: block;
-}
-
-.label {
-  display: block;
-  margin-block-end: 4px;
-  font-size: var(--fs-sm);
-  color: var(--c-ink-3);
-}
-
-.control {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  padding: 10px 12px;
-  font: inherit;
-  font-size: var(--fs-base);
-  color: var(--c-ink-1);
-
-  &:focus-visible {
-    outline: 2px solid var(--c-accent);
-    outline-offset: 1px;
-  }
-
-  &:disabled {
-    background: var(--c-surface-sunk);
-    color: var(--c-ink-3);
-  }
-}
+// `.field`, `.label` and `.control` are global primitives (_primitives.scss).
 
 // The message reads as a message, in the same face the document uses.
 .body {
@@ -263,13 +232,13 @@
 .outcome-warn {
   display: block;
   margin-block-start: 2px;
-  color: var(--c-warn, var(--c-ink-2));
+  color: var(--c-attention);
 }
 
 .raw {
   display: block;
   margin-block-start: 4px;
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   color: var(--c-ink-4);
   unicode-bidi: isolate;
@@ -289,7 +258,7 @@
 
   // Not an error — she has not done anything wrong — but not quiet either.
   &.is-warn {
-    color: var(--c-warn, var(--c-ink-2));
+    color: var(--c-attention);
     font-weight: 600;
   }
 }

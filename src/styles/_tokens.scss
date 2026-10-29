@@ -18,6 +18,10 @@
   --c-surface-sunk: #ecefe9;
   --c-line: #e1e5dd;
   --c-line-strong: #c8cec4;
+  // The hairline between rows *inside* a card — lighter than the card's own
+  // border, so a list reads as one object rather than a stack of boxes. It was
+  // already the same hex in four places; this just gives it a name.
+  --c-line-soft: #eef1ec;
 
   // -- ink ------------------------------------------------------------------
   --c-ink: #141a1c;
@@ -30,6 +34,8 @@
   --c-accent-strong: #163f3c;
   --c-accent-soft: #e3efec;
   --c-accent-line: #bcd6d1;
+  // Text and icons sitting on a solid accent fill.
+  --c-on-accent: #ffffff;
 
   // -- annotation highlight (honey) ----------------------------------------
   --c-mark: #f6e7ba;
@@ -49,6 +55,8 @@
   // -- typography -----------------------------------------------------------
   --font-ui: 'Assistant', 'Segoe UI', system-ui, sans-serif;
   --font-doc: 'Frank Ruhl Libre', 'Times New Roman', serif;
+  // Model ids, raw model output, error detail — text that is code, not prose.
+  --font-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
 
   --fs-xs: 0.75rem; // 12
   --fs-sm: 0.8125rem; // 13
@@ -88,6 +96,7 @@
   --nav-rail-w: 15rem;
   --bottom-nav-h: 4rem;
   --content-max: 56rem;
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   // -- motion ---------------------------------------------------------------

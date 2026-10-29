@@ -279,7 +279,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--c-line);
 }
 
 .sheet-title {
@@ -305,7 +305,7 @@
 }
 
 .sheet-percent {
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.85em;
   font-variant-numeric: tabular-nums;
 }
@@ -314,7 +314,7 @@
 .sheet-partial,
 .section-score.is-empty,
 .criterion-score.is-empty {
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.85rem;
   font-weight: 400;
 }
@@ -322,7 +322,7 @@
 // Hers to judge — distinct from "not yet", because it will never be filled by
 // the app and a teacher waiting for it would wait forever.
 .criterion-score.is-mine {
-  color: var(--accent, #7a5cff);
+  color: var(--c-accent);
   font-size: 0.85rem;
 }
 
@@ -333,7 +333,7 @@
 }
 
 .section + .section {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--c-line);
 }
 
 .section-head {
@@ -350,13 +350,13 @@
   cursor: pointer;
 
   &:hover {
-    background: var(--hover, rgb(0 0 0 / 3%));
+    background: var(--c-surface-sunk);
   }
 }
 
 .chev {
   display: inline-block;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.9rem;
   line-height: 1;
   transition: transform var(--dur) var(--ease);
@@ -377,14 +377,14 @@
   margin: 0;
   padding: 0 1.25rem 0.75rem;
   list-style: none;
-  background: var(--sunken, rgb(0 0 0 / 2%));
+  background: var(--c-surface-sunk);
 }
 
 .criterion {
   padding: 0.7rem 0;
 
   & + & {
-    border-top: 1px dashed var(--line);
+    border-top: 1px dashed var(--c-line);
   }
 }
 
@@ -404,7 +404,7 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.3rem;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.75rem;
 }
 
@@ -413,8 +413,8 @@
 .draft {
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
-  background: var(--warn-bg, #fff3d6);
-  color: var(--warn-fg, #7a5a00);
+  background: var(--c-attention-soft);
+  color: var(--c-attention);
 }
 
 .delta {
@@ -435,7 +435,7 @@
 
 .final {
   padding: 1rem 1.25rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--c-line);
 }
 
 .final-parts {
@@ -449,12 +449,12 @@
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.4rem 0.7rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--c-line);
   border-radius: 8px;
 }
 
 .part-weight {
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.75rem;
   unicode-bidi: isolate;
 }
@@ -467,9 +467,9 @@
 .part-input {
   width: 3.5rem;
   padding: 0.15rem 0.3rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--c-line);
   border-radius: 6px;
-  background: var(--bg);
+  background: var(--c-surface);
   color: inherit;
   font: inherit;
   text-align: center;
@@ -494,14 +494,14 @@
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0.9rem 0 0;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.8rem;
 }
 
 .missing {
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
-  background: var(--sunken, rgb(0 0 0 / 4%));
+  background: var(--c-surface-sunk);
 }
 
 // -- why nothing is scored ---------------------------------------------------
@@ -517,15 +517,15 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.85rem 1.25rem;
-  border-bottom: 1px solid var(--line);
-  background: var(--sunken, rgb(0 0 0 / 2%));
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface-sunk);
 }
 
 .unscored-why {
   flex: 1;
   min-width: 15rem;
   margin: 0;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.85rem;
   line-height: 1.5;
 }
@@ -540,7 +540,7 @@
   gap: 0.5rem;
   margin: 0;
   padding: 0.5rem 1.25rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--c-line);
 }
 
 // The reason the last run produced nothing. Sits inside the unscored banner,
@@ -548,7 +548,7 @@
 .score-error {
   flex-basis: 100%;
   margin: 0;
-  color: var(--danger-fg, #a3282d);
+  color: var(--c-danger);
   font-size: 0.85rem;
   line-height: 1.5;
 }
@@ -556,7 +556,7 @@
 .score-error .raw {
   display: block;
   margin-top: 0.2rem;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-family: ui-monospace, monospace;
   font-size: 0.72rem;
   word-break: break-word;
@@ -577,16 +577,16 @@
 .points {
   width: 3.2rem;
   padding: 0.15rem 0.3rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--c-line);
   border-radius: 6px;
-  background: var(--bg);
+  background: var(--c-surface);
   color: inherit;
   font: inherit;
   text-align: center;
 }
 
 .out-of {
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.8rem;
 }
 
@@ -594,8 +594,8 @@
 .blocking {
   margin: 0;
   padding: 0.7rem 1.25rem;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
+  border-bottom: 1px solid var(--c-line);
+  color: var(--c-ink-3);
   font-size: 0.85rem;
   line-height: 1.5;
 }
@@ -609,15 +609,15 @@
 .rationale {
   margin-top: 0.5rem;
   padding: 0.5rem 0.7rem;
-  border-inline-start: 2px solid var(--line);
-  background: var(--sunken, rgb(0 0 0 / 2%));
+  border-inline-start: 2px solid var(--c-line);
+  background: var(--c-surface-sunk);
   border-radius: 6px;
 }
 
 .rationale-label {
   display: block;
   margin-bottom: 0.2rem;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.7rem;
   letter-spacing: 0.02em;
 }
@@ -631,7 +631,7 @@
 // She has moved the score since this was written.
 .rationale-stale {
   margin: 0.35rem 0 0;
-  color: var(--warn-fg, #7a5a00);
+  color: var(--c-attention);
   font-size: 0.72rem;
 }
 
@@ -644,15 +644,15 @@
 .reply {
   margin-top: 0.5rem;
   padding: 0.5rem 0.7rem;
-  border-inline-start: 2px solid var(--c-accent, #7a5cff);
+  border-inline-start: 2px solid var(--c-accent);
   border-radius: 6px;
-  background: var(--c-accent-soft, rgb(122 92 255 / 6%));
+  background: var(--c-accent-soft);
 }
 
 .reply-label {
   display: block;
   margin-bottom: 0.2rem;
-  color: var(--c-accent, #7a5cff);
+  color: var(--c-accent);
   font-size: 0.7rem;
   font-weight: 600;
 }
@@ -670,9 +670,9 @@
 .reply-box {
   inline-size: 100%;
   padding: 0.4rem 0.5rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--c-line);
   border-radius: 6px;
-  background: var(--bg);
+  background: var(--c-surface);
   color: inherit;
   font: inherit;
   font-size: 0.82rem;
@@ -699,7 +699,7 @@
 
 .reply-error {
   margin: 0.4rem 0 0;
-  color: var(--c-danger, #a3282d);
+  color: var(--c-danger);
   font-size: 0.78rem;
   line-height: 1.5;
 }
@@ -721,25 +721,25 @@
 .turn {
   padding: 0.45rem 0.65rem;
   border-radius: 8px;
-  border-inline-start: 2px solid var(--line);
-  background: var(--sunken, rgb(0 0 0 / 2%));
+  border-inline-start: 2px solid var(--c-line);
+  background: var(--c-surface-sunk);
 }
 
 .turn.is-mine {
-  border-inline-start-color: var(--c-accent, #7a5cff);
-  background: var(--c-accent-soft, rgb(122 92 255 / 6%));
+  border-inline-start-color: var(--c-accent);
+  background: var(--c-accent-soft);
 }
 
 .turn-who {
   display: block;
   margin-bottom: 0.15rem;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.68rem;
   font-weight: 600;
 }
 
 .turn.is-mine .turn-who {
-  color: var(--c-accent, #7a5cff);
+  color: var(--c-accent);
 }
 
 .turn-text {
@@ -753,7 +753,7 @@
 .turn-points {
   display: inline-block;
   margin-top: 0.2rem;
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.7rem;
   unicode-bidi: isolate;
 }
@@ -766,6 +766,6 @@
 }
 
 .thread-score-label {
-  color: var(--muted);
+  color: var(--c-ink-3);
   font-size: 0.78rem;
 }
