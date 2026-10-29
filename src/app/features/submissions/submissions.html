@@ -61,7 +61,13 @@
             at the place where she says whose it is.
           -->
           <div class="unmatched">
-            {{ unmatched().length }} קבצים לא שויכו לתלמידה:
+            {{
+              unmatched().length
+                | count
+                  : 'קובץ אחד לא שויך לתלמידה:'
+                  : '# קבצים לא שויכו לתלמידה:'
+                  : 'שני קבצים לא שויכו לתלמידה:'
+            }}
             <span class="ltr">{{ unmatched().join(', ') }}</span>
             <a class="btn btn-ghost btn-sm" routerLink="/courses">לשייך אותם לתלמידה</a>
           </div>

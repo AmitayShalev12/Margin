@@ -89,9 +89,14 @@
           could check and find wrong.
         -->
         <p class="rollup">
-          <span class="stat">{{ row.files }} קבצים שנקלטו</span>
-          @if (row.files) {
-            <span class="stat">{{ row.checked }} מתוכם נבדקו</span>
+          <span class="stat">{{
+            row.files | count: 'קובץ אחד שנקלט' : '# קבצים שנקלטו' : 'שני קבצים שנקלטו'
+          }}</span>
+          <!-- "מתוכם" is "of them", and one file is not a "them". -->
+          @if (row.files === 1) {
+            <span class="stat">{{ row.checked ? 'נבדק' : 'עוד לא נבדק' }}</span>
+          } @else if (row.files) {
+            <span class="stat">{{ row.checked | count: 'אחד מהם נבדק' : '# מתוכם נבדקו' }}</span>
           }
           <!--
             How long the paper is. The nearest honest answer to "עד איזה עמוד",

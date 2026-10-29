@@ -33,6 +33,7 @@ import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 import { Working } from '../../shared/ui/working/working';
 import { ReliabilityPanel } from '../../shared/ui/reliability-panel/reliability-panel';
 
+import { CountPipe } from '../../core/presentation/count';
 /** A run of text as the template needs it, with its styling already decided. */
 interface ViewRun {
   text: string;
@@ -99,7 +100,7 @@ function commentCount(n: number): string {
 @Component({
   selector: 'app-review',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, BidiText, ReliabilityPanel, Working],
+  imports: [CountPipe, RouterLink, BidiText, ReliabilityPanel, Working],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })

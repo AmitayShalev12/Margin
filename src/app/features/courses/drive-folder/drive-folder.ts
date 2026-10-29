@@ -5,6 +5,7 @@ import { GoogleDriveAuth } from '../../../core/drive/google-auth';
 import { SharedCandidate, SyncService, UnmatchedReason } from '../../../core/drive/sync';
 import { relativeDay } from '../../../core/presentation/submission-status';
 
+import { count } from '../../../core/presentation/count';
 /**
  * What to do about a file the sync could not turn into a submission.
  *
@@ -123,7 +124,8 @@ export class DriveFolder {
     if (!at) return 'עדיין לא סונכרן';
     const minutes = Math.round((Date.now() - new Date(at).getTime()) / 60_000);
     if (minutes < 1) return 'סונכרן הרגע';
-    if (minutes < 60) return `סונכרן לפני ${minutes} דקות`;
+    if (minutes < 60)
+      return `סונכרן לפני ${count(minutes, { one: 'דקה', two: 'שתי דקות', many: '# דקות' })}`;
     return `סונכרן ${relativeDay(at)}`;
   });
 

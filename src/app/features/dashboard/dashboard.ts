@@ -11,6 +11,7 @@ import { UUID } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { Working } from '../../shared/ui/working/working';
 
+import { CountPipe, count } from '../../core/presentation/count';
 /** One row of the roster: everything the row answers without opening anything. */
 export interface StudentRow {
   id: UUID;
@@ -51,7 +52,7 @@ export interface StudentRow {
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, RouterLink, PageHeader, Working],
+  imports: [CountPipe, DecimalPipe, RouterLink, PageHeader, Working],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -133,9 +134,10 @@ export class Dashboard {
     if (!total) return 'עוד אין תלמידות ברשימה.';
 
     const waiting = this.allRows().filter((r) => r.comments > r.decided).length;
-    if (!waiting) return `${total} תלמידות. אין כרגע הערות שממתינות להחלטה.`;
-    if (waiting === 1) return `${total} תלמידות · אצל אחת יש הערות שממתינות לך.`;
-    return `${total} תלמידות · אצל ${waiting} יש הערות שממתינות לך.`;
+    const students = count(total, { one: 'תלמידה אחת', two: 'שתי תלמידות', many: '# תלמידות' });
+    if (!waiting) return `${students}. אין כרגע הערות שממתינות להחלטה.`;
+    if (waiting === 1) return `${students} · אצל אחת יש הערות שממתינות לך.`;
+    return `${students} · אצל ${waiting} יש הערות שממתינות לך.`;
   });
 
   // -- her folder -----------------------------------------------------------

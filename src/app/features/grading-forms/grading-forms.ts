@@ -25,6 +25,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 import { Working } from '../../shared/ui/working/working';
 
+import { CountPipe, count } from '../../core/presentation/count';
 /**
  * The teacher's internal grading form.
  *
@@ -39,7 +40,7 @@ import { Working } from '../../shared/ui/working/working';
 @Component({
   selector: 'app-grading-forms',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, RouterLink, BidiText, DatePipe, Working],
+  imports: [CountPipe, PageHeader, RouterLink, BidiText, DatePipe, Working],
   templateUrl: './grading-forms.html',
   styleUrl: './grading-forms.scss',
 })
@@ -393,7 +394,11 @@ export class GradingForms {
       .map((criterion) => criterion.name);
 
     if (totals.awaiting > 0) {
-      return `נותרו ${totals.awaiting} סעיפים שהמערכת עוד לא ניקדה.`;
+      return count(totals.awaiting, {
+        one: 'נותר סעיף אחד שהמערכת עוד לא ניקדה.',
+        two: 'נותרו שני סעיפים שהמערכת עוד לא ניקדה.',
+        many: 'נותרו # סעיפים שהמערכת עוד לא ניקדה.',
+      });
     }
     if (mine.length) {
       return `נשארו רק הסעיפים שרק את מנקדת: ${mine.join(', ')}. אחרי שתמלאי אותם יופיע ציון העבודה.`;

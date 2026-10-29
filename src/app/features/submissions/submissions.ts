@@ -16,6 +16,7 @@ import {
 } from '../../core/presentation/submission-status';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 
+import { CountPipe, count } from '../../core/presentation/count';
 /** The filters are named after who holds the work, not after status codes. */
 type FilterKey = 'all' | 'mine' | 'student' | 'done';
 
@@ -42,7 +43,7 @@ function matches(filter: FilterKey, status: SubmissionStatus): boolean {
 @Component({
   selector: 'app-submissions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PageHeader],
+  imports: [CountPipe, RouterLink, PageHeader],
   templateUrl: './submissions.html',
   styleUrl: './submissions.scss',
 })
@@ -199,7 +200,8 @@ export class Submissions {
       1,
       Math.round((Date.now() - new Date(state.last_synced_at).getTime()) / 60_000),
     );
-    if (minutes < 60) return `סונכרן מהדרייב לפני ${minutes} דקות`;
+    if (minutes < 60)
+      return `סונכרן מהדרייב לפני ${count(minutes, { one: 'דקה', two: 'שתי דקות', many: '# דקות' })}`;
     return `סונכרן מהדרייב ${relativeDay(state.last_synced_at)}`;
   });
 

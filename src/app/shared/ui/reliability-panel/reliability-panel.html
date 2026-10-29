@@ -87,7 +87,13 @@
             </p>
           } @else if (report.missing.length) {
             <p class="rel-item-body">
-              {{ report.missing.length }} מקורות מצוטטים בגוף העבודה ולא מופיעים ברשימה:
+              {{
+                report.missing.length
+                  | count
+                    : 'מקור אחד מצוטט בגוף העבודה ולא מופיע ברשימה:'
+                    : '# מקורות מצוטטים בגוף העבודה ולא מופיעים ברשימה:'
+                    : 'שני מקורות מצוטטים בגוף העבודה ולא מופיעים ברשימה:'
+              }}
             </p>
             <ul class="rel-list">
               @for (citation of report.missing; track citation.key) {
@@ -102,7 +108,13 @@
 
           @if (report.uncited.length) {
             <p class="rel-item-body">
-              {{ report.uncited.length }} מקורות ברשימה לא צוטטו באף מקום בעבודה:
+              {{
+                report.uncited.length
+                  | count
+                    : 'מקור אחד ברשימה לא צוטט באף מקום בעבודה:'
+                    : '# מקורות ברשימה לא צוטטו באף מקום בעבודה:'
+                    : 'שני מקורות ברשימה לא צוטטו באף מקום בעבודה:'
+              }}
             </p>
             <ul class="rel-list rel-list-quiet">
               @for (entry of report.uncited; track entry) {

@@ -458,7 +458,10 @@
                   short ones.
                 -->
                 @if (s.add.of === 'rule' && draftRuleCount() > 1) {
-                  <p class="kb-hint">כל שורה תיכנס ככלל נפרד — {{ draftRuleCount() }} כללים.</p>
+                  <p class="kb-hint">
+                    כל שורה תיכנס ככלל נפרד —
+                    {{ draftRuleCount() | count: 'כלל אחד' : '# כללים' : 'שני כללים' }}.
+                  </p>
                 }
 
                 @if (addError(); as message) {

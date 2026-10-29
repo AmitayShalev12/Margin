@@ -11,7 +11,9 @@
     @if (savedRubric().length) {
       <div class="rubric-head">
         <span class="rubric-title">
-          הטופס שלך — {{ savedRubric().length }} סעיפים, {{ savedTotal() }} נקודות
+          הטופס שלך —
+          {{ savedRubric().length | count: 'סעיף אחד' : '# סעיפים' : 'שני סעיפים' }},
+          {{ savedTotal() | count: 'נקודה אחת' : '# נקודות' : 'שתי נקודות' }}
         </span>
         <label class="btn btn-ghost btn-sm file-label">
           החלפה
@@ -56,14 +58,17 @@
 
     @if (importedCount(); as count) {
       <p class="rubric-done" role="status">
-        נטענו {{ count }} סעיפים מהטופס שלך. מעכשיו הטופס נבנה לפי הסעיפים והניקוד האלה.
+        {{ count | count: 'נטען סעיף אחד' : 'נטענו # סעיפים' : 'נטענו שני סעיפים' }} מהטופס שלך.
+        מעכשיו הטופס נבנה לפי הסעיפים והניקוד האלה.
       </p>
     }
 
     @if (rubric(); as parsed) {
       <div class="rubric-preview">
         <p class="rubric-found">
-          קראתי {{ parsed.criteria.length }} סעיפים, {{ parsed.totalPoints }} נקודות
+          קראתי
+          {{ parsed.criteria.length | count: 'סעיף אחד' : '# סעיפים' : 'שני סעיפים' }},
+          {{ parsed.totalPoints | count: 'נקודה אחת' : '# נקודות' : 'שתי נקודות' }}
           @if (rubricFile()) {
             · {{ rubricFile() }}
           }

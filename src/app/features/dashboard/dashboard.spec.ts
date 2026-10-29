@@ -363,6 +363,41 @@ describe('how long the paper is', () => {
     const index = component.rows().findIndex((r) => r.id === row.id);
     const rollup = (fixture.nativeElement as HTMLElement).querySelectorAll('.rollup')[index];
     expect(rollup.textContent).not.toContain('מילים');
-    expect(rollup.textContent).toContain('קבצים שנקלטו');
+    expect(rollup.textContent).toContain('קובץ אחד שנקלט');
+  });
+});
+
+/**
+ * Counts said in Hebrew, not in English with Hebrew words.
+ *
+ * `{{ files }} קבצים שנקלטו` printed "1 קבצים שנקלטו" — "1 files that were
+ * received" — on almost every row, since most students hand in one file. The
+ * noun, the number word and the verb all change in the singular, and "מתוכם"
+ * ("of them") stops making sense with only one.
+ */
+describe('how the row counts files', () => {
+  it('says one file in the singular, and whether it was checked', () => {
+    const { component, fixture } = make();
+    const index = component.rows().findIndex((r) => r.files === 1);
+    const rollup = (fixture.nativeElement as HTMLElement).querySelectorAll('.rollup')[index];
+
+    expect(rollup.textContent).toContain('קובץ אחד שנקלט');
+    expect(rollup.textContent).not.toContain('1 קבצים');
+    expect(rollup.textContent).not.toContain('מתוכם');
+  });
+
+  it('says two files in the dual form, and counts the checked ones', () => {
+    const { store, component, fixture } = make();
+    const row = component.rows()[0];
+    const first = store.submissions().find((s) => s.id === row.latestId)!;
+    store.addSubmission({ ...first, id: '00000000-0000-4000-8000-0000000000aa' });
+    fixture.detectChanges();
+
+    const index = component.rows().findIndex((r) => r.id === row.id);
+    const rollup = (fixture.nativeElement as HTMLElement).querySelectorAll('.rollup')[index];
+
+    expect(component.rows()[index].files).toBe(2);
+    expect(rollup.textContent).toContain('שני קבצים שנקלטו');
+    expect(rollup.textContent).toContain('מתוכם');
   });
 });

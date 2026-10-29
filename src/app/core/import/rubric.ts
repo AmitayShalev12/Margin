@@ -1,5 +1,6 @@
 import { readZipParts } from './zip';
 
+import { count } from '../presentation/count';
 /**
  * Her rubric, read out of the document she already marks against.
  *
@@ -191,7 +192,7 @@ export function parseRubricParagraphs(lines: readonly string[]): ParsedRubric {
 
     if (section.statedPoints !== null && section.readPoints !== section.statedPoints) {
       warnings.push(
-        `בפרק "${section.name}" כתוב ${section.statedPoints} נקודות, ` +
+        `בפרק "${section.name}" כתוב ${count(section.statedPoints, { one: 'נקודה אחת', two: 'שתי נקודות', many: '# נקודות' })}, ` +
           `והסעיפים שקראתי מסתכמים ב־${section.readPoints}.`,
       );
     }

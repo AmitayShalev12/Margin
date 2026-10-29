@@ -7,6 +7,7 @@ import { CourseMaterialKind, CourseRuleOrigin } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { DriveFolder } from './drive-folder/drive-folder';
 
+import { CountPipe, count } from '../../core/presentation/count';
 interface KbItem {
   /**
    * Which table the row came from, so a row knows how to edit and delete
@@ -53,7 +54,7 @@ interface KbSection {
 @Component({
   selector: 'app-courses',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, DriveFolder],
+  imports: [CountPipe, PageHeader, DriveFolder],
   templateUrl: './courses.html',
   styleUrl: './courses.scss',
 })
@@ -240,7 +241,11 @@ export class Courses {
         id: 'rules',
         add: { of: 'rule', origin: 'teacher' },
         title: 'הכללים שלי',
-        meta: `${myRules.filter((r) => r.active).length} כללים פעילים`,
+        meta: count(myRules.filter((r) => r.active).length, {
+          one: 'כלל פעיל אחד',
+          two: 'שני כללים פעילים',
+          many: '# כללים פעילים',
+        }),
         addLabel: 'הוספת כלל',
         hue: 'kind-language',
         items: myRules.map((r) => ({
@@ -274,7 +279,7 @@ export class Courses {
         id: 'models',
         add: { of: 'material', kind: 'model_assignment' },
         title: 'עבודות לדוגמה',
-        meta: `${models.length} עבודות`,
+        meta: count(models.length, { one: 'עבודה אחת', two: 'שתי עבודות', many: '# עבודות' }),
         addLabel: 'הוספת עבודה',
         hue: 'kind-praise',
         items: models.map((m) => ({
@@ -291,7 +296,11 @@ export class Courses {
         id: 'corrections',
         add: { of: 'material', kind: 'example_correction' },
         title: 'דוגמאות לתיקונים שלי',
-        meta: `${corrections.length} דוגמאות`,
+        meta: count(corrections.length, {
+          one: 'דוגמה אחת',
+          two: 'שתי דוגמאות',
+          many: '# דוגמאות',
+        }),
         addLabel: 'הוספת דוגמה',
         hue: 'kind-content',
         items: corrections.map((m) => ({
@@ -308,7 +317,7 @@ export class Courses {
         id: 'web',
         add: { of: 'rule', origin: 'web' },
         title: 'כללים כלליים מהאינטרנט',
-        meta: `${webRules.length} כללים · אפשר לכבות`,
+        meta: `${count(webRules.length, { one: 'כלל אחד', two: 'שני כללים', many: '# כללים' })} · אפשר לכבות`,
         addLabel: 'עיון בכללים',
         hue: 'kind-sources',
         items: webRules.map((r) => ({

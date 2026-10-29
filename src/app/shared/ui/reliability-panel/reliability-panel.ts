@@ -6,6 +6,7 @@ import { CitationReport, checkCitations } from '../../../core/reliability/citati
 import { CheckResult, NOT_CHECKED } from '../../../core/reliability/checks';
 import { ReliabilityService } from '../../../core/reliability/reliability';
 
+import { CountPipe } from '../../../core/presentation/count';
 /**
  * What Margin can and cannot say about whether a paper is the student's own.
  *
@@ -27,6 +28,7 @@ import { ReliabilityService } from '../../../core/reliability/reliability';
 @Component({
   selector: 'app-reliability-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CountPipe],
   templateUrl: './reliability-panel.html',
   styleUrl: './reliability-panel.scss',
 })

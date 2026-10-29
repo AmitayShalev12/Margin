@@ -57,7 +57,13 @@
 
         @if (generator.state().discarded) {
           <p class="batch-note">
-            {{ generator.state().discarded }} הערות לא נקשרו למקום מדויק בטקסט והושמטו.
+            {{
+              generator.state().discarded
+                | count
+                  : 'הערה אחת לא נקשרה למקום מדויק בטקסט והושמטה.'
+                  : '# הערות לא נקשרו למקום מדויק בטקסט והושמטו.'
+                  : 'שתי הערות לא נקשרו למקום מדויק בטקסט והושמטו.'
+            }}
           </p>
         }
       </section>

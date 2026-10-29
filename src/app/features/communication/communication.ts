@@ -9,6 +9,7 @@ import { UUID } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 
+import { count } from '../../core/presentation/count';
 /**
  * The message that goes back to the student.
  *
@@ -277,7 +278,10 @@ export class Communication {
       unmarked:
         report.unmarked === 0
           ? null
-          : `${report.unmarked} הערות נשלחו בלי סימון, כי לא מצאתי את המשפט שהן מצטטות.`,
+          : count(report.unmarked, {
+              one: 'הערה אחת נשלחה בלי סימון, כי לא מצאתי את המשפט שהיא מצטטת.',
+              many: '# הערות נשלחו בלי סימון, כי לא מצאתי את המשפט שהן מצטטות.',
+            }),
       placement: report.anchored
         ? 'ההערות מוצמדות למשפטים עצמם במסמך.'
         : // Observed on a real document, not inferred: Google Docs has no

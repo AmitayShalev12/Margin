@@ -13,6 +13,7 @@ import { buildStyleProfile, countDecisions, deriveTraits } from '../../core/lear
 import { kindClass } from '../../core/presentation/annotation-kind';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 
+import { CountPipe, count } from '../../core/presentation/count';
 /**
  * "This is how the AI has learned your style."
  *
@@ -27,7 +28,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 @Component({
   selector: 'app-style-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader],
+  imports: [CountPipe, PageHeader],
   templateUrl: './style-settings.html',
   styleUrl: './style-settings.scss',
 })
@@ -137,7 +138,19 @@ export class StyleSettings {
     if (edited === 0 && examples === 0) {
       return 'עוד לא למדתי ממך מספיק. כל הערה שתערכי או תוותרי עליה נספרת כאן.';
     }
-    return `כך למדתי לכתוב כמוך — מתוך ${edited} הערות שערכת ו־${examples} דוגמאות שהוספת.`;
+    // Each half counted on its own, and a half that is zero left out rather
+    // than read aloud as "ו־0 דוגמאות שהוספת".
+    const sources = [
+      edited &&
+        count(edited, { one: 'הערה אחת שערכת', two: 'שתי הערות שערכת', many: '# הערות שערכת' }),
+      examples &&
+        count(examples, {
+          one: 'דוגמה אחת שהוספת',
+          two: 'שתי דוגמאות שהוספת',
+          many: '# דוגמאות שהוספת',
+        }),
+    ].filter(Boolean);
+    return `כך למדתי לכתוב כמוך — מתוך ${sources.join(' ו־')}.`;
   });
 
   /** What she did with the drafts, in the order the review screen offers it. */
