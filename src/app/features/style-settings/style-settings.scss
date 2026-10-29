@@ -230,6 +230,12 @@
 
 .sources {
   margin-block-start: var(--s-5);
+
+  // The note under the button, which sat flush against it; `.add` and `.take`
+  // already give theirs this gap.
+  > .hint:last-child {
+    margin: 10px 2px 0;
+  }
 }
 
 .source-list {
@@ -284,28 +290,6 @@
   border: 1px solid var(--c-line);
   border-radius: var(--r-md);
   margin-block-end: var(--s-3);
-}
-
-.source-form .field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-}
-
-.source-form .label {
-  font-size: var(--fs-xs);
-  color: var(--c-ink-3);
-}
-
-.source-form .control {
-  font: inherit;
-  font-size: var(--fs-sm);
-  padding: var(--s-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-sm);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  inline-size: 100%;
 }
 
 // -- her own Gemini key ------------------------------------------------------
