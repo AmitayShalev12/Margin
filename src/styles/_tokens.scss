@@ -24,9 +24,23 @@
   --c-line-soft: #eef1ec;
 
   // -- ink ------------------------------------------------------------------
+  //
+  // Every *text* tier clears WCAG AA (4.5:1) on every background it sits on —
+  // checked against paper, surface and surface-sunk, the darkest of the three.
+  //
+  //   ink      16.2:1   body text
+  //   ink-2     9.0:1   secondary emphasis
+  //   ink-3     4.5:1+  quiet text: hints, meta, counts, timestamps
+  //   ink-4     ~2.5:1  NOT FOR TEXT — borders, fills, hover edges only
+  //
+  // ink-3 was #6b7579, which measured 4.35 on paper and 4.07 on surface-sunk:
+  // every page subtitle and every line of the grading sheet's recessed panel
+  // was under the line. #646e71 is the same hue, 2.8% darker. ink-4 carried
+  // 26 lines of real text at 2.2–2.6:1, and quieter-than-ink-3 is better done
+  // with size and weight than by fading text past readability.
   --c-ink: #141a1c;
   --c-ink-2: #3b464a;
-  --c-ink-3: #6b7579;
+  --c-ink-3: #646e71;
   --c-ink-4: #9aa2a4;
 
   // -- accent (pine) --------------------------------------------------------

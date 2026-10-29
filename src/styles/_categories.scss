@@ -57,8 +57,8 @@
 }
 
 .kind-other {
-  --k-ink: #6b7579;
-  --k-wash: #ecefe9;
+  --k-ink: var(--c-ink-3);
+  --k-wash: var(--c-surface-sunk);
   --k-soft: #f4f6f2;
   --k-fg: #3b464a;
 }
@@ -96,8 +96,11 @@
   --st-wash: #f2f4fa;
 }
 
+// Neutral on purpose — a finished paper needs nothing from her — so it is
+// spelled with the ink and paper tokens rather than copies of their hex. The
+// copies had kept the old ink-3, which on paper measured 4.35:1, under AA.
 .st-finalized {
-  --st-ink: #c8cec4;
-  --st-fg: #6b7579;
-  --st-wash: #f5f6f3;
+  --st-ink: var(--c-line-strong);
+  --st-fg: var(--c-ink-3);
+  --st-wash: var(--c-paper);
 }

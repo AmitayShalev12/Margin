@@ -40,7 +40,7 @@
   margin-block-start: 3px;
   font-family: var(--font-ui);
   font-size: 12px;
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   unicode-bidi: isolate;
 }
 
@@ -80,7 +80,7 @@
 
 .mini {
   font-size: 12px;
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   margin-block-end: var(--s-2);
 }
 
@@ -92,7 +92,7 @@
 .before {
   font-family: var(--font-doc);
   font-size: var(--fs-base);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   text-decoration: line-through;
   text-decoration-color: var(--c-line);
 }

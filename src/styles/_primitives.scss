@@ -225,7 +225,7 @@
     box-shadow var(--dur-fast) var(--ease);
 
   &::placeholder {
-    color: var(--c-ink-4);
+    color: var(--c-ink-3);
   }
 
   &:hover:not(:disabled):not(:focus) {

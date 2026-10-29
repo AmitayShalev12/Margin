@@ -31,7 +31,7 @@
 .pick-count {
   unicode-bidi: isolate;
   font-size: var(--fs-xs);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
 }
 
 .empty {
@@ -58,7 +58,7 @@
 .group-count {
   margin-inline-start: auto;
   font-size: var(--fs-sm);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   unicode-bidi: isolate;
 }
 
@@ -71,7 +71,7 @@
 .none {
   margin: var(--s-3) 0 0;
   font-size: var(--fs-sm);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
 }
 
 .lines {
@@ -93,7 +93,7 @@
 .line-quote {
   font-family: var(--font-doc);
   font-size: var(--fs-sm);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   margin-block-end: 2px;
 }
 

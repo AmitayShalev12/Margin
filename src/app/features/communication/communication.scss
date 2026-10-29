@@ -35,7 +35,7 @@
 .pick-count {
   unicode-bidi: isolate;
   font-size: var(--fs-xs);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
 }
 
 .pick-sent {
@@ -106,7 +106,7 @@
 .send-hint {
   margin: var(--s-3) 0 0;
   font-size: var(--fs-sm);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
 }
 
 .confirm {
@@ -168,7 +168,7 @@
 .line-quote {
   font-family: var(--font-doc);
   font-size: var(--fs-sm);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   margin-block-end: 2px;
 }
 
@@ -240,7 +240,7 @@
   margin-block-start: 4px;
   font-family: var(--font-mono);
   font-size: var(--fs-xs);
-  color: var(--c-ink-4);
+  color: var(--c-ink-3);
   unicode-bidi: isolate;
   word-break: break-word;
 }
