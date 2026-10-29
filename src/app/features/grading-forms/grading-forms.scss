@@ -257,6 +257,7 @@
 .sheet-score,
 .section-score,
 .criterion-score {
+  flex: none;
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
@@ -532,14 +533,18 @@
 // and until they are there is no paper score at all.
 
 .criterion-entry {
+  flex: none;
   display: inline-flex;
   align-items: baseline;
   gap: 0.3rem;
   unicode-bidi: isolate;
+  // A long criterion name squeezes the row on a phone; "11 / 15" stays one unit.
+  white-space: nowrap;
 }
 
 .points {
   width: 3.2rem;
+  min-block-size: 2.25rem; // as tall as a `.btn-sm`, so it can be tapped
   padding: 0.15rem 0.3rem;
   border: 1px solid var(--c-line);
   border-radius: 6px;
