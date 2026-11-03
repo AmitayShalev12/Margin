@@ -6,6 +6,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  CourseStudent,
   GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
@@ -61,6 +62,21 @@ export class LocalRepository extends Repository {
   async saveStudent(student: Student): Promise<void> {
     this.mutate((snapshot) => {
       snapshot.students = replaceById(snapshot.students, student);
+    });
+  }
+
+  async saveCourseStudent(link: CourseStudent): Promise<void> {
+    this.mutate((snapshot) => {
+      // Older stored snapshots predate enrollment and have no array at all.
+      snapshot.courseStudents = replaceById(snapshot.courseStudents ?? [], link);
+    });
+  }
+
+  async deleteCourseStudents(ids: readonly UUID[]): Promise<void> {
+    if (ids.length === 0) return;
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.courseStudents = (snapshot.courseStudents ?? []).filter((l) => !gone.has(l.id));
     });
   }
 
@@ -252,6 +268,7 @@ function read(): PersistedSnapshot {
       courses: parsed.courses ?? [],
       assignments: parsed.assignments ?? [],
       students: parsed.students ?? [],
+      courseStudents: parsed.courseStudents ?? [],
       courseRules: parsed.courseRules ?? [],
       courseMaterials: parsed.courseMaterials ?? [],
       gradingCategories: parsed.gradingCategories ?? [],
@@ -278,6 +295,7 @@ function clone(snapshot: PersistedSnapshot): PersistedSnapshot {
     courses: [...snapshot.courses],
     assignments: [...snapshot.assignments],
     students: [...snapshot.students],
+    courseStudents: [...snapshot.courseStudents],
     courseRules: [...snapshot.courseRules],
     courseMaterials: [...snapshot.courseMaterials],
     gradingCategories: [...snapshot.gradingCategories],

@@ -6,6 +6,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  CourseStudent,
   GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
@@ -117,6 +118,7 @@ export class SupabaseRepository extends Repository {
       reliabilityChecks,
       courseRules,
       courseMaterials,
+      courseStudents,
     ] = await Promise.all([
       client.from(TABLES.submissions).select('*'),
       client.from(TABLES.submissionRounds).select('*'),
@@ -134,6 +136,7 @@ export class SupabaseRepository extends Repository {
       client.from(TABLES.reliabilityChecks).select('*'),
       client.from(TABLES.courseRules).select('*'),
       client.from(TABLES.courseMaterials).select('*'),
+      client.from(TABLES.courseStudents).select('*'),
     ]);
 
     // Paired with their tables, so a failed load names the query that failed.
@@ -156,6 +159,7 @@ export class SupabaseRepository extends Repository {
       [TABLES.reliabilityChecks, reliabilityChecks],
       [TABLES.courseRules, courseRules],
       [TABLES.courseMaterials, courseMaterials],
+      [TABLES.courseStudents, courseStudents],
     ];
 
     const failed = results.find(([, result]) => result.error);
@@ -175,6 +179,7 @@ export class SupabaseRepository extends Repository {
       courses: (courses.data ?? []) as Course[],
       assignments: (assignments.data ?? []) as Assignment[],
       students: (students.data ?? []) as Student[],
+      courseStudents: (courseStudents.data ?? []) as CourseStudent[],
       gradingCategories: (gradingCategories.data ?? []) as GradingFormCategory[],
       criterionScores: (criterionScores.data ?? []) as GradingCriterionScore[],
       gradingEntries: (gradingEntries.data ?? []) as GradingFormEntry[],
@@ -199,6 +204,16 @@ export class SupabaseRepository extends Repository {
 
   async saveStudent(student: Student): Promise<void> {
     await this.upsert(TABLES.students, student, 'id');
+  }
+
+  // Keyed on id: the store never makes a second row for a pair that is
+  // already enrolled, so the table's unique (course_id, student_id) holds.
+  async saveCourseStudent(link: CourseStudent): Promise<void> {
+    await this.upsert(TABLES.courseStudents, link, 'id');
+  }
+
+  async deleteCourseStudents(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.courseStudents, ids);
   }
 
   async saveCourseRule(rule: CourseRule): Promise<void> {

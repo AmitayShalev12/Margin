@@ -56,6 +56,8 @@ class FailingRepository extends Repository {
   saveCourse = () => this.write('course');
   saveAssignment = () => this.write('assignment');
   saveStudent = () => this.write('student');
+  saveCourseStudent = () => this.write('course-student');
+  deleteCourseStudents = () => this.write('course-student-delete');
   saveCourseRule = () => this.write('course-rule');
   saveCourseMaterial = () => this.write('course-material');
   saveStyleExample = () => this.write('style-example');

@@ -20,6 +20,7 @@ import {
   CourseRuleOrigin,
   CourseRuleKind,
   CourseRule,
+  CourseStudent,
   GradingCriterionScore,
   ScoringMode,
   GradingFormCategory,
@@ -159,6 +160,7 @@ export class DataStore {
   private readonly _submissions = signal<Submission[]>([]);
   private readonly _rounds = signal<SubmissionRound[]>([]);
   private readonly _students = signal<Student[]>([]);
+  private readonly _courseStudents = signal<CourseStudent[]>([]);
   private readonly _courseRules = signal<CourseRule[]>([]);
   private readonly _courseMaterials = signal<CourseMaterial[]>([]);
   private readonly _gradingCategories = signal<GradingFormCategory[]>([]);
@@ -191,6 +193,7 @@ export class DataStore {
   readonly persistError = this._persistError.asReadonly();
 
   readonly students = this._students.asReadonly();
+  readonly courseStudents = this._courseStudents.asReadonly();
   /**
    * The rules in force here: this course's, plus the ones she made global.
    *
@@ -681,6 +684,8 @@ export class DataStore {
     if (snapshot.courses.length) this._courses.set(snapshot.courses);
     if (snapshot.assignments.length) this._assignment.set(snapshot.assignments[0]);
     if (snapshot.students.length) this._students.set(snapshot.students);
+    // `?? []`: a snapshot stored before enrollment existed has no array.
+    this._courseStudents.update((list) => mergeById(list, snapshot.courseStudents ?? []));
     if (snapshot.courseRules.length) this._courseRules.set(snapshot.courseRules);
     if (snapshot.courseMaterials.length) this._courseMaterials.set(snapshot.courseMaterials);
 
@@ -1307,7 +1312,7 @@ export class DataStore {
    * put a real girl on it. It used to exist only because the app shipped with
    * a fictional class already in it.
    */
-  addStudent(fullName: string, email?: string): Student | null {
+  addStudent(fullName: string, email?: string, courseIds: readonly UUID[] = []): Student | null {
     const teacherId = this.supabase.teacherId;
     const name = fullName.trim();
     if (!teacherId || !name) return null;
@@ -1329,7 +1334,70 @@ export class DataStore {
 
     this._students.update((list) => [...list, student]);
     this.persist(() => this.repository.saveStudent(student));
+    // After the student, so each enrollment row's foreign key resolves —
+    // `persist` sends writes in the order they were made.
+    this.enrollStudent(student.id, courseIds);
     return student;
+  }
+
+  /**
+   * Puts a student in courses — one row each, however many she is in.
+   *
+   * Ids that are not one of her courses are skipped rather than written: the
+   * database would refuse them anyway (RLS checks both ends), and a refusal
+   * surfaces as a save error she can do nothing about. A course she is
+   * already in is skipped too, so the table's unique pair holds. Returns the
+   * courses she was newly enrolled in.
+   */
+  enrollStudent(studentId: UUID, courseIds: readonly UUID[]): Course[] {
+    if (!this._students().some((s) => s.id === studentId)) return [];
+
+    const known = new Map(this._courses().map((c) => [c.id, c]));
+    const already = new Set(
+      this._courseStudents()
+        .filter((l) => l.student_id === studentId)
+        .map((l) => l.course_id),
+    );
+
+    const added: Course[] = [];
+    const now = new Date().toISOString();
+    for (const courseId of new Set(courseIds)) {
+      const course = known.get(courseId);
+      if (!course || already.has(courseId)) continue;
+
+      const link: CourseStudent = {
+        id: newId(),
+        course_id: courseId,
+        student_id: studentId,
+        created_at: now,
+      };
+      this._courseStudents.update((list) => [...list, link]);
+      this.persist(() => this.repository.saveCourseStudent(link));
+      added.push(course);
+    }
+    return added;
+  }
+
+  /** Takes a student out of one course. She stays on the roster. */
+  unenrollStudent(studentId: UUID, courseId: UUID): boolean {
+    const link = this._courseStudents().find(
+      (l) => l.student_id === studentId && l.course_id === courseId,
+    );
+    if (!link) return false;
+
+    this._courseStudents.update((list) => list.filter((l) => l.id !== link.id));
+    this.persist(() => this.repository.deleteCourseStudents([link.id]));
+    return true;
+  }
+
+  /** The courses a student is in, in the order the course list shows them. */
+  coursesOf(studentId: UUID): Course[] {
+    const ids = new Set(
+      this._courseStudents()
+        .filter((l) => l.student_id === studentId)
+        .map((l) => l.course_id),
+    );
+    return this.courses().filter((c) => ids.has(c.id));
   }
 
   /**
@@ -1347,6 +1415,7 @@ export class DataStore {
     this._submissions.set([]);
     this._rounds.set([]);
     this._students.set([]);
+    this._courseStudents.set([]);
     this._courseRules.set([]);
     this._courseMaterials.set([]);
     this._gradingCategories.set([]);
@@ -1674,6 +1743,8 @@ export class DataStore {
     );
 
     this._students.update((list) => list.filter((s) => s.id !== id));
+    // The database cascades these; the local copy has to be told.
+    this._courseStudents.update((list) => list.filter((l) => l.student_id !== id));
     this._submissions.update((list) => list.filter((s) => s.student_id !== id));
     this._rounds.update((list) => list.filter((r) => !orphaned.has(r.submission_id)));
     this._annotations.update((list) => list.filter((a) => !orphaned.has(a.submission_id)));

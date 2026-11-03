@@ -118,7 +118,18 @@ export interface CourseMaterial extends Timestamped {
   active: boolean;
 }
 
-/** Enrollment: which students are in which course, for a given year. */
+/**
+ * Enrollment: a student in one of her courses.
+ *
+ * The table existed from the first migration (unique on the pair, owner-checked
+ * on both ends) and nothing wrote to it until the roster could add a student to
+ * several courses at once. A girl is one row in `students` however many
+ * courses she is in.
+ *
+ * Shown, never used to hide anyone: everybody already on the roster predates
+ * enrollment and is in no course, so a roster filtered by it would have
+ * emptied itself the day it shipped.
+ */
 export interface CourseStudent {
   id: UUID;
   course_id: UUID;

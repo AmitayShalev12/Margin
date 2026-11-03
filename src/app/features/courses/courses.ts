@@ -177,7 +177,8 @@ export class Courses {
       return;
     }
 
-    const created = this.data.addStudent(name, email);
+    // Added from inside a course, so she is enrolled in it.
+    const created = this.data.addStudent(name, email, this.enrollIn());
     if (!created) {
       this.setupError.set('צריך שם מלא של התלמידה.');
       return;
@@ -202,9 +203,15 @@ export class Courses {
     this.studentEmail.set('');
   }
 
+  /** The course this screen is showing, as the one a new student joins. */
+  private enrollIn(): string[] {
+    const id = this.data.course()?.id;
+    return id ? [id] : [];
+  }
+
   /** Two different girls with the same name. Both belong on the roster. */
   protected addAnyway() {
-    this.data.addStudent(this.studentName(), this.studentEmail());
+    this.data.addStudent(this.studentName(), this.studentEmail(), this.enrollIn());
 
     this.clash.set(null);
     this.studentName.set('');

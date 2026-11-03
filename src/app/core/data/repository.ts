@@ -4,6 +4,7 @@ import {
   Course,
   CourseMaterial,
   CourseRule,
+  CourseStudent,
   GradingCriterionScore,
   GradingFormCategory,
   GradingFormEntry,
@@ -37,6 +38,8 @@ export interface PersistedSnapshot {
   courses: Course[];
   assignments: Assignment[];
   students: Student[];
+  /** Which of her courses each student is in. A student may be in several. */
+  courseStudents: CourseStudent[];
 
   /** Her rules and reference material for the course — AI context, per course. */
   courseRules: CourseRule[];
@@ -79,6 +82,7 @@ export const EMPTY_SNAPSHOT: PersistedSnapshot = {
   courses: [],
   assignments: [],
   students: [],
+  courseStudents: [],
   courseRules: [],
   courseMaterials: [],
   gradingCategories: [],
@@ -115,6 +119,9 @@ export abstract class Repository {
   abstract saveCourse(course: Course): Promise<void>;
   abstract saveAssignment(assignment: Assignment): Promise<void>;
   abstract saveStudent(student: Student): Promise<void>;
+  /** Enrollment rows. Written after the student and course they point at. */
+  abstract saveCourseStudent(link: CourseStudent): Promise<void>;
+  abstract deleteCourseStudents(ids: readonly UUID[]): Promise<void>;
 
   abstract saveCourseRule(rule: CourseRule): Promise<void>;
   abstract saveCourseMaterial(material: CourseMaterial): Promise<void>;
