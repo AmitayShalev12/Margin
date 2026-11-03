@@ -37,9 +37,11 @@ h3,
 h4 {
   margin: 0;
   font-family: var(--font-doc);
-  font-weight: 500;
+  // 600, not the 500 the serif used: a sans heading at 500 sits too close to
+  // body text and the hierarchy flattens.
+  font-weight: 600;
   line-height: var(--lh-tight);
-  letter-spacing: 0;
+  letter-spacing: -0.005em;
 }
 
 h1 {

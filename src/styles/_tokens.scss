@@ -5,10 +5,11 @@
 // with a deep pine accent and a muted honey highlight for annotated spans.
 // Deliberately not the default warm-cream/terracotta or dark-neon look.
 //
-// Typography: Frank Ruhl Libre (Hebrew serif) for document + display text,
-// Assistant (Hebrew sans) for UI. Both are designed for Hebrew first, so
-// vowel/letter proportions stay correct rather than being a Latin font with
-// Hebrew bolted on.
+// Typography: Heebo, one Hebrew sans throughout. It replaced Frank Ruhl
+// Libre (a book serif, which a review said read like religious print) and
+// Assistant: one modern face for headings, documents, navigation and forms
+// rather than two that disagreed. Drawn for Hebrew first, with the hinting to
+// stay crisp at 13px.
 // ---------------------------------------------------------------------------
 
 :root {
@@ -67,8 +68,10 @@
   --c-ok-soft: #e6efe8;
 
   // -- typography -----------------------------------------------------------
-  --font-ui: 'Assistant', 'Segoe UI', system-ui, sans-serif;
-  --font-doc: 'Frank Ruhl Libre', 'Times New Roman', serif;
+  // Two roles, one family. Kept as two tokens so documents and interface can
+  // diverge again later without hunting down every use.
+  --font-ui: 'Heebo', 'Segoe UI', system-ui, sans-serif;
+  --font-doc: 'Heebo', 'Segoe UI', system-ui, sans-serif;
   // Model ids, raw model output, error detail — text that is code, not prose.
   --font-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
 

@@ -11,8 +11,7 @@ document explains them and the rules around them. Three of those rules are enfor
 | **Direction** | "Ink on paper" — cool, quiet, slightly green-grey paper, a deep pine accent, honey for annotated text |
 | **Accent** | Pine `#1f5e5a` — and pine means *hers* |
 | **Highlight** | Honey `#f6e7ba` — a span of her student's text that has a comment on it |
-| **Display / document type** | Frank Ruhl Libre |
-| **UI type** | Assistant |
+| **Type** | Heebo — one modern Hebrew sans for headings, documents, navigation and forms |
 | **Language** | Hebrew, right-to-left, addressed to her in the feminine second person (את) |
 | **Contrast** | Every text colour clears WCAG AA (4.5:1) on every background it sits on |
 
@@ -101,12 +100,14 @@ text on honey 5.90. On white: attention 5.62, danger 7.49.
 
 ### Font Stack
 
-Both faces were designed for Hebrew first, so letter proportions are correct rather than a Latin font
-with Hebrew bolted on.
+One family, Heebo, drawn for Hebrew first and hinted to stay crisp at 13px. It replaced Frank Ruhl
+Libre (a book serif, which a usability review said read like religious print) and Assistant, so
+headings, documents, navigation, buttons and forms now share one clean, modern voice. Headings use
+weight 600: a sans at the serif's 500 sits too close to body text.
 
 ```css
---font-heading: 'Frank Ruhl Libre';  /* --font-doc: documents, page and section titles */
---font-body: 'Assistant';            /* --font-ui: everything else */
+--font-heading: 'Heebo';  /* --font-doc: documents, page and section titles */
+--font-body: 'Heebo';     /* --font-ui: everything else */
 --font-mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;  /* model ids, raw output */
 ```
 
@@ -129,9 +130,9 @@ which get read closely.
 
 | Level | Element | Look |
 |---|---|---|
-| Page title | `app-page-header` (`h1`) | 22 → 28px, document face |
-| Section | `h2.section-title` | 18px, document face |
-| Sub-group | `h3.sub-title` | 13px, UI face, weight 600, `--c-ink-2` |
+| Page title | `app-page-header` (`h1`) | 22 → 28px, weight 600 |
+| Section | `h2.section-title` | 18px, weight 600 |
+| Sub-group | `h3.sub-title` | 13px, weight 600, `--c-ink-2` |
 | Quiet label | `.section-label` | 13px, weight 600, `--c-ink-3` |
 
 ---
@@ -140,13 +141,13 @@ which get read closely.
 
 ### Variants
 
-The wordmark is the word **Margin** in Frank Ruhl Libre, weight 700, always left-to-right, with the
+The wordmark is the word **Margin** in Heebo, weight 700, always left-to-right, with the
 Hebrew tagline **הערות בשוליים** beneath it in the desktop nav rail. On mobile the wordmark sits in the
 top bar alone.
 
 ### Don'ts
 
-- Don't set it in Assistant or any other face
+- Don't set it in any other face
 - Don't mirror it for RTL — it is a Latin word and reads left to right
 - Don't recolour it; it is `--c-ink`
 
