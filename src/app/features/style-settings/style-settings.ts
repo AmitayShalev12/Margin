@@ -153,20 +153,10 @@ export class StyleSettings {
     return `כך למדתי לכתוב כמוך — מתוך ${sources.join(' ו־')}.`;
   });
 
-  /** What she did with the drafts, in the order the review screen offers it. */
-  protected readonly tally = computed(() => {
-    const { accepted, edited, dismissed, emailEdits } = this.counts();
-    return [
-      { label: 'אישרת כמו שהן', value: accepted },
-      { label: 'ערכת', value: edited },
-      { label: 'ויתרת', value: dismissed },
-      // Counted apart from the comments, and shown only once there is one —
-      // a message she rewrote teaches a different thing from a comment she did.
-      ...(emailEdits ? [{ label: 'מיילים שערכת', value: emailEdits }] : []),
-    ];
-  });
-
-  protected readonly hasDecisions = computed(() => this.tally().some((entry) => entry.value > 0));
+  // The accepted / edited / dismissed counters that sat at the top of this
+  // screen were removed after a usability review: she read them once to see
+  // the loop was running, and after that they were noise above the parts she
+  // actually uses. `counts()` still feeds the subtitle.
 
   /** The most recent rewrites, newest first. */
   protected readonly learned = computed(() =>

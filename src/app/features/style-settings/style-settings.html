@@ -1,17 +1,6 @@
 <div class="page">
   <app-page-header title="הסגנון שלי" [subtitle]="subtitle()" />
 
-  @if (hasDecisions()) {
-    <div class="tally" aria-label="מה עשית עם הטיוטות">
-      @for (t of tally(); track t.label) {
-        <div class="tally-cell">
-          <span class="tally-value">{{ t.value }}</span>
-          <span class="tally-label">{{ t.label }}</span>
-        </div>
-      }
-    </div>
-  }
-
   @if (traits().length) {
     <div class="card traits-card">
       <div class="section-label">מה שמתי לב שאת עושה</div>
