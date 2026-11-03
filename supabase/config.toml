@@ -21,3 +21,8 @@ verify_jwt = true
 
 [functions.student-email]
 verify_jwt = true
+
+[functions.assistant]
+# Only a signed-in teacher may spend model tokens, and the actions it proposes
+# are run by her own session in the app.
+verify_jwt = true

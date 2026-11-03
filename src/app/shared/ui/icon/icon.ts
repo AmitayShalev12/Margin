@@ -1,7 +1,20 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 export type IconName =
-  'home' | 'docs' | 'book' | 'clipboard' | 'mail' | 'quill' | 'more' | 'chevron';
+  | 'home'
+  | 'docs'
+  | 'book'
+  | 'clipboard'
+  | 'mail'
+  | 'quill'
+  | 'more'
+  | 'chevron'
+  | 'users'
+  | 'sparkle'
+  | 'plus'
+  | 'close'
+  | 'panel'
+  | 'send';
 
 /**
  * Small inline-SVG icon set. Line icons at a single 1.6 stroke weight, drawn
@@ -60,6 +73,35 @@ export type IconName =
         }
         @case ('chevron') {
           <path d="m9 6 6 6-6 6" />
+        }
+        @case ('users') {
+          <circle cx="9" cy="8" r="3.2" />
+          <path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" />
+          <path d="M15.5 5.2a3 3 0 0 1 0 5.6M17 14.3c2 .5 3.2 2.1 3.5 4.7" />
+        }
+        @case ('sparkle') {
+          <path
+            d="M12 3.5c.5 3.6 2.4 5.5 6 6-3.6.5-5.5 2.4-6 6-.5-3.6-2.4-5.5-6-6 3.6-.5 5.5-2.4 6-6z"
+          />
+          <path
+            d="M18.5 15.5c.2 1.4.9 2.1 2.3 2.3-1.4.2-2.1.9-2.3 2.3-.2-1.4-.9-2.1-2.3-2.3 1.4-.2 2.1-.9 2.3-2.3z"
+          />
+        }
+        @case ('plus') {
+          <path d="M12 5v14M5 12h14" />
+        }
+        @case ('close') {
+          <path d="m6.5 6.5 11 11M17.5 6.5l-11 11" />
+        }
+        @case ('panel') {
+          <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+          <path d="M14.5 4.5v15" />
+        }
+        @case ('send') {
+          <!-- Points left: in a right-to-left interface, text and sending
+               both move leftward. The one deliberately directional glyph. -->
+          <path d="M19.5 12h-11" />
+          <path d="m12.5 7-5 5 5 5" />
         }
       }
     </svg>

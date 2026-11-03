@@ -1,0 +1,133 @@
+@if (assistant.isOpen()) {
+  <aside class="panel" aria-labelledby="assistant-title" (keydown.escape)="close()">
+    <header class="panel-head">
+      <span class="panel-mark" aria-hidden="true"><app-icon name="sparkle" [size]="18" /></span>
+      <h2 id="assistant-title" class="panel-title">העוזר</h2>
+      @if (assistant.messages().length) {
+        <button
+          type="button"
+          class="btn btn-plain btn-sm"
+          [disabled]="assistant.busy()"
+          (click)="assistant.clear()"
+        >
+          שיחה חדשה
+        </button>
+      }
+      <button type="button" class="panel-close" aria-label="סגירת העוזר" (click)="close()">
+        <app-icon name="close" [size]="18" />
+      </button>
+    </header>
+
+    <div class="log" #log aria-live="polite">
+      @if (!assistant.available) {
+        <p class="note">
+          העוזר עובד דרך השרת של Margin, וכרגע אין חיבור אליו. כשהאפליקציה מחוברת, הוא יוכל לבצע
+          פעולות בשבילך.
+        </p>
+      } @else if (!assistant.messages().length) {
+        <div class="intro">
+          <p>
+            אפשר לבקש ממני בעברית פשוטה, ואני אעשה את זה בשבילך — ואגיד אם זה הצליח. פעולה שאי אפשר
+            לבטל, כמו מחיקה, תחכה לאישור שלך.
+          </p>
+          <ul class="suggestions">
+            @for (s of suggestions; track s) {
+              <li>
+                <button type="button" class="suggestion" (click)="send(s)">{{ s }}</button>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+
+      @for (m of assistant.messages(); track m.id) {
+        <div class="msg" [class.is-user]="m.role === 'user'" [class.is-failed]="m.failed">
+          <p class="msg-text">{{ m.text }}</p>
+
+          @if (m.steps.length) {
+            <!-- What the app actually did — reported by the app, not by the model. -->
+            <ul class="steps">
+              @for (step of m.steps; track step.id) {
+                <li class="step" [class]="'is-' + step.outcome.status">
+                  <div class="step-head">
+                    <span class="step-badge">
+                      @switch (step.outcome.status) {
+                        @case ('done') {
+                          בוצע
+                        }
+                        @case ('failed') {
+                          לא בוצע
+                        }
+                        @case ('confirm') {
+                          ממתין לאישור
+                        }
+                        @case ('cancelled') {
+                          בוטל
+                        }
+                        @default {
+                          מבצעת…
+                        }
+                      }
+                    </span>
+                    <span class="step-title">{{ step.outcome.title }}</span>
+                  </div>
+                  @if (step.outcome.detail) {
+                    <p class="step-detail">{{ step.outcome.detail }}</p>
+                  }
+                  @if (step.outcome.status === 'confirm') {
+                    <div class="step-actions">
+                      <button
+                        type="button"
+                        class="btn btn-sm step-danger"
+                        (click)="assistant.confirm(m.id, step.id)"
+                      >
+                        כן, למחוק
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-plain btn-sm"
+                        (click)="assistant.decline(m.id, step.id)"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  }
+                  @if (step.outcome.link && step.outcome.status === 'done') {
+                    <a class="step-link" [routerLink]="step.outcome.link">להצגה</a>
+                  }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      @if (assistant.busy()) {
+        <app-working label="חושבת" />
+      }
+    </div>
+
+    <form class="composer" (submit)="$event.preventDefault(); send()">
+      <label class="sr-only" for="assistant-input">מה לעשות?</label>
+      <textarea
+        #input
+        id="assistant-input"
+        class="control composer-input"
+        rows="2"
+        placeholder="מה לעשות?"
+        [value]="draft()"
+        [disabled]="!assistant.available"
+        (input)="draft.set($any($event.target).value)"
+        (keydown)="keydown($event)"
+      ></textarea>
+      <button
+        type="submit"
+        class="btn btn-primary composer-send"
+        aria-label="שליחה"
+        [disabled]="!assistant.available || assistant.busy() || !draft().trim()"
+      >
+        <app-icon name="send" [size]="18" />
+      </button>
+    </form>
+  </aside>
+}

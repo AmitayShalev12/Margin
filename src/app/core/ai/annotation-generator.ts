@@ -57,7 +57,7 @@ const IDLE: GenerationState = {
  * will occasionally stop on it. She needs to know the document is fine and the
  * automatic pass isn't — not to be left wondering what she did wrong.
  */
-const FAILURE_MESSAGES: Record<string, string> = {
+export const FAILURE_MESSAGES: Record<string, string> = {
   safety_blocked:
     'חלק מהעבודה הזו לא עבר עיבוד אוטומטי. אין בזה כלום על העבודה עצמה — פשוט תעברי עליה ישירות.',
   rate_limited: 'יותר מדי בקשות ברצף. אפשר לנסות שוב עוד רגע.',
