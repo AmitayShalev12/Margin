@@ -1,0 +1,58 @@
+# Keeps the Supabase project from pausing.
+#
+# Supabase pauses a free-tier project after 7 days without activity, and the
+# app is then simply dead for the teacher until someone presses "Restore" in
+# the dashboard. Her use comes in bursts — a marking week, then a quiet one —
+# so a quiet week was enough.
+#
+# Once a day this touches the project the way real use does: the sign-in
+# service, and an Edge Function that runs a database query. It is a
+# workaround, not a guarantee — Supabase does not document exactly what counts
+# as activity. The guaranteed fix is a paid plan.
+#
+# If the project answers as paused (or not at all), the job fails and GitHub
+# emails the repository owner, so the pause is noticed before she finds a dead
+# app.
+#
+# The anon key below is the public browser key — the same one already in
+# src/environments/environment.ts. It grants nothing that row-level security
+# does not allow anyone to see.
+
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # Every day at 06:17 UTC. Off the hour, when GitHub's schedulers are busiest.
+    - cron: '17 6 * * *'
+  # A "Run workflow" button on the Actions tab, for checking it by hand.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://cqmzcvaitiumnqyrttpe.supabase.co
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNxbXpjdmFpdGl1bW5xeXJ0dHBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NDM0OTAsImV4cCI6MjEwMjAxOTQ5MH0.JzMqk8TmKySSwYfGn88ONobqJtTaRvKMvFSVarr7RsQ
+    steps:
+      - name: Sign-in service
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 \
+            -H "apikey: $SUPABASE_ANON_KEY" "$SUPABASE_URL/auth/v1/settings")
+          echo "auth/v1/settings -> $status"
+          test "$status" = "200"
+
+      # drive-auth's callback looks up the state it is given in the database.
+      # A state that was never issued matches nothing — nothing is read back,
+      # nothing changes — and the function answers 400 "invalid_state". That
+      # answer is only reachable after a real query, so it proves the database
+      # is awake, not just the gateway in front of it.
+      - name: Database, through an Edge Function
+        run: |
+          body=$(curl -s --max-time 60 \
+            "$SUPABASE_URL/functions/v1/drive-auth/callback?state=00000000-0000-4000-8000-000000000000&code=keep-alive")
+          echo "drive-auth/callback -> $body"
+          echo "$body" | grep -q 'invalid_state'
