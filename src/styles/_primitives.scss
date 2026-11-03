@@ -353,3 +353,115 @@ select.control {
   border-radius: 2px;
   cursor: pointer;
 }
+
+// -- modal dialogs ------------------------------------------------------------
+//
+// For the quick-action dialogs (add a student, add a course), drawn on the
+// native `<dialog>`: the browser traps focus, closes on Escape and draws the
+// backdrop. Global for the same reason as the fields: more than one dialog
+// uses them, and a scoped copy does nothing anywhere else.
+
+.modal {
+  inline-size: min(28rem, calc(100vw - 2 * var(--s-4)));
+  max-block-size: calc(100dvh - 2 * var(--s-6));
+  padding: var(--s-6);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  box-shadow: var(--sh-3);
+
+  &::backdrop {
+    background: color-mix(in srgb, var(--c-ink) 28%, transparent);
+  }
+
+  &[open] {
+    animation: modal-in var(--dur) var(--ease);
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.modal-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+
+  .label {
+    margin-block-end: var(--s-1);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--c-ink-2);
+  }
+}
+
+// A checkbox and its label as one 36px-tall tap target.
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-block-size: 2.25rem;
+  padding-inline: var(--s-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-surface-sunk);
+  }
+
+  input {
+    inline-size: 1.1rem;
+    block-size: 1.1rem;
+    margin: 0;
+    accent-color: var(--c-accent);
+  }
+}
+
+.modal-done {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-ok-soft);
+  color: var(--c-ok);
+}
+
+.modal-error {
+  margin: 0;
+  color: var(--c-danger);
+  font-size: var(--fs-sm);
+}
+
+.modal-clash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--c-attention-soft);
+  color: var(--c-attention);
+
+  p {
+    margin: 0;
+  }
+}

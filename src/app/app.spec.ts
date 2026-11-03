@@ -6,6 +6,8 @@ import { routes } from './app.routes';
 import { LocalRepository } from './core/data/local-repository';
 import { Repository } from './core/data/repository';
 import { SupabaseService } from './core/supabase/supabase';
+import { FEATURE_FLAGS } from './core/features';
+import { QuickActions } from './shared/ui/quick-actions/quick-actions';
 
 class FakeSupabase {
   isConfigured = true;
@@ -18,13 +20,14 @@ class FakeSupabase {
   ready = Promise.resolve();
 }
 
-function configure(supabase: FakeSupabase) {
+function configure(supabase: FakeSupabase, mailing = false) {
   TestBed.resetTestingModule();
   return TestBed.configureTestingModule({
     imports: [App],
     providers: [
       { provide: SupabaseService, useValue: supabase },
       { provide: Repository, useClass: LocalRepository },
+      { provide: FEATURE_FLAGS, useValue: { mailing } },
       provideRouter(routes),
     ],
   }).compileComponents();
@@ -105,5 +108,84 @@ describe('App', () => {
 
     expect(compiled.querySelector('app-sign-in')).toBeNull();
     expect(compiled.querySelectorAll('nav[aria-label="ניווט ראשי"]').length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The sidebar, reorganised after a usability review: grouped by what she is
+ * doing, each group folding on its own, the whole rail folding to icons, and
+ * the quick actions beside the places they belong to.
+ */
+describe('the navigation', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  async function render(mailing = false) {
+    await configure(new FakeSupabase(), mailing);
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const rail = (fixture.nativeElement as HTMLElement).querySelector('.rail') as HTMLElement;
+    const press = (selector: string, text?: string) => {
+      const target = [...rail.querySelectorAll<HTMLElement>(selector)].find(
+        (el) => !text || el.textContent?.includes(text),
+      );
+      if (!target) throw new Error(`nothing matching ${selector} ${text ?? ''}`);
+      target.click();
+      fixture.detectChanges();
+    };
+    return { fixture, rail, press };
+  }
+
+  it('groups the places, each group with a heading of its own', async () => {
+    const { rail } = await render();
+    const heads = [...rail.querySelectorAll('.group-head')].map((h) => h.textContent?.trim());
+
+    expect(heads).toEqual(['סקירה', 'תלמידות ועבודות', 'הקורס', 'הגדרות']);
+    expect(rail.textContent).toContain('התלמידות שלי');
+    expect(rail.textContent).toContain('טפסי הערכה');
+  });
+
+  /** Hidden from the interface, kept in the code. */
+  it('has no mail entry while mailing is switched off, and has one when it is on', async () => {
+    expect((await render(false)).rail.textContent).not.toContain('מיילים');
+    expect((await render(true)).rail.textContent).toContain('מיילים לתלמידות');
+  });
+
+  it('folds one group away and leaves the others', async () => {
+    const { rail, press } = await render();
+
+    press('.group-head', 'הקורס');
+
+    expect(rail.textContent).not.toContain('טפסי הערכה');
+    expect(rail.textContent).toContain('התלמידות שלי');
+    expect(rail.querySelector('.group-head[aria-expanded="false"]')?.textContent).toContain(
+      'הקורס',
+    );
+  });
+
+  it('folds the whole rail to icons, every place still reachable', async () => {
+    const { rail, press } = await render();
+    const before = rail.querySelectorAll('a.rail-link').length;
+
+    press('.rail-toggle');
+
+    expect(rail.querySelectorAll('.group-head')).toHaveLength(0);
+    expect(rail.querySelectorAll('a.rail-link')).toHaveLength(before);
+    expect(rail.querySelector('a.rail-link')?.getAttribute('aria-label')).toBeTruthy();
+  });
+
+  it('remembers the folded rail in a new session', async () => {
+    (await render()).press('.rail-toggle');
+    const again = await render();
+    expect(again.rail.querySelectorAll('.group-head')).toHaveLength(0);
+  });
+
+  it('opens "add a student" from beside My Students', async () => {
+    const { press } = await render();
+
+    press('.rail-quick[aria-label="הוספת תלמידה"]');
+
+    expect(TestBed.inject(QuickActions).addStudentOpen()).toBe(true);
   });
 });

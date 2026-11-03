@@ -1,4 +1,4 @@
-# Margin — Brand Guidelines v1.0
+# Margin — Brand Guidelines v1.1
 
 The design system as it exists in `src/styles`, written down. The tokens are the source of truth; this
 document explains them and the rules around them. Three of those rules are enforced by
@@ -259,6 +259,28 @@ spinner.
 `.btn-sm`, `.is-active` on the chosen one and an optional `.pick-count` inside. It scrolls sideways on a
 phone instead of wrapping.
 
+### Dialogs
+
+The quick actions ("הוספת תלמידה", "הוספת קורס") open once-only dialogs that live in the app shell
+and are opened from anywhere through `QuickActions`. They are native `<dialog>` elements styled by the
+global `.modal` primitives (`.modal-form`, `.modal-actions`, `.modal-choices`, `.check`, `.modal-done`,
+`.modal-error`, `.modal-clash`): the browser traps focus, closes on Escape and draws the backdrop.
+
+A page's quick action goes in its header, projected into `app-page-header`:
+
+```html
+<app-page-header title="התלמידות שלי">
+  <button class="btn btn-primary btn-sm">הוספת תלמידה</button>
+</app-page-header>
+```
+
+### Navigation
+
+The sidebar is grouped — סקירה, תלמידות ועבודות, הקורס, הגדרות — and each group folds on its own; the
+whole rail folds to icons. Open places are kept as tabs above the page (tablet and up), one per
+section and one per paper under review. On a phone, the bottom bar holds four places and "עוד"
+holds the same groups as the sidebar.
+
 ### Spacing Scale
 
 4px base: `--s-1` 4 · `--s-2` 8 · `--s-3` 12 · `--s-4` 16 · `--s-5` 20 · `--s-6` 24 · `--s-8` 32 ·
@@ -292,4 +314,5 @@ floating over content (the back bar, the mobile sheet).
 
 | Version | Date | Changes |
 |---|---|---|
+| 1.1 | 2026-11-03 | Heebo replaces Frank Ruhl Libre and Assistant. Dialog primitives, page-header actions, grouped and foldable navigation, tabs. |
 | 1.0 | 2026-10-29 | Written down from the codebase after a consistency audit. Form fields, section headings and the soft divider made global; grading form moved onto the token vocabulary; `--c-ink-3` darkened to pass AA; `--c-ink-4` reserved for non-text; Hebrew counts given a helper; three rules enforced by test. |

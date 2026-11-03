@@ -1,5 +1,11 @@
 <div class="page">
-  <app-page-header title="התלמידות שלי" [subtitle]="subtitle()" />
+  <app-page-header title="התלמידות שלי" [subtitle]="subtitle()">
+    <!-- Here, not inside a course: she should not have to go and find one first. -->
+    <button type="button" class="btn btn-primary btn-sm" (click)="quick.openAddStudent()">
+      <app-icon name="plus" [size]="16" />
+      הוספת תלמידה
+    </button>
+  </app-page-header>
 
   @if (data.students().length) {
     <label class="field roster-search">
@@ -23,6 +29,9 @@
       <li class="student">
         <div class="head">
           <span class="name">{{ row.name }}</span>
+          @for (course of row.courses; track course) {
+            <span class="chip">{{ course }}</span>
+          }
 
           <!--
             Her folder, as an address she can open. The client asked for the

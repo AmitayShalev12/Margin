@@ -1,5 +1,10 @@
 <div class="page">
-  <app-page-header [title]="title()" [subtitle]="subtitle()" />
+  <app-page-header [title]="title()" [subtitle]="subtitle()">
+    <button type="button" class="btn btn-primary btn-sm" (click)="quick.openAddCourse()">
+      <app-icon name="plus" [size]="16" />
+      הוספת קורס
+    </button>
+  </app-page-header>
 
   @if (setupError(); as message) {
     <p class="setup-error" role="alert">{{ message }}</p>

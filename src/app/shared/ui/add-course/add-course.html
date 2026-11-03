@@ -1,0 +1,46 @@
+<dialog #dialog class="modal" aria-labelledby="add-course-title" (close)="closed()">
+  <h2 id="add-course-title" class="section-title">הוספת קורס</h2>
+
+  @if (done(); as message) {
+    <p class="modal-done" role="status">{{ message }}</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" (click)="toCourse()">למסך הקורס</button>
+      <button type="button" class="btn btn-plain" (click)="close()">סגירה</button>
+    </div>
+  } @else {
+    <form class="modal-form" (submit)="$event.preventDefault(); submit()">
+      <label class="field">
+        <span class="label">שם הקורס</span>
+        <input
+          class="control"
+          type="text"
+          autocomplete="off"
+          placeholder="סמינריון"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+        />
+      </label>
+
+      <label class="field">
+        <span class="label">שנה</span>
+        <input
+          class="control"
+          type="text"
+          autocomplete="off"
+          placeholder="תשפ״ז"
+          [value]="year()"
+          (input)="year.set($any($event.target).value)"
+        />
+      </label>
+
+      @if (error(); as message) {
+        <p class="modal-error" role="alert">{{ message }}</p>
+      }
+
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">יצירת הקורס</button>
+        <button type="button" class="btn btn-plain" (click)="close()">ביטול</button>
+      </div>
+    </form>
+  }
+</dialog>

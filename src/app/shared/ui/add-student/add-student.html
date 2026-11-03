@@ -1,0 +1,89 @@
+<dialog #dialog class="modal" aria-labelledby="add-student-title" (close)="closed()">
+  <h2 id="add-student-title" class="section-title">הוספת תלמידה</h2>
+
+  @if (done(); as message) {
+    <p class="modal-done" role="status">{{ message }}</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" (click)="another()">הוספת תלמידה נוספת</button>
+      <button type="button" class="btn btn-plain" (click)="close()">סגירה</button>
+    </div>
+  } @else {
+    <form class="modal-form" (submit)="$event.preventDefault(); submit()">
+      <label class="field">
+        <span class="label">שם מלא</span>
+        <input
+          class="control"
+          type="text"
+          autocomplete="off"
+          [value]="name()"
+          (input)="name.set($any($event.target).value); clash.set(null)"
+        />
+      </label>
+
+      <label class="field">
+        <span class="label">מייל (לא חובה)</span>
+        <input
+          class="control"
+          type="email"
+          dir="ltr"
+          inputmode="email"
+          autocomplete="off"
+          [value]="email()"
+          (input)="email.set($any($event.target).value); clash.set(null)"
+        />
+      </label>
+
+      <fieldset class="modal-choices">
+        <legend class="label">לרשום לקורסים</legend>
+        @for (course of courses(); track course.id) {
+          <label class="check">
+            <input type="checkbox" [checked]="isPicked(course.id)" (change)="toggle(course.id)" />
+            <span>{{ course.label }}</span>
+          </label>
+        } @empty {
+          <p class="hint">עוד אין קורסים. אפשר להוסיף את התלמידה עכשיו ולרשום אותה לקורס כשיהיה.</p>
+        }
+      </fieldset>
+
+      @if (clash(); as found) {
+        <!--
+          Not an error: a choice. The commonest reason is that she is already on
+          the roster and is joining another course — so that comes first.
+        -->
+        <div class="modal-clash" role="alert">
+          <p>
+            כבר יש ברשימה תלמידה {{ found.on === 'email' ? 'עם המייל הזה' : 'בשם הזה' }}:
+            <strong>{{ found.student.full_name }}</strong
+            >.
+          </p>
+          <div class="modal-actions">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="picked().size === 0"
+              (click)="enrollExisting()"
+            >
+              לרשום אותה לקורסים שסומנו
+            </button>
+            @if (found.on === 'name') {
+              <button type="button" class="btn btn-ghost btn-sm" (click)="addAnyway()">
+                זו תלמידה אחרת — להוסיף
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (error(); as message) {
+        <p class="modal-error" role="alert">{{ message }}</p>
+      }
+
+      @if (!clash()) {
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">הוספה</button>
+          <button type="button" class="btn btn-plain" (click)="close()">ביטול</button>
+        </div>
+      }
+    </form>
+  }
+</dialog>

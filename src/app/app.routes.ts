@@ -1,13 +1,22 @@
 import { Routes } from '@angular/router';
 
 import { FEATURES } from './core/features';
+
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+  { path: '', pathMatch: 'full', redirectTo: 'home' },
   {
-    path: 'dashboard',
+    // The overview: what she can do, and where to start.
+    path: 'home',
+    title: 'בית · Margin',
+    loadComponent: () => import('./features/home/home').then((m) => m.Home),
+  },
+  {
+    path: 'students',
     title: 'התלמידות שלי · Margin',
     loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
   },
+  // The student list used to live here; old links and bookmarks still reach it.
+  { path: 'dashboard', redirectTo: 'students' },
   {
     path: 'submissions',
     title: 'עבודות · Margin',
@@ -55,5 +64,5 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/style-settings/style-settings').then((m) => m.StyleSettings),
   },
-  { path: '**', redirectTo: 'dashboard' },
+  { path: '**', redirectTo: 'home' },
 ];

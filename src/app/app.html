@@ -12,50 +12,136 @@
 } @else if (needsSignIn()) {
   <app-sign-in />
 } @else {
-  <div class="shell">
-    <!-- Desktop: a rail on the inline-start edge, which in RTL is the right. -->
+  <div class="shell" [class.rail-collapsed]="railCollapsed()">
+    <!--
+      Desktop: a rail on the inline-start edge, which in RTL is the right.
+      Grouped by what she is doing, each group folding on its own, and the
+      whole rail folding down to icons.
+    -->
     <nav class="rail" aria-label="ניווט ראשי">
-      <div class="rail-brand">
-        <span class="wordmark" dir="ltr">Margin</span>
-        <span class="rail-tag">הערות בשוליים</span>
-      </div>
-      <ul class="rail-list">
-        @for (item of navItems; track item.path) {
-          <li>
-            <a
-              class="rail-link"
-              [routerLink]="item.path"
-              routerLinkActive="is-active"
-              #rla="routerLinkActive"
-              [attr.aria-current]="rla.isActive ? 'page' : null"
-            >
-              <app-icon [name]="item.icon" [size]="20" />
-              <span>{{ item.longLabel }}</span>
-            </a>
-          </li>
+      <div class="rail-top">
+        @if (!railCollapsed()) {
+          <div class="rail-brand">
+            <span class="wordmark" dir="ltr">Margin</span>
+            <span class="rail-tag">הערות בשוליים</span>
+          </div>
         }
-      </ul>
+        <button
+          type="button"
+          class="rail-toggle"
+          [attr.aria-label]="railCollapsed() ? 'הרחבת התפריט' : 'כיווץ התפריט'"
+          [attr.aria-expanded]="!railCollapsed()"
+          [title]="railCollapsed() ? 'הרחבת התפריט' : 'כיווץ התפריט'"
+          (click)="toggleRail()"
+        >
+          <app-icon name="panel" [size]="20" />
+        </button>
+      </div>
 
-      @if (signedInAs(); as email) {
-        <div class="rail-account">
-          <span class="rail-email" dir="ltr" [title]="email">{{ email }}</span>
-          <button type="button" class="rail-signout" (click)="signOut()">התנתקות</button>
-        </div>
-      }
+      <div class="rail-groups">
+        @for (group of groups; track group.id) {
+          <section class="rail-group">
+            @if (!railCollapsed()) {
+              <button
+                type="button"
+                class="group-head"
+                [attr.aria-expanded]="isGroupOpen(group.id)"
+                [attr.aria-controls]="'group-' + group.id"
+                (click)="toggleGroup(group.id)"
+              >
+                <span>{{ group.label }}</span>
+                <span class="group-chevron" [class.is-open]="isGroupOpen(group.id)">
+                  <app-icon name="chevron" [size]="14" />
+                </span>
+              </button>
+            }
+
+            <!-- Folded to icons, every entry stays: it is the only way to reach them. -->
+            @if (railCollapsed() || isGroupOpen(group.id)) {
+              <ul class="rail-list" [id]="'group-' + group.id">
+                @for (item of group.items; track item.path) {
+                  <li class="rail-row">
+                    <a
+                      class="rail-link"
+                      [routerLink]="item.path"
+                      routerLinkActive="is-active"
+                      #rla="routerLinkActive"
+                      [attr.aria-current]="rla.isActive ? 'page' : null"
+                      [title]="railCollapsed() ? item.longLabel : ''"
+                      [attr.aria-label]="railCollapsed() ? item.longLabel : null"
+                    >
+                      <app-icon [name]="item.icon" [size]="20" />
+                      @if (!railCollapsed()) {
+                        <span>{{ item.longLabel }}</span>
+                      }
+                    </a>
+                    @if (item.quickAction && !railCollapsed()) {
+                      <button
+                        type="button"
+                        class="rail-quick"
+                        [attr.aria-label]="item.quickAction.label"
+                        [title]="item.quickAction.label"
+                        (click)="runQuick(item.quickAction.id)"
+                      >
+                        <app-icon name="plus" [size]="16" />
+                      </button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      </div>
+
+      <div class="rail-foot">
+        <button
+          type="button"
+          class="rail-link rail-assistant"
+          [class.is-active]="assistant.isOpen()"
+          [title]="railCollapsed() ? 'העוזר' : ''"
+          [attr.aria-label]="railCollapsed() ? 'העוזר' : null"
+          (click)="openAssistant()"
+        >
+          <app-icon name="sparkle" [size]="20" />
+          @if (!railCollapsed()) {
+            <span>העוזר</span>
+          }
+        </button>
+
+        @if (signedInAs(); as email) {
+          @if (!railCollapsed()) {
+            <div class="rail-account">
+              <span class="rail-email" dir="ltr" [title]="email">{{ email }}</span>
+              <button type="button" class="rail-signout" (click)="signOut()">התנתקות</button>
+            </div>
+          }
+        }
+      </div>
     </nav>
 
     <div class="column">
       <!--
-        The course she is working in, at the top of every screen.
-
-        On desktop the rail already carries the brand, so the bar there is the
-        course and nothing else. On mobile the wordmark stays, because the rail
-        is not on screen to carry it.
+        The course she is working in, at the top of every screen, and the
+        assistant within reach of it.
       -->
       <header class="topbar">
         <span class="wordmark mobile-only" dir="ltr">Margin</span>
         <app-course-switcher />
+        <span class="topbar-spacer"></span>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm topbar-assistant"
+          [attr.aria-expanded]="assistant.isOpen()"
+          (click)="openAssistant()"
+        >
+          <app-icon name="sparkle" [size]="16" />
+          <span>העוזר</span>
+        </button>
       </header>
+
+      <!-- Open places, as tabs. Tablet and up: on a phone the bottom bar does this. -->
+      <app-tab-strip class="tab-strip" />
 
       <main id="main" class="main" tabindex="-1">
         <router-outlet />
@@ -92,15 +178,37 @@
       <div class="sheet-backdrop" (click)="closeMore()"></div>
       <div class="sheet" role="dialog" aria-modal="true" aria-label="עוד">
         <div class="sheet-grip" aria-hidden="true"></div>
+        <!-- The same groups as the sidebar, so a place is where she left it. -->
+        @for (group of groups; track group.id) {
+          <div class="sheet-group-label">{{ group.label }}</div>
+          <ul class="sheet-list">
+            @for (item of group.items; track item.path) {
+              <li class="sheet-row">
+                <a class="sheet-link" [routerLink]="item.path">
+                  <app-icon [name]="item.icon" [size]="20" />
+                  <span>{{ item.longLabel }}</span>
+                </a>
+                @if (item.quickAction) {
+                  <button
+                    type="button"
+                    class="btn btn-plain btn-sm"
+                    (click)="runQuick(item.quickAction.id)"
+                  >
+                    <app-icon name="plus" [size]="16" />
+                    {{ item.quickAction.label }}
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
         <ul class="sheet-list">
-          @for (item of secondaryNav; track item.path) {
-            <li>
-              <a class="sheet-link" [routerLink]="item.path">
-                <app-icon [name]="item.icon" [size]="20" />
-                <span>{{ item.longLabel }}</span>
-              </a>
-            </li>
-          }
+          <li class="sheet-row">
+            <button type="button" class="sheet-link" (click)="openAssistant()">
+              <app-icon name="sparkle" [size]="20" />
+              <span>העוזר</span>
+            </button>
+          </li>
           @if (signedInAs(); as email) {
             <li class="sheet-account">
               <span class="sheet-email" dir="ltr">{{ email }}</span>
@@ -110,5 +218,10 @@
         </ul>
       </div>
     }
+
+    <!-- Quick actions and the assistant: one copy each, opened from anywhere. -->
+    <app-add-student />
+    <app-add-course />
+    <app-assistant-panel />
   </div>
 }

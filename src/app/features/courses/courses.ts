@@ -8,6 +8,8 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { DriveFolder } from './drive-folder/drive-folder';
 
 import { CountPipe, count } from '../../core/presentation/count';
+import { QuickActions } from '../../shared/ui/quick-actions/quick-actions';
+import { Icon } from '../../shared/ui/icon/icon';
 interface KbItem {
   /**
    * Which table the row came from, so a row knows how to edit and delete
@@ -54,12 +56,13 @@ interface KbSection {
 @Component({
   selector: 'app-courses',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, PageHeader, DriveFolder],
+  imports: [CountPipe, PageHeader, DriveFolder, Icon],
   templateUrl: './courses.html',
   styleUrl: './courses.scss',
 })
 export class Courses {
   private readonly data = inject(DataStore);
+  protected readonly quick = inject(QuickActions);
 
   protected readonly course = this.data.course;
   protected readonly assignment = this.data.assignment;

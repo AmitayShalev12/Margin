@@ -12,11 +12,15 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { Working } from '../../shared/ui/working/working';
 
 import { CountPipe, count } from '../../core/presentation/count';
+import { QuickActions } from '../../shared/ui/quick-actions/quick-actions';
+import { Icon } from '../../shared/ui/icon/icon';
 /** One row of the roster: everything the row answers without opening anything. */
 export interface StudentRow {
   id: UUID;
   name: string;
   folder: string | null;
+  /** The courses she is enrolled in, as labels. */
+  courses: string[];
   /** Papers of hers the app holds. Not the folder's file count — see the template. */
   files: number;
   /** Of those, the ones she has finished with. */
@@ -52,12 +56,13 @@ export interface StudentRow {
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, DecimalPipe, RouterLink, PageHeader, Working],
+  imports: [CountPipe, DecimalPipe, RouterLink, PageHeader, Working, Icon],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
   protected readonly data = inject(DataStore);
+  protected readonly quick = inject(QuickActions);
   private readonly router = inject(Router);
   protected readonly generator = inject(AnnotationGenerator);
 
@@ -110,6 +115,7 @@ export class Dashboard {
         id: student.id,
         name: student.full_name,
         folder: student.drive_folder_id,
+        courses: this.data.coursesOf(student.id).map((c) => `${c.name} · ${c.year}`),
         files: hers.length,
         checked: hers.filter((s) => s.status === 'notes_sent' || s.status === 'finalized').length,
         latestId: latest?.id ?? null,
