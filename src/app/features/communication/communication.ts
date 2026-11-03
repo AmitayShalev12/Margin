@@ -10,6 +10,8 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { BidiText } from '../../shared/ui/bidi-text/bidi-text';
 
 import { count } from '../../core/presentation/count';
+import { NgTemplateOutlet } from '@angular/common';
+import { FEATURE_FLAGS } from '../../core/features';
 /**
  * The message that goes back to the student.
  *
@@ -43,7 +45,7 @@ export function mailtoUrl(to: string, subject: string, body: string): string {
 @Component({
   selector: 'app-communication',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeader, RouterLink, BidiText],
+  imports: [NgTemplateOutlet, PageHeader, RouterLink, BidiText],
   templateUrl: './communication.html',
   styleUrl: './communication.scss',
 })
@@ -149,12 +151,18 @@ export class Communication {
     return this.addressDraft() ?? stored;
   });
 
+  /** Mailing is switched off in core/features.ts; the template reads this. */
+  protected readonly mailing = inject(FEATURE_FLAGS).mailing;
+
   protected readonly subtitle = computed(() => {
     if (!this.submission()) return 'אין עדיין עבודות.';
-    if (this.isSent()) return `המייל ל${this.firstName()} סומן כנשלח.`;
+    if (this.mailing && this.isSent()) return `המייל ל${this.firstName()} סומן כנשלח.`;
     const ready = this.comments().length;
     if (!ready) {
       return `עוד לא אישרת אף הערה בעבודה של ${this.firstName()}, ואין על מה לכתוב.`;
+    }
+    if (!this.mailing) {
+      return `${ready === 1 ? 'הערה אחת' : `${ready} הערות`} שאישרת, מוכנות להוספה למסמך של ${this.firstName()}.`;
     }
     return `${ready === 1 ? 'הערה אחת' : `${ready} הערות`} שאישרת — שלוש אפשרויות ניסוח, ואת בוחרת ועורכת.`;
   });

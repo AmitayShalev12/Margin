@@ -34,6 +34,7 @@ import { Working } from '../../shared/ui/working/working';
 import { ReliabilityPanel } from '../../shared/ui/reliability-panel/reliability-panel';
 
 import { CountPipe } from '../../core/presentation/count';
+import { FEATURE_FLAGS } from '../../core/features';
 /** A run of text as the template needs it, with its styling already decided. */
 interface ViewRun {
   text: string;
@@ -590,6 +591,9 @@ export class Review {
    * goes to the message itself: the draft, the wording, and the one place
    * anything is actually sent from.
    */
+  /** Mailing is switched off in core/features.ts; the button says what it does. */
+  protected readonly mailing = inject(FEATURE_FLAGS).mailing;
+
   protected send() {
     void this.router.navigate(['/communication', this.submission().id]);
   }

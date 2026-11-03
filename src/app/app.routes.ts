@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { FEATURES } from './core/features';
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
   {
@@ -38,13 +39,13 @@ export const routes: Routes = [
     // Where the review screen's primary action lands, with the submission
     // already chosen. The bare path is the same screen reached from the nav.
     path: 'communication/:submissionId',
-    title: 'מייל לתלמידה · Margin',
+    title: FEATURES.mailing ? 'מייל לתלמידה · Margin' : 'ההערות במסמך · Margin',
     loadComponent: () =>
       import('./features/communication/communication').then((m) => m.Communication),
   },
   {
     path: 'communication',
-    title: 'מיילים לתלמידות · Margin',
+    title: FEATURES.mailing ? 'מיילים לתלמידות · Margin' : 'ההערות במסמך · Margin',
     loadComponent: () =>
       import('./features/communication/communication').then((m) => m.Communication),
   },

@@ -10,6 +10,7 @@ import { Repository } from '../data/repository';
 import { countDecisions } from '../learning/style-profile';
 import { seedId } from '../mock/seed-data';
 import { SupabaseService } from '../supabase/supabase';
+import { FEATURE_FLAGS } from '../features';
 
 import { EmailRequest, VARIANT_BRIEFS } from './contract';
 import { EmailGenerator } from './email-generator';
@@ -50,13 +51,16 @@ class FakeSupabase {
 }
 
 /** A fresh injector over the same durable storage — a browser refresh. */
-function boot() {
+function boot(mailingOn = true) {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       { provide: SupabaseService, useValue: new FakeSupabase() },
       { provide: Repository, useClass: LocalRepository },
       provideRouter(routes),
+      // Mailing is switched off in the app (core/features.ts) but kept, so its
+      // tests switch it back on and keep guarding the code that would return.
+      { provide: FEATURE_FLAGS, useValue: { mailing: mailingOn } },
     ],
   });
   return {
@@ -509,5 +513,56 @@ describe('deciding not to write a message', () => {
     store.skipStudentEmail(NOA);
 
     expect(store.studentEmail(NOA)?.status).toBe('sent');
+  });
+});
+
+/**
+ * Mailing switched off — the state the app ships in.
+ *
+ * What has to hold: no mail wording anywhere a teacher can reach, and the one
+ * part of that screen that is not mailing — putting her approved comments into
+ * the student's document — still there, without an email drafted first. It
+ * used to appear only after one had been.
+ */
+describe('with mailing switched off', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    boot(false);
+  });
+
+  it('offers the comments-on-the-document card without an email', async () => {
+    const fixture = TestBed.createComponent(Communication);
+    fixture.componentRef.setInput('submissionId', NOA);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('ההערות במסמך');
+    expect((fixture.nativeElement as HTMLElement).querySelector('.card.post')).not.toBeNull();
+  });
+
+  it('says nothing about email on that screen', async () => {
+    const fixture = TestBed.createComponent(Communication);
+    fixture.componentRef.setInput('submissionId', NOA);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    // The screen did render — otherwise the negatives below prove nothing.
+    expect(text).toContain('ההערות במסמך');
+    expect(text).not.toContain('ניסוח המייל');
+    expect(text).not.toContain('המייל לתלמידה');
+    expect(text).not.toContain('נשלח');
+  });
+
+  it("names the review screen's main button for what it now does", async () => {
+    const fixture = TestBed.createComponent(Review);
+    fixture.componentRef.setInput('submissionId', NOA);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('הוספת ההערות למסמך של');
+    expect(text).not.toContain('כתיבת המייל');
   });
 });
