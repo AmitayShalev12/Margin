@@ -1,3 +1,5 @@
+import { currentYearLabel, yearChoices, yearKey } from '../dates/hebrew-date';
+import { ContactField, RosterPlan } from '../roster/roster';
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { buildCategories } from '../grading/categories';
@@ -5,6 +7,7 @@ import { buildEntries } from '../grading/entries';
 import { normaliseName } from '../drive/file-name';
 import { newId, derivedId } from '../ids';
 import { describeEdit } from '../learning/style-profile';
+import { herWriting } from '../learning/voice';
 import {
   DocumentBlock,
   CommentTone,
@@ -18,6 +21,7 @@ import {
   CourseMaterial,
   CourseMaterialKind,
   CourseRuleOrigin,
+  RuleGroup,
   CourseRuleKind,
   CourseRule,
   CourseStudent,
@@ -129,6 +133,17 @@ export function folderIdFrom(value: string): string | null {
   return /^[A-Za-z0-9_-]{10,}$/.test(text) ? text : null;
 }
 
+const YEAR_KEY = 'margin.year';
+const MAX_TASKS = 15;
+
+function readSavedYear(): string | null {
+  try {
+    return localStorage.getItem(YEAR_KEY);
+  } catch {
+    return null;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class DataStore {
   private readonly repository = inject(Repository);
@@ -156,7 +171,9 @@ export class DataStore {
    */
   private readonly _courses = signal<Course[]>([]);
   private readonly _selectedCourseId = signal<UUID | null>(null);
-  private readonly _assignment = signal<Assignment | null>(null);
+  private readonly _assignments = signal<Assignment[]>([]);
+  /** The year at the top of the screen. Null until she or a course has set one. */
+  private readonly _selectedYear = signal<string | null>(readSavedYear());
   private readonly _submissions = signal<Submission[]>([]);
   private readonly _rounds = signal<SubmissionRound[]>([]);
   private readonly _students = signal<Student[]>([]);
@@ -164,6 +181,8 @@ export class DataStore {
   private readonly _courseRules = signal<CourseRule[]>([]);
   private readonly _courseMaterials = signal<CourseMaterial[]>([]);
   private readonly _gradingCategories = signal<GradingFormCategory[]>([]);
+  /** Headings of every course: the signal above holds the current course's only. */
+  private categoryHistory: GradingFormCategory[] = [];
   private readonly _gradingEntries = signal<GradingFormEntry[]>([]);
   private readonly _criterionScores = signal<GradingCriterionScore[]>([]);
   private readonly _studentForms = signal<StudentGradingForm[]>([]);
@@ -230,6 +249,16 @@ export class DataStore {
   readonly feedbackLogs = this._feedbackLogs.asReadonly();
   readonly styleExamples = this._styleExamples.asReadonly();
 
+  /** All her own words, newest first: what the model learns her voice from. */
+  readonly herWriting = computed(() =>
+    herWriting({
+      examples: this._styleExamples(),
+      annotations: this._annotations(),
+      scores: this._criterionScores(),
+      emails: this._studentEmails(),
+    }),
+  );
+
   /**
    * Her course, or null before she has made one.
    *
@@ -256,10 +285,124 @@ export class DataStore {
    * courses at all, and the screens below read `course()` as "is she set up".
    */
   private readonly _course = computed<Course | null>(() => {
-    const all = this._courses();
+    const selected = this._selectedYear();
+    const all = selected
+      ? this.courses().filter((c) => yearKey(c.year) === yearKey(selected))
+      : this.courses();
     const picked = all.find((c) => c.id === this._selectedCourseId());
     return picked ?? all[0] ?? null;
   });
+
+  /** The course's first task: where a paper goes when no task was chosen. */
+  private readonly _assignment = computed<Assignment | null>(() => {
+    const course = this._course();
+    return course ? (this.assignmentsOf(course.id)[0] ?? null) : null;
+  });
+
+  /** The year everything on screen belongs to. */
+  readonly year = computed(
+    () => this._selectedYear() ?? this._course()?.year ?? currentYearLabel(),
+  );
+
+  /** Years to choose from: the usual span, plus any she already has courses in. */
+  readonly years = computed(() => {
+    const byKey = new Map(yearChoices().map((y) => [yearKey(y), y]));
+    for (const course of this._courses()) {
+      if (!byKey.has(yearKey(course.year))) byKey.set(yearKey(course.year), course.year);
+    }
+    return [...byKey.entries()].sort(([a], [b]) => a.localeCompare(b, 'he')).map(([, y]) => y);
+  });
+
+  readonly coursesInYear = computed(() =>
+    this.courses().filter((c) => yearKey(c.year) === yearKey(this.year())),
+  );
+
+  /** Papers of the course on screen: what every work list shows. */
+  readonly courseSubmissions = computed(() => {
+    const course = this._course();
+    if (!course) return [];
+    const tasks = new Set(this.assignmentsOf(course.id).map((a) => a.id));
+    return this._submissions().filter((p) => tasks.has(p.assignment_id));
+  });
+
+  /** This course's tasks, in order. */
+  readonly tasks = computed(() => {
+    const course = this._course();
+    return course ? this.assignmentsOf(course.id) : [];
+  });
+
+  assignmentsOf(courseId: UUID): Assignment[] {
+    return this._assignments()
+      .filter((a) => a.course_id === courseId)
+      .sort(
+        (a, b) =>
+          (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER) ||
+          a.created_at.localeCompare(b.created_at),
+      );
+  }
+
+  assignmentById(id: UUID): Assignment | null {
+    return this._assignments().find((a) => a.id === id) ?? null;
+  }
+
+  /**
+   * Who belongs to a course: enrolled, or has a paper in it.
+   *
+   * The papers count because students who arrived through Drive before
+   * enrollment existed have no enrollment row, and their work must not vanish.
+   */
+  studentsIn(courseId: UUID): Student[] {
+    const tasks = new Set(this.assignmentsOf(courseId).map((a) => a.id));
+    const ids = new Set(
+      this._courseStudents()
+        .filter((l) => l.course_id === courseId)
+        .map((l) => l.student_id),
+    );
+    for (const paper of this._submissions()) {
+      if (tasks.has(paper.assignment_id)) ids.add(paper.student_id);
+    }
+    return this._students().filter((s) => ids.has(s.id));
+  }
+
+  /** Students in no course and with no paper: the way into the new structure. */
+  readonly unplacedStudents = computed(() => {
+    const enrolled = new Set(this._courseStudents().map((l) => l.student_id));
+    const withPaper = new Set(this._submissions().map((p) => p.student_id));
+    return this._students().filter((s) => !enrolled.has(s.id) && !withPaper.has(s.id));
+  });
+
+  private keepCategories() {
+    const held = new Set(this._gradingCategories().map((c) => c.id));
+    this.categoryHistory = [
+      ...this.categoryHistory.filter((c) => !held.has(c.id)),
+      ...this._gradingCategories(),
+    ];
+  }
+
+  /** The form follows the course: it was loaded once and never changed before. */
+  private showCategories() {
+    const course = this._course();
+    if (!course) {
+      this._gradingCategories.set([]);
+      return;
+    }
+    const hadAny = this.categoryHistory.some((c) => c.course_id === course.id);
+    this._gradingCategories.set(buildCategories(course.id, this.categoryHistory));
+    if (!hadAny) this.persistGradingCategories();
+  }
+
+  /** Everything below the top bar follows this. Remembered in this browser. */
+  selectYear(year: string) {
+    this.keepCategories();
+    this._selectedYear.set(year);
+    this._selectedCourseId.set(null);
+    this.showCategories();
+    try {
+      localStorage.setItem(YEAR_KEY, year);
+    } catch {
+      // Blocked storage: the choice simply lasts for this visit.
+    }
+  }
 
   readonly course = computed<Course | null>(() => {
     const course = this._course();
@@ -300,7 +443,12 @@ export class DataStore {
    * link or a course she has since deleted should leave her where she was.
    */
   selectCourse(id: UUID) {
-    if (this._courses().some((c) => c.id === id)) this._selectedCourseId.set(id);
+    const course = this._courses().find((c) => c.id === id);
+    if (!course) return;
+    this.keepCategories();
+    this._selectedYear.set(course.year);
+    this._selectedCourseId.set(id);
+    this.showCategories();
   }
 
   /** True once she has a course. Everything else waits on it. */
@@ -682,7 +830,7 @@ export class DataStore {
     // All of them, not the first. Keeping only one was what made the app
     // single-course: the other rows were loaded and then thrown away.
     if (snapshot.courses.length) this._courses.set(snapshot.courses);
-    if (snapshot.assignments.length) this._assignment.set(snapshot.assignments[0]);
+    this._assignments.update((list) => mergeById(list, snapshot.assignments));
     if (snapshot.students.length) this._students.set(snapshot.students);
     // `?? []`: a snapshot stored before enrollment existed has no array.
     this._courseStudents.update((list) => mergeById(list, snapshot.courseStudents ?? []));
@@ -715,6 +863,7 @@ export class DataStore {
     // any; `buildCategories` falls back to the starting set only for a course
     // with no history at all.
     const courseId = this._course()?.id;
+    this.categoryHistory = snapshot.gradingCategories;
     this._gradingCategories.set(
       courseId ? buildCategories(courseId, snapshot.gradingCategories) : [],
     );
@@ -794,7 +943,9 @@ export class DataStore {
     };
 
     this._courses.update((list) => [...list.filter((c) => c.id !== course.id), course]);
+    this.keepCategories();
     // A course she just created is the one she wants to be looking at.
+    this._selectedYear.set(course.year);
     this._selectedCourseId.set(course.id);
     this.persist(() => this.repository.saveCourse(course));
     // The course row is enqueued first, so the headings that point at it
@@ -803,8 +954,78 @@ export class DataStore {
     return course;
   }
 
-  /** The assignment work attaches to. One per course, for now. */
-  createAssignment(title: string): Assignment | null {
+  /**
+   * Copies what she ticked from another course into a new one.
+   *
+   * Copies, with new ids: this year's edits must not rewrite last year. The
+   * grading form's headings come from the database because the store only holds
+   * the current course's.
+   */
+  async carryOver(
+    fromId: UUID,
+    toId: UUID,
+    choice: { ruleIds: readonly UUID[]; materialIds: readonly UUID[]; gradingForm: boolean },
+  ): Promise<{ rules: number; materials: number; gradingForm: boolean }> {
+    const from = this._courses().find((c) => c.id === fromId);
+    const to = this._courses().find((c) => c.id === toId);
+    if (!from || !to) return { rules: 0, materials: 0, gradingForm: false };
+    const now = new Date().toISOString();
+
+    const rules = this._courseRules()
+      .filter((r) => r.course_id === fromId && choice.ruleIds.includes(r.id))
+      .map((r) => ({ ...r, id: newId(), course_id: toId, created_at: now, updated_at: now }));
+    this._courseRules.update((list) => [...list, ...rules]);
+    for (const row of rules) this.persist(() => this.repository.saveCourseRule(row));
+
+    const materials = this._courseMaterials()
+      .filter((m) => m.course_id === fromId && choice.materialIds.includes(m.id))
+      .map((m) => ({ ...m, id: newId(), course_id: toId, created_at: now, updated_at: now }));
+    this._courseMaterials.update((list) => [...list, ...materials]);
+    for (const row of materials) this.persist(() => this.repository.saveCourseMaterial(row));
+
+    let gradingForm = false;
+    if (choice.gradingForm) {
+      const written: Course = {
+        ...to,
+        comment_tone: from.comment_tone,
+        grade_weights: from.grade_weights,
+        updated_at: now,
+      };
+      this._courses.update((list) => list.map((c) => (c.id === written.id ? written : c)));
+      this.persist(() => this.repository.saveCourse(written));
+
+      const headings = (await this.repository.load()).gradingCategories.filter(
+        (c) => c.course_id === fromId && c.active,
+      );
+      if (headings.length) {
+        const copied = headings.map((c) => ({
+          ...c,
+          id: derivedId('grading-category', `${toId}:${c.id}`),
+          course_id: toId,
+          created_at: now,
+          updated_at: now,
+        }));
+        // The starting set the new course was made with gives way, as it does
+        // when she loads a rubric: a course is graded against one form.
+        const retired = this._gradingCategories()
+          .filter((c) => c.course_id === toId && !copied.some((n) => n.id === c.id))
+          .map((c) => ({ ...c, active: false, updated_at: now }));
+
+        if (this._course()?.id === toId) {
+          this._gradingCategories.set([...copied, ...retired]);
+        }
+        for (const row of [...copied, ...retired]) {
+          this.persist(() => this.repository.saveGradingCategory(row));
+        }
+        gradingForm = true;
+      }
+    }
+
+    return { rules: rules.length, materials: materials.length, gradingForm };
+  }
+
+  /** A task of the current course: what papers attach to. */
+  createAssignment(title: string, dueDate: string | null = null): Assignment | null {
     const course = this._course();
     const name = title.trim();
     if (!course || !name) return null;
@@ -815,7 +1036,8 @@ export class DataStore {
       course_id: course.id,
       title: name,
       brief: null,
-      due_at: null,
+      due_at: dueDate,
+      sort_order: this.assignmentsOf(course.id).length,
       drive_folder_id: null,
       expected_min_words: null,
       archived: false,
@@ -823,9 +1045,46 @@ export class DataStore {
       updated_at: now,
     };
 
-    this._assignment.set(assignment);
+    this._assignments.update((list) => [...list, assignment]);
     this.persist(() => this.repository.saveAssignment(assignment));
     return assignment;
+  }
+
+  /** A paper needs a task to attach to, and tasks are optional: make one quietly. */
+  ensureAssignment(): Assignment | null {
+    return this.assignment() ?? this.createAssignment('עבודה');
+  }
+
+  addTask(title: string, dueDate: string | null): Assignment | null {
+    const course = this._course();
+    if (!course || this.assignmentsOf(course.id).length >= MAX_TASKS) return null;
+    return this.createAssignment(title, dueDate);
+  }
+
+  /** False when a task would be left with no name. */
+  updateTask(id: UUID, change: { title?: string; due?: string | null }): boolean {
+    const task = this.assignmentById(id);
+    if (!task) return false;
+    const title = change.title === undefined ? task.title : change.title.trim();
+    if (!title) return false;
+
+    const written: Assignment = {
+      ...task,
+      title,
+      due_at: change.due === undefined ? task.due_at : change.due,
+      updated_at: new Date().toISOString(),
+    };
+    this._assignments.update((list) => list.map((a) => (a.id === id ? written : a)));
+    this.persist(() => this.repository.saveAssignment(written));
+    return true;
+  }
+
+  /** Refused while it has papers: deleting would take students' work with it. */
+  deleteTask(id: UUID): boolean {
+    if (this._submissions().some((p) => p.assignment_id === id)) return false;
+    this._assignments.update((list) => list.filter((a) => a.id !== id));
+    this.persist(() => this.repository.deleteAssignments([id]));
+    return true;
   }
 
   /**
@@ -935,6 +1194,7 @@ export class DataStore {
      * stale duplicates in the ones she was not looking at.
      */
     scope: 'course' | 'all' = 'course',
+    group: RuleGroup | null = null,
   ): CourseRule | null {
     const course = this._course();
     const text = body.trim();
@@ -953,6 +1213,7 @@ export class DataStore {
       title: text.slice(0, 60),
       body: text,
       origin,
+      rule_group: group,
       source_url: null,
       active: true,
       sort_order: this._courseRules().filter((r) => r.origin === origin).length,
@@ -981,6 +1242,7 @@ export class DataStore {
     text: string,
     origin: CourseRuleOrigin,
     scope: 'course' | 'all' = 'course',
+    group: RuleGroup | null = null,
   ): number {
     const lines = text
       .split(/\r?\n/)
@@ -989,7 +1251,7 @@ export class DataStore {
 
     let added = 0;
     for (const line of lines) {
-      if (this.addCourseRule(kind, line, origin, scope)) added += 1;
+      if (this.addCourseRule(kind, line, origin, scope, group)) added += 1;
     }
     return added;
   }
@@ -1410,7 +1672,8 @@ export class DataStore {
   reset(): void {
     this._courses.set([]);
     this._selectedCourseId.set(null);
-    this._assignment.set(null);
+    this._assignments.set([]);
+    this._selectedYear.set(null);
     this._submissions.set([]);
     this._rounds.set([]);
     this._students.set([]);
@@ -1418,6 +1681,7 @@ export class DataStore {
     this._courseRules.set([]);
     this._courseMaterials.set([]);
     this._gradingCategories.set([]);
+    this.categoryHistory = [];
     this._gradingEntries.set([]);
     this._criterionScores.set([]);
     this._studentForms.set([]);
@@ -1658,9 +1922,21 @@ export class DataStore {
     blocks: DocumentBlock[];
     text: string;
     fileName: string;
+    /** Which task it is for. Without one, the course's first. */
+    assignmentId?: UUID;
   }): Submission | null {
-    const assignment = this._assignment();
+    const assignment =
+      (input.assignmentId && this.assignmentById(input.assignmentId)) || this._assignment();
     if (!assignment || !input.blocks.length) return null;
+    // One paper per student per task is a rule of the database, so asking for a
+    // second is refused here, rather than looking saved and failing behind her.
+    if (
+      this._submissions().some(
+        (p) => p.assignment_id === assignment.id && p.student_id === input.studentId,
+      )
+    ) {
+      return null;
+    }
 
     const now = new Date().toISOString();
     const submission: Submission = {
@@ -1800,6 +2076,55 @@ export class DataStore {
     );
     if (written) this.persist(() => this.repository.saveStudent(written!));
     return true;
+  }
+
+  /**
+   * A student list, written to the roster and into the current course.
+   *
+   * Fills in what is blank and leaves what is there, except the conflicts she
+   * chose to replace. Returns how many were new and how many already existed.
+   */
+  applyRoster(plan: RosterPlan, replace: ReadonlySet<string>): { added: number; existing: number } {
+    const course = this._course()?.id;
+    const courseIds = course ? [course] : [];
+    const now = new Date().toISOString();
+    let added = 0;
+
+    for (const row of plan.added) {
+      const student = this.addStudent(row.name, row.email ?? undefined, courseIds);
+      if (!student) continue;
+      added += 1;
+      this.writeStudent({
+        ...student,
+        phone: row.phone,
+        mobile: row.mobile,
+        class_name: row.class_name,
+        roster_details: row.details,
+        updated_at: now,
+      });
+    }
+
+    for (const { student, row } of plan.existing) {
+      const chosen = (field: ContactField) =>
+        replace.has(`${student.id}:${field}`) ? row[field] : (student[field] ?? row[field]);
+      this.writeStudent({
+        ...student,
+        email: chosen('email') ?? null,
+        phone: chosen('phone') ?? null,
+        mobile: chosen('mobile') ?? null,
+        class_name: student.class_name ?? row.class_name,
+        roster_details: row.details,
+        updated_at: now,
+      });
+      this.enrollStudent(student.id, courseIds);
+    }
+
+    return { added, existing: plan.existing.length };
+  }
+
+  private writeStudent(student: Student) {
+    this._students.update((list) => list.map((s) => (s.id === student.id ? student : s)));
+    this.persist(() => this.repository.saveStudent(student));
   }
 
   /**

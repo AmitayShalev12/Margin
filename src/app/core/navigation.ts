@@ -1,8 +1,6 @@
 import { IconName } from '../shared/ui/icon/icon';
 import { FeatureFlags } from './features';
 
-/** A quick action an entry carries with it ("הוספת תלמידה" on My Students). */
-export type QuickActionId = 'add-student' | 'add-course';
 
 export interface NavItem {
   path: string;
@@ -16,7 +14,6 @@ export interface NavItem {
    * "עוד". Four is the most that stays comfortable at 375px.
    */
   primary: boolean;
-  quickAction?: { id: QuickActionId; label: string };
 }
 
 /**
@@ -36,9 +33,24 @@ export interface NavGroup {
 export function navGroups(flags: FeatureFlags): NavGroup[] {
   return [
     {
-      id: 'overview',
-      label: 'סקירה',
-      items: [{ path: '/home', label: 'בית', longLabel: 'בית', icon: 'home', primary: true }],
+      id: 'course',
+      label: 'הקורס',
+      items: [
+        {
+          path: '/courses',
+          label: 'קורסים',
+          longLabel: 'קורסים וחומרי רקע',
+          icon: 'book',
+          primary: true,
+        },
+        {
+          path: '/grading-forms',
+          label: 'טפסים',
+          longLabel: 'טפסי הערכה',
+          icon: 'clipboard',
+          primary: false,
+        },
+      ],
     },
     {
       id: 'work',
@@ -50,7 +62,6 @@ export function navGroups(flags: FeatureFlags): NavGroup[] {
           longLabel: 'התלמידות שלי',
           icon: 'users',
           primary: true,
-          quickAction: { id: 'add-student', label: 'הוספת תלמידה' },
         },
         {
           path: '/submissions',
@@ -71,27 +82,6 @@ export function navGroups(flags: FeatureFlags): NavGroup[] {
               },
             ]
           : []),
-      ],
-    },
-    {
-      id: 'course',
-      label: 'הקורס',
-      items: [
-        {
-          path: '/courses',
-          label: 'קורסים',
-          longLabel: 'קורסים וחומרי רקע',
-          icon: 'book',
-          primary: true,
-          quickAction: { id: 'add-course', label: 'הוספת קורס' },
-        },
-        {
-          path: '/grading-forms',
-          label: 'טפסים',
-          longLabel: 'טפסי הערכה',
-          icon: 'clipboard',
-          primary: false,
-        },
       ],
     },
     {

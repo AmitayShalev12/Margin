@@ -37,7 +37,6 @@ const STORAGE_KEY = 'margin.tabs';
 export const MAX_TABS = 8;
 
 const SECTIONS: Record<string, { title: string; icon: IconName }> = {
-  home: { title: 'בית', icon: 'home' },
   students: { title: 'התלמידות שלי', icon: 'users' },
   submissions: { title: 'עבודות', icon: 'docs' },
   courses: { title: 'קורסים', icon: 'book' },
@@ -53,7 +52,7 @@ const SECTIONS: Record<string, { title: string; icon: IconName }> = {
 export function tabKey(url: string): string {
   const path = url.split(/[?#]/)[0];
   const [first, second] = path.split('/').filter(Boolean);
-  if (!first) return 'home';
+  if (!first || first === 'home') return 'courses';
   if (first === 'review' && second) return `review:${second}`;
   return first;
 }
@@ -110,7 +109,7 @@ export class Tabs {
 
   /**
    * Closes a tab. Closing the one on screen moves to its neighbour, as a
-   * browser does; closing the last one leaves the home screen open.
+   * browser does; closing the last one leaves her courses open.
    */
   close(key: string) {
     const list = this.stored();
@@ -123,12 +122,12 @@ export class Tabs {
 
     if (key !== this.activeKey()) return;
     const neighbour = remaining[index] ?? remaining[index - 1];
-    void this.router.navigateByUrl(neighbour ? neighbour.url : '/home');
+    void this.router.navigateByUrl(neighbour ? neighbour.url : '/courses');
   }
 
-  /** The "+" — a new tab, on the home screen. */
+  /** The "+" — a new tab, on her courses. */
   openNew() {
-    void this.router.navigateByUrl('/home');
+    void this.router.navigateByUrl('/courses');
   }
 
   private describe(key: string): { title: string; icon: IconName } {
@@ -165,7 +164,9 @@ function restore(): StoredTab[] {
           !!t &&
           typeof t.key === 'string' &&
           typeof t.url === 'string' &&
-          typeof t.lastUsed === 'number',
+          typeof t.lastUsed === 'number' &&
+          // Saved before the home screen was removed.
+          t.key !== 'home',
       )
       .slice(0, MAX_TABS);
   } catch {

@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { BackupService } from './core/backup/backup-service';
+import { DataStore } from './core/data/data-store';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
 import { Assistant } from './core/assistant/assistant';
 import { FEATURE_FLAGS } from './core/features';
-import { QuickActionId, navGroups, navItems } from './core/navigation';
+import { navGroups, navItems } from './core/navigation';
 import { SupabaseService } from './core/supabase/supabase';
 import { Tabs } from './core/tabs';
 import { SignIn } from './features/sign-in/sign-in';
@@ -13,7 +15,6 @@ import { AddStudent } from './shared/ui/add-student/add-student';
 import { AssistantPanel } from './shared/ui/assistant-panel/assistant-panel';
 import { CourseSwitcher } from './shared/ui/course-switcher/course-switcher';
 import { Icon } from './shared/ui/icon/icon';
-import { QuickActions } from './shared/ui/quick-actions/quick-actions';
 import { SaveError } from './shared/ui/save-error/save-error';
 import { TabStrip } from './shared/ui/tab-strip/tab-strip';
 
@@ -41,7 +42,6 @@ const GROUPS_KEY = 'margin.closed-groups';
 })
 export class App {
   private readonly supabase = inject(SupabaseService);
-  private readonly quick = inject(QuickActions);
   protected readonly assistant = inject(Assistant);
 
   protected readonly groups = navGroups(inject(FEATURE_FLAGS));
@@ -81,6 +81,14 @@ export class App {
     // whenever the tab strip first renders.
     inject(Tabs);
 
+    // Once she is in and her work has loaded. It decides for itself whether a
+    // copy is due, and it can only ever add a file to her own Drive.
+    const backup = inject(BackupService);
+    const data = inject(DataStore);
+    effect(() => {
+      if (data.hydrated() && this.supabase.user()) void backup.runAuto();
+    });
+
     router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
       .subscribe(() => this.moreOpen.set(false));
@@ -110,12 +118,6 @@ export class App {
     else next.add(id);
     this.closedGroups.set(next);
     writeValue(GROUPS_KEY, JSON.stringify([...next]));
-  }
-
-  protected runQuick(id: QuickActionId) {
-    this.moreOpen.set(false);
-    if (id === 'add-student') this.quick.openAddStudent();
-    else this.quick.openAddCourse();
   }
 
   protected openAssistant() {

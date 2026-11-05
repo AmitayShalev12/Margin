@@ -177,8 +177,7 @@ export class EmailGenerator {
       })),
       variants: [...VARIANT_BRIEFS],
       style_examples: this.store
-        .styleExamples()
-        .filter((e) => e.active)
+        .herWriting()
         .slice(0, MAX_STYLE_EXAMPLES)
         .map((e) => ({
           source: e.source,
@@ -196,7 +195,13 @@ export class EmailGenerator {
   ): { ai_text: string; final_text: string; change_note: string | null }[] {
     return this.store
       .feedbackLogs()
-      .filter((l) => l.target_type === target && l.action === 'edited' && !!l.final_text)
+      .filter(
+        (l) =>
+          l.target_type === target &&
+          l.action === 'edited' &&
+          !!l.final_text &&
+          l.course_id === this.store.course()?.id,
+      )
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((l) => ({
         ai_text: l.ai_text,

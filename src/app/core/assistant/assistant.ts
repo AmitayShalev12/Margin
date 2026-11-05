@@ -4,6 +4,8 @@ import { Router } from '@angular/router';
 import { FAILURE_MESSAGES } from '../ai/annotation-generator';
 import { DataStore } from '../data/data-store';
 import { GoogleDriveAuth } from '../drive/google-auth';
+import { deriveTraits } from '../learning/style-profile';
+import { voiceSamples } from '../learning/voice';
 import { FunctionError, TRANSPORT_MESSAGES, callFunction } from '../supabase/function-call';
 import { SupabaseService } from '../supabase/supabase';
 import { ActionOutcome, AssistantActions } from './actions';
@@ -210,6 +212,10 @@ export class Assistant {
         unmatched_files: this.data.sync().unmatched.slice(0, 20).map((f) => f.name),
       },
       attached_files: this.attachedNames(),
+      her_voice: {
+        samples: voiceSamples(this.data.herWriting(), this.data.feedbackLogs()),
+        habits: deriveTraits(this.data.feedbackLogs(), this.data.annotations()).map((t) => t.text),
+      },
     };
   }
 

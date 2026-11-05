@@ -25,7 +25,7 @@ export interface FeatureFlags {
 }
 
 export const FEATURES: FeatureFlags = {
-  mailing: false,
+  mailing: true,
 };
 
 /**

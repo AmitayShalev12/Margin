@@ -65,7 +65,7 @@ export class Submissions {
     const query = normaliseName(this.search());
 
     return this.data
-      .submissions()
+      .courseSubmissions()
       .filter((s) => matches(this.filter(), s.status))
       .map((s) => ({
         id: s.id,
@@ -98,12 +98,15 @@ export class Submissions {
   protected readonly uploadError = signal<string | null>(null);
   protected readonly reading = signal(false);
 
-  protected readonly roster = computed(() => this.data.students());
+  protected readonly roster = computed(() => {
+    const course = this.data.course();
+    return course ? this.data.studentsIn(course.id) : [];
+  });
 
   protected openUpload() {
     this.uploadError.set(null);
     this.uploadTitle.set('');
-    this.uploadFor.set(this.data.students()[0]?.id ?? '');
+    this.uploadFor.set(this.roster()[0]?.id ?? '');
     this.uploading.set(true);
   }
 

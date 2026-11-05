@@ -629,7 +629,7 @@ describe('numbered markers', () => {
 
   const markerBatches = () => calls.filter((c) => isMarkerEditBatch(c.url, c.body));
 
-  it('places one glyph per comment, coloured by category', async () => {
+  it('places one plain glyph per comment, with no colour or bold', async () => {
     const expected = poster.waiting(NOA).length;
     const report = await poster.post(NOA);
 
@@ -642,8 +642,7 @@ describe('numbered markers', () => {
     const styles = requests.filter((r) => 'updateTextStyle' in r);
 
     expect(inserts.length).toBe(expected);
-    // One colouring per glyph, never a range of her text.
-    expect(styles.length).toBe(expected);
+    expect(styles.length).toBe(0);
     for (const insert of inserts) {
       expect(isMarker(insert['insertText'].text!)).toBe(true);
     }

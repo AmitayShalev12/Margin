@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { dualDateText } from '../../core/dates/hebrew-date';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -40,11 +40,15 @@ import { CountPipe, count } from '../../core/presentation/count';
 @Component({
   selector: 'app-grading-forms',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, PageHeader, RouterLink, BidiText, DatePipe, Working],
+  imports: [CountPipe, PageHeader, RouterLink, BidiText, Working],
   templateUrl: './grading-forms.html',
   styleUrl: './grading-forms.scss',
 })
 export class GradingForms {
+  protected dateText(value: string | null | undefined): string {
+    return dualDateText(value) ?? '';
+  }
+
   private readonly data = inject(DataStore);
   private readonly generator = inject(AnnotationGenerator);
   protected readonly replies = inject(CriterionReply);
@@ -158,7 +162,7 @@ export class GradingForms {
   }
 
   protected readonly submissions = computed(() =>
-    this.data.submissions().map((s) => ({
+    this.data.courseSubmissions().map((s) => ({
       id: s.id,
       name: this.data.studentName(s.student_id),
       lines: this.data.gradingEntries().filter((e) => e.submission_id === s.id).length,

@@ -1,22 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 
-import { CourseSwitcher } from './course-switcher';
 import { DataStore } from '../../../core/data/data-store';
 import { LocalRepository } from '../../../core/data/local-repository';
 import { Repository } from '../../../core/data/repository';
 import { SupabaseService } from '../../../core/supabase/supabase';
+import { CourseSwitcher } from './course-switcher';
 
-/**
- * The course selector in the top bar.
- *
- * "בתפריט למעלה בוחרים את הקורס, ממנו נגזרים הנתונים המוצגים בהמשך."
- *
- * The store could already hold several courses and switch between them; what
- * was missing was a control anywhere she would look. So the tests that matter
- * are the ones the DOM answers: that pressing a year actually moves the store,
- * and that the menu is reachable at all — a selector nobody can find is the
- * same bug as a selector that does not exist.
- */
+/** A course select and a year select, the one place to switch either. */
 
 class FakeSupabase {
   isConfigured = true;
@@ -27,158 +17,95 @@ class FakeSupabase {
   };
 }
 
-function make() {
+function make(build: (store: DataStore) => void = () => undefined) {
+  localStorage.clear();
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
-      { provide: Repository, useClass: LocalRepository },
       { provide: SupabaseService, useValue: new FakeSupabase() },
+      { provide: Repository, useClass: LocalRepository },
     ],
   });
-
   const store = TestBed.inject(DataStore);
+  build(store);
+
   const fixture = TestBed.createComponent(CourseSwitcher);
+  fixture.detectChanges();
+  const host = fixture.nativeElement as HTMLElement;
 
-  return {
-    store,
-    fixture,
-    host: fixture.nativeElement as HTMLElement,
-    render: () => fixture.detectChanges(),
+  const texts = (selector: string) =>
+    [...host.querySelectorAll<HTMLOptionElement>(`${selector} option`)].map((o) => o.textContent?.trim());
+  const pick = (selector: string, value: string) => {
+    const select = host.querySelector<HTMLSelectElement>(selector)!;
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
   };
+
+  return { store, host, texts, pick };
 }
 
-function press(host: HTMLElement, selector: string, text?: string) {
-  const buttons = [...host.querySelectorAll<HTMLButtonElement>(selector)];
-  const button = text ? buttons.find((b) => (b.textContent ?? '').trim() === text) : buttons.at(0);
-  if (!button) throw new Error(`no button matching ${selector}${text ? ` / ${text}` : ''}`);
-  button.click();
-}
+const twoYears = (store: DataStore) => {
+  store.createCourse('אוריינות', 'תשפ״ו');
+  store.createCourse('סמינריון', 'תשפ״ו');
+  store.createCourse('סדנה', 'תשפ״ז');
+};
 
-beforeEach(() => localStorage.clear());
-
-describe('choosing a course', () => {
-  it('lists each course once, with its years underneath', () => {
-    const { store, host, render } = make();
-    store.createCourse('סמינריון', 'תשפ״ו');
-    store.createCourse('סמינריון', 'תשפ״ז');
-    store.createCourse('עבודה מעשית', 'תשפ״ז');
-    render();
-
-    press(host, '.trigger');
-    render();
-
-    expect([...host.querySelectorAll('.group-name')].map((e) => e.textContent?.trim())).toEqual([
-      'סמינריון',
-      'עבודה מעשית',
-    ]);
-    // Newest year first, which is the one she is almost always marking.
-    expect(
-      [...host.querySelectorAll('.group')].map((g) => g.textContent?.replace(/\s+/g, ' ').trim()),
-    ).toEqual(['סמינריון תשפ״ז תשפ״ו', 'עבודה מעשית תשפ״ז']);
+describe('the year and course selects', () => {
+  it('puts the year first', () => {
+    const { host } = make(twoYears);
+    const selects = host.querySelectorAll('select');
+    expect(selects[0].classList).toContain('pick-year');
+    expect(selects[1].classList).toContain('pick-course');
   });
 
-  /** The whole point of the control: pressing a year moves the rest of the app. */
-  it('switches the store to the year she pressed', () => {
-    const { store, host, render } = make();
-    const first = store.createCourse('סמינריון', 'תשפ״ו');
-    store.createCourse('סמינריון', 'תשפ״ז');
-    render();
-
-    press(host, '.trigger');
-    render();
-    press(host, '.year', 'תשפ״ו');
-    render();
-
-    expect(store.course()?.id).toBe(first!.id);
-    // And the menu is gone, because the answer to "which course" is now on the
-    // button she pressed from.
-    expect(host.querySelector('.menu')).toBeNull();
+  it('offers the coming years even with no course in them', () => {
+    const { texts } = make(twoYears);
+    expect(texts('.pick-year')).toEqual(expect.arrayContaining(['תשפ״ו', 'תשפ״ז']));
+    expect(texts('.pick-year').length).toBeGreaterThanOrEqual(4);
   });
 
-  it('marks the year she is already in', () => {
-    const { store, host, render } = make();
-    store.createCourse('סמינריון', 'תשפ״ו');
-    const latest = store.createCourse('סמינריון', 'תשפ״ז');
-    store.selectCourse(latest!.id);
-    render();
+  it('lists only the courses of the selected year', () => {
+    const { texts, pick } = make(twoYears);
+    expect(texts('.pick-course')).toEqual(['סדנה']);
 
-    press(host, '.trigger');
-    render();
+    pick('.pick-year', 'תשפ״ו');
 
-    const marked = host.querySelector('.year.is-current');
-    expect(marked?.textContent?.trim()).toBe('תשפ״ז');
+    expect(texts('.pick-course')).toEqual(['אוריינות', 'סמינריון']);
   });
 
-  /**
-   * The year only appears on the button when there is more than one of it.
-   * "סמינריון · תשפ״ו" on a teacher with a single course is noise that reads
-   * like a setting she has to understand.
-   */
-  it('names the year on the button only when a course has several', () => {
-    const { store, host, render } = make();
-    store.createCourse('סמינריון', 'תשפ״ו');
-    render();
-    expect(host.querySelector('.trigger-label')?.textContent?.trim()).toBe('סמינריון');
+  it('switches course within the year', () => {
+    const { store, pick } = make(twoYears);
+    pick('.pick-year', 'תשפ״ו');
+    const seminar = store.coursesInYear().find((c) => c.name === 'סמינריון')!;
 
-    store.createCourse('סמינריון', 'תשפ״ז');
-    render();
-    expect(host.querySelector('.trigger-label')?.textContent?.trim()).toContain('תשפ״');
-  });
-});
+    pick('.pick-course', seminar.id);
 
-describe('adding a course from the bar', () => {
-  it('creates it and switches to it', () => {
-    const { store, host, render } = make();
-    store.createCourse('סמינריון', 'תשפ״ו');
-    render();
-
-    press(host, '.trigger');
-    render();
-    press(host, '.add-open');
-    render();
-
-    const [name, year] = host.querySelectorAll<HTMLInputElement>('.add .control');
-    year.value = 'תשפ״ז';
-    year.dispatchEvent(new Event('input'));
-    render();
-
-    // The name comes prefilled with the course she is in — adding next year's
-    // run of the same course is by far the commonest reason to be here.
-    expect(name.value).toBe('סמינריון');
-
-    press(host, '.add-actions .btn', 'יצירה');
-    render();
-
-    expect(store.courses().map((c) => c.year)).toContain('תשפ״ז');
-    expect(store.course()?.year).toBe('תשפ״ז');
+    expect(store.course()!.id).toBe(seminar.id);
   });
 
-  it('says what is missing instead of closing on nothing', () => {
-    const { store, host, render } = make();
-    store.createCourse('סמינריון', 'תשפ״ו');
-    render();
+  it('shows no course from another year when this year has none', () => {
+    const { store, host, pick } = make(twoYears);
 
-    press(host, '.trigger');
-    render();
-    press(host, '.add-open');
-    render();
-    // Year left empty.
-    press(host, '.add-actions .btn', 'יצירה');
-    render();
+    pick('.pick-year', 'תשפ״ח');
 
-    expect(host.querySelector('.error')?.textContent).toContain('שנה');
-    expect(store.courses().length).toBe(1);
-    expect(host.querySelector('.add')).not.toBeNull();
+    expect(store.course()).toBeNull();
+    expect(host.querySelector<HTMLSelectElement>('.pick-course')!.disabled).toBe(true);
   });
 
-  it('offers to create one when she has no course at all', () => {
-    const { host, render } = make();
-    render();
+  it('treats two spellings of a year as one', () => {
+    const { store } = make((s) => s.createCourse('ישן', 'תשפז'));
 
-    press(host, '.trigger');
-    render();
+    expect(store.year()).toBe('תשפז');
+    expect(store.years().filter((y) => y.replace(/״/g, '') === 'תשפז')).toHaveLength(1);
+    expect(store.coursesInYear().map((c) => c.name)).toEqual(['ישן']);
+  });
 
-    expect(host.querySelector('.none')).not.toBeNull();
-    expect(host.querySelector('.add-open')).not.toBeNull();
+  it('remembers the year chosen, in this browser', () => {
+    const { store } = make(twoYears);
+
+    store.selectYear('תשפ״ח');
+
+    expect(localStorage.getItem('margin.year')).toBe('תשפ״ח');
   });
 });

@@ -7,7 +7,6 @@ import { LocalRepository } from './core/data/local-repository';
 import { Repository } from './core/data/repository';
 import { SupabaseService } from './core/supabase/supabase';
 import { FEATURE_FLAGS } from './core/features';
-import { QuickActions } from './shared/ui/quick-actions/quick-actions';
 
 class FakeSupabase {
   isConfigured = true;
@@ -141,7 +140,7 @@ describe('the navigation', () => {
     const { rail } = await render();
     const heads = [...rail.querySelectorAll('.group-head')].map((h) => h.textContent?.trim());
 
-    expect(heads).toEqual(['סקירה', 'תלמידות ועבודות', 'הקורס', 'הגדרות']);
+    expect(heads).toEqual(['הקורס', 'תלמידות ועבודות', 'הגדרות']);
     expect(rail.textContent).toContain('התלמידות שלי');
     expect(rail.textContent).toContain('טפסי הערכה');
   });
@@ -179,13 +178,5 @@ describe('the navigation', () => {
     (await render()).press('.rail-toggle');
     const again = await render();
     expect(again.rail.querySelectorAll('.group-head')).toHaveLength(0);
-  });
-
-  it('opens "add a student" from beside My Students', async () => {
-    const { press } = await render();
-
-    press('.rail-quick[aria-label="הוספת תלמידה"]');
-
-    expect(TestBed.inject(QuickActions).addStudentOpen()).toBe(true);
   });
 });

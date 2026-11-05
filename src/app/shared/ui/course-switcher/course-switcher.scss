@@ -4,142 +4,34 @@
 }
 
 .switcher {
-  position: relative;
-}
-
-.trigger {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--s-2);
-  max-width: 100%;
-  min-block-size: 2.25rem; // `.btn-sm`'s height; it was 33px, small for a thumb
-  padding: var(--s-1) var(--s-2);
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  background: none;
-  color: inherit;
-  font: inherit;
+  min-width: 0;
+}
+
+.switch-field {
+  display: block;
+  min-width: 0;
+}
+
+/* The course name gives way on a narrow bar; a year is always short. */
+.switch-field:first-child {
+  flex: 0 0 6rem;
+}
+
+.switch-field:last-child {
+  flex: 1 1 auto;
+  min-inline-size: 5rem;
+  max-inline-size: 16rem;
+}
+
+.control {
+  block-size: 2.25rem;
+  min-block-size: 2.25rem;
+  padding-block: 0;
+  padding-inline: var(--s-2) var(--s-6);
+  inline-size: 100%;
   font-weight: 600;
   cursor: pointer;
-
-  &:hover {
-    background: var(--c-surface-sunk);
-    border-color: var(--c-line);
-  }
-}
-
-.trigger-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chev {
-  flex: 0 0 auto;
-  color: var(--c-ink-3);
-  font-size: var(--fs-sm);
-  line-height: 1;
-  rotate: -90deg;
-}
-
-/* Covers the page so a click anywhere puts the menu away. */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-}
-
-.menu {
-  position: absolute;
-  inset-block-start: calc(100% + var(--s-2));
-  inset-inline-start: 0;
-  z-index: 41;
-  min-width: 15rem;
-  max-width: min(22rem, calc(100vw - var(--s-6)));
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-  padding: var(--s-3);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-md);
-  background: var(--c-surface);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 14%);
-}
-
-.groups {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-}
-
-.group-name {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
-.years {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-1);
-}
-
-.year {
-  padding: var(--s-1) var(--s-3);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-sm);
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--c-surface-sunk);
-  }
-}
-
-/* The year she is in, marked rather than merely highlighted on hover. */
-.year.is-current {
-  border-color: var(--c-accent);
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-  font-weight: 600;
-}
-
-.none {
-  margin: 0;
-  color: var(--c-ink-3);
-  font-size: var(--fs-sm);
-}
-
-.add {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding-block-start: var(--s-3);
-  border-block-start: 1px solid var(--c-line);
-}
-
-.add-open {
-  align-self: flex-start;
-}
-
-.add-actions {
-  display: flex;
-  gap: var(--s-2);
-}
-
-.error {
-  margin: 0;
-  color: var(--c-danger);
-  font-size: var(--fs-xs);
 }

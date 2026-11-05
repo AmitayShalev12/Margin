@@ -1,15 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../../core/data/data-store';
-import { normaliseName } from '../../core/drive/file-name';
 import { DocxError, readDocxText } from '../../core/import/docx-comments';
-import { CourseMaterialKind, CourseRuleOrigin } from '../../core/models';
+import { CourseMaterialKind, CourseRuleOrigin, RuleGroup } from '../../core/models';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { DriveFolder } from './drive-folder/drive-folder';
 
 import { CountPipe, count } from '../../core/presentation/count';
+import { dualDateText } from '../../core/dates/hebrew-date';
 import { QuickActions } from '../../shared/ui/quick-actions/quick-actions';
-import { Icon } from '../../shared/ui/icon/icon';
+import { CarryOver } from '../../shared/ui/add-course/carry-over';
+import { CourseStudents } from './course-students/course-students';
+import { CourseTasks } from './course-tasks/course-tasks';
+import { ProcessFlow } from './process-flow/process-flow';
 interface KbItem {
   /**
    * Which table the row came from, so a row knows how to edit and delete
@@ -35,7 +38,7 @@ interface KbItem {
  * have to say what pressing it does.
  */
 type KbAdd =
-  { of: 'rule'; origin: CourseRuleOrigin } | { of: 'material'; kind: CourseMaterialKind };
+  { of: 'rule'; origin: CourseRuleOrigin; group?: RuleGroup } | { of: 'material'; kind: CourseMaterialKind };
 
 interface KbSection {
   id: string;
@@ -56,185 +59,41 @@ interface KbSection {
 @Component({
   selector: 'app-courses',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, PageHeader, DriveFolder, Icon],
+  imports: [CountPipe, PageHeader, DriveFolder, CarryOver, CourseStudents, CourseTasks, ProcessFlow],
   templateUrl: './courses.html',
   styleUrl: './courses.scss',
 })
 export class Courses {
   private readonly data = inject(DataStore);
-  protected readonly quick = inject(QuickActions);
 
   protected readonly course = this.data.course;
   protected readonly assignment = this.data.assignment;
-  protected readonly students = computed(() => this.data.students());
+  protected readonly quick = inject(QuickActions);
+  /** This year's courses, the list she opens one from. */
+  protected readonly courses = this.data.coursesInYear;
+  protected readonly year = this.data.year;
+  /** "Take rules from another course": open only when she asks. */
+  protected readonly takingRules = signal(false);
+
+  protected open(id: string) {
+    this.data.selectCourse(id);
+    this.takingRules.set(false);
+  }
 
   /** The page's own name before there is a course to name it after. */
-  protected readonly title = computed(() => this.course()?.name ?? 'הקורס שלך');
-
-  // -- first run --------------------------------------------------------
-  //
-  // The app used to open onto a fictional course with a fictional class in
-  // it. Nothing is invented now, which means the first screen has to be able
-  // to make the real thing — and each of these writes immediately, because a
-  // record that exists only on screen is refused by every foreign key that
-  // later points at it.
-
-  protected readonly courseName = signal('');
-  protected readonly courseYear = signal('');
-  protected readonly assignmentTitle = signal('');
-  protected readonly studentName = signal('');
-  protected readonly studentEmail = signal('');
-  protected readonly setupError = signal<string | null>(null);
-
-  protected createCourse() {
-    const created = this.data.createCourse(this.courseName(), this.courseYear());
-    if (!created) {
-      this.setupError.set('צריך שם קורס ושנה, ולהיות מחוברת לחשבון.');
-      return;
-    }
-    this.setupError.set(null);
-    this.addingCourse.set(false);
-    this.courseName.set('');
-    this.courseYear.set('');
-  }
-
-  protected createAssignment() {
-    const created = this.data.createAssignment(this.assignmentTitle());
-    if (!created) {
-      this.setupError.set('צריך שם לעבודה.');
-      return;
-    }
-    this.setupError.set(null);
-    this.assignmentTitle.set('');
-  }
-
-  // -- the roster -----------------------------------------------------------
-
-  /** Filters the list by name. Empty shows everyone. */
-  protected readonly studentSearch = signal('');
-
-  /**
-   * The roster as filtered, and the count either side of the filter.
-   *
-   * A search that hides everything looks identical to a roster that is empty,
-   * so the screen has to be able to say which it is.
-   */
-  protected readonly shownStudents = computed(() => {
-    const query = normaliseName(this.studentSearch());
-    const all = this.data.students();
-    if (!query) return all;
-
-    return all.filter(
-      (student) =>
-        normaliseName(student.full_name).includes(query) ||
-        (student.drive_account_email ?? student.email ?? '').toLowerCase().includes(query),
-    );
-  });
-
-  /** Which student she is being asked to confirm removing. */
-  protected readonly removingStudent = signal<string | null>(null);
-
-  protected askRemoveStudent(id: string) {
-    this.removingStudent.set(id);
-  }
-
-  protected cancelRemoveStudent() {
-    this.removingStudent.set(null);
-  }
-
-  protected removeStudent(id: string) {
-    this.data.deleteStudent(id);
-    this.removingStudent.set(null);
-  }
-
-  /**
-   * A name or address already on the roster, and what she wants done about it.
-   *
-   * Held rather than acted on: replacing a student and adding a second girl
-   * with the same name are both reasonable, and guessing between them either
-   * loses a year of somebody's marked work or quietly splits one girl across
-   * two rows.
-   */
-  protected readonly clash = signal<{ id: string; name: string; on: 'name' | 'email' } | null>(
-    null,
-  );
-
-  protected readonly clashMessage = computed(() => {
-    const found = this.clash();
-    if (!found) return null;
-
-    return found.on === 'email'
-      ? `הכתובת הזאת כבר רשומה על ${found.name}.`
-      : `${found.name} כבר ברשימה.`;
-  });
-
-  protected addStudent() {
-    const name = this.studentName();
-    const email = this.studentEmail();
-
-    const found = this.data.findStudentClash(name, email);
-    if (found && !this.clash()) {
-      // Asked once, then obeyed. A second press with the prompt already open
-      // is her answer, not a repeat of the question.
-      this.clash.set({ id: found.student.id, name: found.student.full_name, on: found.on });
-      return;
-    }
-
-    // Added from inside a course, so she is enrolled in it.
-    const created = this.data.addStudent(name, email, this.enrollIn());
-    if (!created) {
-      this.setupError.set('צריך שם מלא של התלמידה.');
-      return;
-    }
-
-    this.setupError.set(null);
-    this.clash.set(null);
-    this.studentName.set('');
-    this.studentEmail.set('');
-  }
-
-  /** She meant the girl already there: keep one row and update its address. */
-  protected replaceClashing() {
-    const found = this.clash();
-    const email = this.studentEmail().trim();
-    if (!found) return;
-
-    if (email) this.data.setStudentDriveAccount(found.id, email);
-
-    this.clash.set(null);
-    this.studentName.set('');
-    this.studentEmail.set('');
-  }
-
-  /** The course this screen is showing, as the one a new student joins. */
-  private enrollIn(): string[] {
-    const id = this.data.course()?.id;
-    return id ? [id] : [];
-  }
-
-  /** Two different girls with the same name. Both belong on the roster. */
-  protected addAnyway() {
-    this.data.addStudent(this.studentName(), this.studentEmail(), this.enrollIn());
-
-    this.clash.set(null);
-    this.studentName.set('');
-    this.studentEmail.set('');
-  }
-
-  protected cancelClash() {
-    this.clash.set(null);
-  }
+  protected readonly title = computed(() => 'הקורסים שלי');
 
   protected readonly subtitle = computed(() => {
-    const course = this.course();
-    if (!course) return 'הקורס, העבודה והתלמידות — כאן מתחילים.';
-
-    const assignment = this.data.assignment();
-    const head = assignment ? `${assignment.title}, ${course.year}` : course.year;
-    return `${head} · על סמך החומרים כאן נכתבות ההערות.`;
+    return this.courses().length
+      ? `שנת ${this.year()}. פותחים קורס, ובתוכו התלמידות והכללים שלו.`
+      : `עוד אין קורסים בשנת ${this.year()}.`;
   });
 
-  private readonly open = signal<Record<string, boolean>>({ rules: true });
+  private readonly sectionsOpen = signal<Record<string, boolean>>({
+    'rules-work': true,
+    'rules-ministry': true,
+    'rules-own': true,
+  });
 
   protected readonly sections = computed<KbSection[]>(() => {
     const rules = this.data.courseRules();
@@ -247,32 +106,35 @@ export class Courses {
     const corrections = materials.filter((m) => m.kind === 'example_correction');
 
     return [
-      {
-        id: 'rules',
-        add: { of: 'rule', origin: 'teacher' },
-        title: 'הכללים שלי',
-        meta: count(myRules.filter((r) => r.active).length, {
-          one: 'כלל פעיל אחד',
-          two: 'שני כללים פעילים',
-          many: '# כללים פעילים',
-        }),
-        addLabel: 'הוספת כלל',
-        hue: 'kind-language',
-        items: myRules.map((r) => ({
-          of: 'rule' as const,
-          id: r.id,
-          global: r.course_id === null,
-          text: r.body,
-          tag: 'שלי',
-          note: null,
-          muted: !r.active,
-        })),
-      },
+      ...RULE_GROUPS.map(({ id, group, title, addLabel }) => {
+        const inGroup = myRules.filter((r) => (r.rule_group ?? 'own') === group);
+        return {
+          id,
+          add: { of: 'rule' as const, origin: 'teacher' as const, group },
+          title,
+          meta: count(inGroup.filter((r) => r.active).length, {
+            one: 'כלל פעיל אחד',
+            two: 'שני כללים פעילים',
+            many: '# כללים פעילים',
+          }),
+          addLabel,
+          hue: 'kind-language',
+          items: inGroup.map((r) => ({
+            of: 'rule' as const,
+            id: r.id,
+            global: r.course_id === null,
+            text: r.body,
+            tag: 'שלי',
+            note: null,
+            muted: !r.active,
+          })),
+        };
+      }),
       {
         id: 'syllabus',
         add: { of: 'material', kind: 'syllabus' },
         title: 'הסילבוס',
-        meta: syllabus[0] ? `עודכן ב${monthName(syllabus[0].updated_at)}` : 'טרם הועלה',
+        meta: syllabus[0] ? `עודכן: ${monthName(syllabus[0].updated_at)}` : 'טרם הועלה',
         addLabel: 'החלפת הסילבוס',
         hue: 'kind-structure',
         items: syllabus.map((m) => ({
@@ -418,59 +280,6 @@ export class Courses {
     this.confirmingDelete.set(null);
   }
 
-  // -- several courses, several years ---------------------------------------
-  //
-  // One row per course-year, grouped by name: "סמינריון תשפ״ו" and
-  // "סמינריון תשפ״ז" are separate courses sharing a title. That is what the
-  // data already looked like, and it is the truth about how she teaches —
-  // each year has its own roster, its own assignments and its own papers.
-
-  /** Her courses, one entry per name, with its years underneath. */
-  protected readonly courseGroups = computed(() => {
-    const order: string[] = [];
-    const byName = new Map<string, { id: string; year: string; current: boolean }[]>();
-    const here = this.data.course()?.id;
-
-    for (const course of this.data.courses()) {
-      if (!byName.has(course.name)) {
-        order.push(course.name);
-        byName.set(course.name, []);
-      }
-      byName.get(course.name)!.push({
-        id: course.id,
-        year: course.year,
-        current: course.id === here,
-      });
-    }
-
-    return order.map((name) => ({
-      name,
-      years: byName.get(name)!,
-      current: byName.get(name)!.some((y) => y.current),
-    }));
-  });
-
-  /** Shown only once there is more than one thing to choose between. */
-  protected readonly hasChoice = computed(() => this.data.courses().length > 1);
-
-  protected readonly addingCourse = signal(false);
-
-  protected select(id: string) {
-    this.data.selectCourse(id);
-  }
-
-  protected startNewCourse() {
-    // Prefilled with the name she is already in, because the common case by
-    // far is the same course a year later.
-    this.courseName.set(this.data.course()?.name ?? '');
-    this.courseYear.set('');
-    this.addingCourse.set(true);
-  }
-
-  protected cancelNewCourse() {
-    this.addingCourse.set(false);
-  }
-
   protected isAdding(id: string): boolean {
     return this.adding() === id;
   }
@@ -592,12 +401,14 @@ export class Courses {
               this.draftBody(),
               section.add.origin,
               scope,
+              section.add.group,
             )
           : this.data.addCourseRule(
               sectionRuleKind(section.id),
               this.draftBody(),
               section.add.origin,
               scope,
+              section.add.group,
             )
         : this.data.addCourseMaterial(
             section.add.kind,
@@ -624,11 +435,11 @@ export class Courses {
   }
 
   protected isOpen(id: string): boolean {
-    return this.open()[id] ?? false;
+    return this.sectionsOpen()[id] ?? false;
   }
 
   protected toggle(id: string) {
-    this.open.update((map) => ({ ...map, [id]: !map[id] }));
+    this.sectionsOpen.update((map) => ({ ...map, [id]: !map[id] }));
   }
 }
 
@@ -639,10 +450,16 @@ export class Courses {
  * particular thing, and filing them under a specific kind would put them in
  * the prompt under a heading she never chose.
  */
+const RULE_GROUPS: { id: string; group: RuleGroup; title: string; addLabel: string }[] = [
+  { id: 'rules-work', group: 'work', title: 'כללי העבודה', addLabel: 'הוספת כלל' },
+  { id: 'rules-ministry', group: 'ministry', title: 'כללי משרד החינוך', addLabel: 'הוספת כלל' },
+  { id: 'rules-own', group: 'own', title: 'הכללים שלי', addLabel: 'הוספת כלל' },
+];
+
 function sectionRuleKind(sectionId: string): 'language' | 'other' {
-  return sectionId === 'rules' ? 'language' : 'other';
+  return sectionId.startsWith('rules') ? 'language' : 'other';
 }
 
 function monthName(iso: string): string {
-  return new Intl.DateTimeFormat('he-IL', { month: 'long' }).format(new Date(iso));
+  return dualDateText(iso) ?? '';
 }

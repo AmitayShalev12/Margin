@@ -2,6 +2,8 @@ import { ISODateTime, Timestamped, UUID } from './common';
 
 /** A task set within a course. Students submit against an assignment. */
 export interface Assignment extends Timestamped {
+  /** Its place among the course's tasks. Null on older rows, which sort by date created. */
+  sort_order?: number | null;
   id: UUID;
   course_id: UUID;
   title: string;

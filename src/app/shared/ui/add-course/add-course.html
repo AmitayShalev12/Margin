@@ -1,10 +1,13 @@
 <dialog #dialog class="modal" aria-labelledby="add-course-title" (close)="closed()">
-  <h2 id="add-course-title" class="section-title">הוספת קורס</h2>
+  <h2 id="add-course-title" class="section-title">הוספת קורס · {{ year() }}</h2>
 
   @if (done(); as message) {
     <p class="modal-done" role="status">{{ message }}</p>
+    @if (created(); as course) {
+      <app-carry-over [course]="course" />
+    }
     <div class="modal-actions">
-      <button type="button" class="btn btn-primary" (click)="toCourse()">למסך הקורס</button>
+      <button type="button" class="btn btn-ghost" (click)="toCourse()">לקורס</button>
       <button type="button" class="btn btn-plain" (click)="close()">סגירה</button>
     </div>
   } @else {
@@ -18,18 +21,6 @@
           placeholder="סמינריון"
           [value]="name()"
           (input)="name.set($any($event.target).value)"
-        />
-      </label>
-
-      <label class="field">
-        <span class="label">שנה</span>
-        <input
-          class="control"
-          type="text"
-          autocomplete="off"
-          placeholder="תשפ״ז"
-          [value]="year()"
-          (input)="year.set($any($event.target).value)"
         />
       </label>
 

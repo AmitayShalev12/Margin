@@ -148,8 +148,7 @@ export class StudentFormGenerator {
       })),
       translations: buildTranslations(this.store.studentForms(), this.store.gradingEntries()),
       style_examples: this.store
-        .styleExamples()
-        .filter((e) => e.active)
+        .herWriting()
         .slice(0, MAX_STYLE_EXAMPLES)
         .map((e) => ({ teacher_text: e.teacher_text, student_text: e.student_text })),
     };

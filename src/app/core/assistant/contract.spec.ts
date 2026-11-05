@@ -136,6 +136,7 @@ describe('what is sent to the model', () => {
       unmatched_files: ['קובץ לא משויך.docx'],
     },
     attached_files: ['מחוון.docx'],
+    her_voice: { samples: ['חסר כאן מספר המשתתפות.'], habits: ['את מקצרת'] },
   };
 
   it('tells the model which files are attached and what Drive looks like', () => {

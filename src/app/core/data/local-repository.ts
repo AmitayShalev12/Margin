@@ -80,6 +80,13 @@ export class LocalRepository extends Repository {
     });
   }
 
+  async deleteAssignments(ids: readonly UUID[]): Promise<void> {
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.assignments = snapshot.assignments.filter((a) => !gone.has(a.id));
+    });
+  }
+
   async saveCourseRule(rule: CourseRule): Promise<void> {
     this.mutate((snapshot) => {
       snapshot.courseRules = replaceById(snapshot.courseRules, rule);

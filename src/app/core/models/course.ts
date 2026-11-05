@@ -72,6 +72,9 @@ export type CourseRuleKind =
  */
 export type CourseRuleOrigin = 'teacher' | 'web';
 
+/** The three groups her rules appear in. No group means one of hers. */
+export type RuleGroup = 'work' | 'ministry' | 'own';
+
 export interface CourseRule extends Timestamped {
   id: UUID;
   /**
@@ -87,6 +90,7 @@ export interface CourseRule extends Timestamped {
   title: string;
   body: string;
   origin: CourseRuleOrigin;
+  rule_group?: RuleGroup | null;
   source_url: string | null;
   /** Inactive rules stay on record but are excluded from AI context. */
   active: boolean;

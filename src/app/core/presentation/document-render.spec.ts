@@ -161,7 +161,7 @@ describe('submittedAt', () => {
    */
   it('gives the day and the time', () => {
     const stamp = submittedAt('2026-08-12T14:32:00.000Z');
-    expect(stamp).toMatch(/\d{1,2}\.\d{1,2}\.\d{4}, \d{2}:\d{2}/);
+    expect(stamp).toMatch(/\(\d{1,2}\.\d{1,2}\.\d{4}\), \d{2}:\d{2}/);
   });
 
   it('uses a 24-hour clock, so 23:58 is not 11:58', () => {

@@ -52,7 +52,8 @@ describe('which tab a place belongs to', () => {
     expect(tabKey('/students?q=נועה')).toBe('students');
     expect(tabKey('/review/abc')).toBe('review:abc');
     expect(tabKey('/review/abc?comment=1')).toBe('review:abc');
-    expect(tabKey('/')).toBe('home');
+    expect(tabKey('/')).toBe('courses');
+    expect(tabKey('/home')).toBe('courses');
   });
 });
 
@@ -60,10 +61,10 @@ describe('opening places', () => {
   it('opens a tab for each new place and marks the one on screen', () => {
     const { tabs } = setup();
 
-    tabs.visit('/home');
+    tabs.visit('/style');
     tabs.visit('/students');
 
-    expect(tabs.tabs().map((t) => t.key)).toEqual(['home', 'students']);
+    expect(tabs.tabs().map((t) => t.key)).toEqual(['style', 'students']);
     expect(
       tabs
         .tabs()
@@ -139,46 +140,46 @@ describe('opening places', () => {
 describe('closing tabs', () => {
   it('moves to the neighbour when the tab on screen closes', () => {
     const { tabs, navigated } = setup();
-    tabs.visit('/home');
+    tabs.visit('/style');
     tabs.visit('/students');
     tabs.visit('/courses');
     tabs.visit('/students');
 
     tabs.close('students');
 
-    expect(tabs.tabs().map((t) => t.key)).toEqual(['home', 'courses']);
+    expect(tabs.tabs().map((t) => t.key)).toEqual(['style', 'courses']);
     expect(navigated).toEqual(['/courses']);
   });
 
   it('closes a background tab without going anywhere', () => {
     const { tabs, navigated } = setup();
-    tabs.visit('/home');
+    tabs.visit('/style');
     tabs.visit('/students');
 
-    tabs.close('home');
+    tabs.close('style');
 
     expect(tabs.tabs().map((t) => t.key)).toEqual(['students']);
     expect(navigated).toEqual([]);
   });
 
-  it('goes home when the last tab closes', () => {
+  it('goes to her courses when the last tab closes', () => {
     const { tabs, navigated } = setup();
     tabs.visit('/students');
 
     tabs.close('students');
 
-    expect(navigated).toEqual(['/home']);
+    expect(navigated).toEqual(['/courses']);
   });
 });
 
 describe('remembering them', () => {
   it('brings the tabs back in a new session', () => {
     const first = setup();
-    first.tabs.visit('/home');
+    first.tabs.visit('/style');
     first.tabs.visit('/courses');
 
     const second = setup();
-    expect(second.tabs.tabs().map((t) => t.key)).toEqual(['home', 'courses']);
+    expect(second.tabs.tabs().map((t) => t.key)).toEqual(['style', 'courses']);
   });
 
   /** Private windows and blocked storage: the strip simply starts empty. */
@@ -186,5 +187,19 @@ describe('remembering them', () => {
     localStorage.setItem('margin.tabs', '{not json');
     const { tabs } = setup();
     expect(tabs.tabs()).toEqual([]);
+  });
+});
+
+describe('tabs saved before the home screen was removed', () => {
+  it('drops the home tab and keeps the others', () => {
+    localStorage.setItem(
+      'margin.tabs',
+      JSON.stringify([
+        { key: 'home', url: '/home', lastUsed: 1 },
+        { key: 'students', url: '/students', lastUsed: 2 },
+      ]),
+    );
+
+    expect(setup().tabs.tabs().map((t) => t.key)).toEqual(['students']);
   });
 });

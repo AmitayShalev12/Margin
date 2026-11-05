@@ -127,7 +127,7 @@ export class Review {
   protected readonly draft = signal('');
 
   protected readonly submission = computed(
-    () => this.data.submission(this.submissionId()) ?? this.data.submissions()[0],
+    () => this.data.submission(this.submissionId()) ?? this.data.courseSubmissions()[0],
   );
 
   protected readonly student = computed(() => this.data.studentName(this.submission().student_id));

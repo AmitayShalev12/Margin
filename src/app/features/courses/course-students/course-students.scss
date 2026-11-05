@@ -179,3 +179,160 @@
 .empty .btn {
   margin-block-start: var(--s-5);
 }
+
+.roster-file {
+  cursor: pointer;
+}
+
+.roster-plan {
+  margin-block-end: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+
+  p {
+    margin: 0 0 var(--s-2);
+  }
+}
+
+.roster-conflicts {
+  list-style: none;
+  margin: 0 0 var(--s-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  font-size: var(--fs-sm);
+}
+
+.roster-warn {
+  color: var(--c-attention);
+  font-weight: 600;
+}
+
+.roster-done {
+  margin: 0 0 var(--s-3);
+  color: var(--c-ok);
+}
+
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin: var(--s-1) 0 0;
+  font-size: var(--fs-sm);
+}
+
+.remove-ask {
+  font-size: var(--fs-sm);
+}
+
+// -- the list inside a course --------------------------------------------------
+
+.students {
+  margin-block-end: var(--s-5);
+}
+
+.students-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-4);
+  margin-block-end: var(--s-3);
+}
+
+.students-sub {
+  margin: var(--s-1) 0 0;
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.students-actions,
+.list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.list-tools .roster-search {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.tool {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.row-number {
+  min-inline-size: 1.25rem;
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.light {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  --light: var(--c-ok);
+  color: var(--light);
+}
+
+.light.is-red {
+  --light: var(--c-danger);
+}
+
+.light.is-orange,
+.light.is-yellow {
+  --light: var(--c-attention);
+}
+
+.light-dot {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border-radius: 50%;
+  background: var(--light);
+}
+
+// Told apart from orange by more than a shade: an outline, and the words beside it.
+.light.is-yellow .light-dot {
+  background: transparent;
+  border: 3px solid var(--light);
+}
+
+.stages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin: var(--s-2) 0 0;
+}
+
+.stage-dot {
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 50%;
+  background: var(--c-line-strong);
+
+  &.is-done {
+    background: var(--c-accent);
+  }
+}
+
+.stage-text {
+  margin-inline-start: var(--s-2);
+  color: var(--c-ink-3);
+  font-size: var(--fs-xs);
+}
+
+.unplaced {
+  margin-block-start: var(--s-3);
+  font-size: var(--fs-sm);
+}
+
+.unplaced-list {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+}

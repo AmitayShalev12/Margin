@@ -86,6 +86,8 @@ export interface AssistantContext {
   };
   /** Files she attached in this conversation: names only, never contents. */
   attached_files: string[];
+  /** Her own words and measured habits. Never a student's text. */
+  her_voice: { samples: string[]; habits: string[] };
 }
 
 export interface AssistantResponse {

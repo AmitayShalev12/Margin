@@ -29,6 +29,7 @@ class RecordingRepository extends Repository {
   written: string[] = [];
 
   saveCourse = async () => void this.written.push('course');
+  deleteAssignments = async () => undefined;
   saveAssignment = async () => void this.written.push('assignment');
   saveStudent = async () => void this.written.push('student');
   saveCourseStudent = async () => void this.written.push('course-student');

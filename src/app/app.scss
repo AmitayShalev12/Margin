@@ -492,3 +492,18 @@
   color: var(--c-ink-3);
   font-size: var(--fs-base);
 }
+
+// On the narrowest phones the course name needs the room more than the logo.
+@media (max-width: 420px) {
+  .topbar .wordmark {
+    display: none;
+  }
+
+  .topbar app-course-switcher {
+    flex: 1 1 auto;
+  }
+
+  .topbar-spacer {
+    display: none;
+  }
+}

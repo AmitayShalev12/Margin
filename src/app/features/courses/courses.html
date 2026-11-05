@@ -1,276 +1,41 @@
 <div class="page">
   <app-page-header [title]="title()" [subtitle]="subtitle()">
     <button type="button" class="btn btn-primary btn-sm" (click)="quick.openAddCourse()">
-      <app-icon name="plus" [size]="16" />
       הוספת קורס
     </button>
   </app-page-header>
 
-  @if (setupError(); as message) {
-    <p class="setup-error" role="alert">{{ message }}</p>
-  }
+  <ul class="course-list">
+    @for (item of courses(); track item.id) {
+      <li>
+        <button
+          type="button"
+          class="course-item"
+          [class.is-open]="item.id === course()?.id"
+          [attr.aria-current]="item.id === course()?.id ? 'true' : null"
+          (click)="open(item.id)"
+        >
+          {{ item.name }}
+        </button>
+      </li>
+    }
+  </ul>
 
-  <!--
-    Nothing exists until she makes it.
-    Margin used to ship with a demonstration course, a class of invented
-    students and their marked-up papers. They rendered exactly like real
-    records, fed the AI its context, and were refused by the database the
-    moment anything wrote to one — so the first screen now builds the real
-    thing instead of standing in for it.
-  -->
-  @if (!course()) {
-    <div class="card setup">
-      <p class="setup-title">נתחיל מהקורס</p>
-      <div class="setup-fields">
-        <label class="field">
-          <span class="label">שם הקורס</span>
-          <input
-            class="control"
-            type="text"
-            placeholder="שיטות מחקר, כיתה יב׳"
-            [value]="courseName()"
-            (input)="courseName.set($any($event.target).value)"
-          />
-        </label>
-        <label class="field field-narrow">
-          <span class="label">שנה</span>
-          <input
-            class="control"
-            type="text"
-            placeholder="תשפ״ו"
-            [value]="courseYear()"
-            (input)="courseYear.set($any($event.target).value)"
-          />
-        </label>
-      </div>
-      <button type="button" class="btn btn-primary" (click)="createCourse()">יצירת הקורס</button>
-    </div>
-  } @else {
-    <!--
-      Which course, and which year of it.
-      ------------------------------------------------------------------------
-      One row per course-year, grouped by name. Shown only when there is more
-      than one, because a picker with a single option is furniture.
-    -->
-    @if (hasChoice() || addingCourse()) {
-      <div class="card picker">
-        @for (group of courseGroups(); track group.name) {
-          <div class="picker-group">
-            <span class="picker-name">{{ group.name }}</span>
-            <span class="picker-years">
-              @for (year of group.years; track year.id) {
-                <button
-                  type="button"
-                  class="btn btn-sm"
-                  [class.btn-primary]="year.current"
-                  [class.btn-ghost]="!year.current"
-                  (click)="select(year.id)"
-                >
-                  {{ year.year }}
-                </button>
-              }
-            </span>
-          </div>
-        }
+  @if (course(); as opened) {
+  <app-course-students />
 
-        @if (addingCourse()) {
-          <div class="setup-fields">
-            <label class="field">
-              <span class="label">שם הקורס</span>
-              <input
-                class="control"
-                type="text"
-                [value]="courseName()"
-                (input)="courseName.set($any($event.target).value)"
-              />
-            </label>
-            <label class="field field-narrow">
-              <span class="label">שנה</span>
-              <input
-                class="control"
-                type="text"
-                placeholder="תשפ״ז"
-                [value]="courseYear()"
-                (input)="courseYear.set($any($event.target).value)"
-              />
-            </label>
-          </div>
-          <div class="picker-actions">
-            <button type="button" class="btn btn-primary btn-sm" (click)="createCourse()">
-              יצירה
-            </button>
-            <button type="button" class="btn btn-plain btn-sm" (click)="cancelNewCourse()">
-              ביטול
-            </button>
-          </div>
-        } @else {
-          <button type="button" class="btn btn-ghost btn-sm" (click)="startNewCourse()">
-            קורס או שנה נוספת
-          </button>
-        }
+  <div class="take-rules">
+    @if (takingRules()) {
+      <div class="card take-rules-card">
+        <app-carry-over [course]="opened" />
+        <button type="button" class="btn btn-plain btn-sm" (click)="takingRules.set(false)">סגירה</button>
       </div>
     } @else {
-      <button type="button" class="btn btn-plain btn-sm add-year" (click)="startNewCourse()">
-        קורס או שנה נוספת
+      <button type="button" class="btn btn-plain btn-sm" (click)="takingRules.set(true)">
+        לקחת כללים מקורס אחר
       </button>
     }
-
-    @if (!assignment()) {
-      <div class="card setup">
-        <p class="setup-title">ועכשיו העבודה שהן מגישות</p>
-        <p class="setup-note">כל עבודה שתיקלט מהדרייב מצורפת אליה, ובלעדיה אין לקבצים לאן להגיע.</p>
-        <label class="field">
-          <span class="label">שם העבודה</span>
-          <input
-            class="control"
-            type="text"
-            placeholder="עבודת גמר"
-            [value]="assignmentTitle()"
-            (input)="assignmentTitle.set($any($event.target).value)"
-          />
-        </label>
-        <button type="button" class="btn btn-primary" (click)="createAssignment()">
-          יצירת העבודה
-        </button>
-      </div>
-    }
-
-    <!--
-      The roster.
-      Work is attributed to a girl on this list — by the Drive account she
-      confirms, or failing that by the file name — so there has to be a way to
-      put a real one on it.
-    -->
-    <div class="card roster">
-      <p class="setup-title">התלמידות</p>
-
-      @if (students().length) {
-        <!-- A roster of thirty is a list she scrolls; a name is faster. -->
-        @if (students().length > 6) {
-          <label class="field roster-search">
-            <span class="sr-only">חיפוש תלמידה</span>
-            <input
-              class="control"
-              type="search"
-              placeholder="חיפוש שם"
-              [value]="studentSearch()"
-              (input)="studentSearch.set($any($event.target).value)"
-            />
-          </label>
-        }
-
-        <ul class="roster-list">
-          @for (student of shownStudents(); track student.id) {
-            <li class="roster-row">
-              @if (removingStudent() === student.id) {
-                <!--
-                  Named before she goes, and warned about what goes with her.
-                  A student carries her papers, their comments and their
-                  scores — a year of marking behind one press.
-                -->
-                <span class="roster-name">
-                  למחוק את {{ student.full_name }} ואת כל העבודות שלה?
-                </span>
-                <span class="roster-actions">
-                  <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    (click)="removeStudent(student.id)"
-                  >
-                    מחיקה
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-plain btn-sm"
-                    (click)="cancelRemoveStudent()"
-                  >
-                    ביטול
-                  </button>
-                </span>
-              } @else {
-                <span class="roster-name">{{ student.full_name }}</span>
-                @if (student.drive_account_email) {
-                  <span class="roster-account ltr">{{ student.drive_account_email }}</span>
-                } @else if (student.email) {
-                  <span class="roster-account ltr">{{ student.email }}</span>
-                }
-                <span class="roster-actions">
-                  <button
-                    type="button"
-                    class="btn btn-plain btn-sm"
-                    (click)="askRemoveStudent(student.id)"
-                  >
-                    מחיקה
-                  </button>
-                </span>
-              }
-            </li>
-          } @empty {
-            <!--
-              A filter that hides everyone looks exactly like an empty roster,
-              so the two say different things.
-            -->
-            <li class="roster-row setup-note">אין תלמידה בשם הזה.</li>
-          }
-        </ul>
-      } @else {
-        <p class="setup-note">
-          עדיין אין תלמידות ברשימה. בלי שם ברשימה אין למי לשייך את העבודות שמגיעות מהדרייב.
-        </p>
-      }
-
-      <div class="setup-fields">
-        <label class="field">
-          <span class="label">שם מלא</span>
-          <input
-            class="control"
-            type="text"
-            [value]="studentName()"
-            (input)="studentName.set($any($event.target).value)"
-          />
-        </label>
-        <label class="field">
-          <span class="label">מייל (לא חובה)</span>
-          <input
-            class="control ltr"
-            type="email"
-            dir="ltr"
-            [value]="studentEmail()"
-            (input)="studentEmail.set($any($event.target).value)"
-          />
-        </label>
-      </div>
-      <!--
-        Already on the roster.
-        ----------------------------------------------------------------------
-        Both answers are reasonable — the same girl with a new address, or two
-        different girls who share a name — and guessing either loses a year of
-        someone's marked work or splits one girl across two rows. So it asks.
-      -->
-      @if (clashMessage(); as message) {
-        <div class="clash anim-rise">
-          <p class="clash-line">{{ message }}</p>
-          <div class="clash-actions">
-            <button type="button" class="btn btn-primary btn-sm" (click)="replaceClashing()">
-              זו אותה תלמידה — לעדכן אותה
-            </button>
-            <button type="button" class="btn btn-ghost btn-sm" (click)="addAnyway()">
-              תלמידה אחרת — להוסיף בכל זאת
-            </button>
-            <button type="button" class="btn btn-plain btn-sm" (click)="cancelClash()">
-              ביטול
-            </button>
-          </div>
-        </div>
-      }
-
-      <button type="button" class="btn btn-ghost btn-sm" (click)="addStudent()">
-        הוספת תלמידה
-      </button>
-    </div>
-
-    <app-drive-folder />
-  }
+  </div>
 
   <div class="kb">
     @for (s of sections(); track s.id) {
@@ -490,4 +255,9 @@
       </div>
     }
   </div>
+
+  <app-course-tasks />
+  <app-process-flow />
+  <app-drive-folder />
+  }
 </div>

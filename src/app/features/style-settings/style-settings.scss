@@ -344,3 +344,26 @@
   gap: var(--s-2);
   margin-block: var(--s-2);
 }
+
+// -- backup -------------------------------------------------------------------
+
+.backup {
+  margin-block-start: var(--s-5);
+  padding-block-start: var(--s-4);
+  border-block-start: 1px solid var(--c-line);
+
+  .hint {
+    margin: var(--s-2) 2px;
+  }
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-block: var(--s-2);
+}
+
+.backup-confirm p {
+  margin: var(--s-2) 0;
+}

@@ -305,7 +305,8 @@ export class AnnotationGenerator {
     blocks: readonly DocumentBlock[],
   ): AnnotateRequest | null {
     const course = this.store.course();
-    const assignment = this.store.assignment();
+    // The paper's own task, not whichever is first on screen.
+    const assignment = this.store.assignmentById(submission.assignment_id) ?? this.store.assignment();
     // Nothing to draft against: the prompt is built out of the course's own
     // rules and the assignment's brief, and inventing either would put words
     // in her mouth that no teacher ever wrote.
@@ -386,8 +387,7 @@ export class AnnotationGenerator {
         notes: [s.notes, s.content].filter(Boolean).join('\n') || null,
       })),
       style_examples: this.store
-        .styleExamples()
-        .filter((e) => e.active)
+        .herWriting()
         .slice(0, MAX_STYLE_EXAMPLES)
         .map((e) => ({
           source: e.source,
@@ -418,7 +418,13 @@ export class AnnotationGenerator {
   private decisions(action: LearningFeedbackLog['action']): LearningFeedbackLog[] {
     return this.store
       .feedbackLogs()
-      .filter((l) => l.target_type === 'annotation' && l.action === action)
+      // Corrections stay in their course: some are strict, others more lenient.
+      .filter(
+        (l) =>
+          l.target_type === 'annotation' &&
+          l.action === action &&
+          l.course_id === this.store.course()?.id,
+      )
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }
 

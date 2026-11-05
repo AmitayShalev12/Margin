@@ -1,3 +1,4 @@
+import { dualDateText } from '../dates/hebrew-date';
 import { SubmissionStatus } from '../models';
 
 /**
@@ -106,11 +107,7 @@ export function submittedAt(iso: string | null | undefined): string | null {
   const when = new Date(iso);
   if (Number.isNaN(when.getTime())) return null;
 
-  const date = new Intl.DateTimeFormat('he-IL', {
-    day: 'numeric',
-    month: 'numeric',
-    year: 'numeric',
-  }).format(when);
+  const date = dualDateText(when.toISOString());
 
   const time = new Intl.DateTimeFormat('he-IL', {
     hour: '2-digit',

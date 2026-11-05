@@ -75,17 +75,6 @@
                         <span>{{ item.longLabel }}</span>
                       }
                     </a>
-                    @if (item.quickAction && !railCollapsed()) {
-                      <button
-                        type="button"
-                        class="rail-quick"
-                        [attr.aria-label]="item.quickAction.label"
-                        [title]="item.quickAction.label"
-                        (click)="runQuick(item.quickAction.id)"
-                      >
-                        <app-icon name="plus" [size]="16" />
-                      </button>
-                    }
                   </li>
                 }
               </ul>
@@ -188,16 +177,6 @@
                   <app-icon [name]="item.icon" [size]="20" />
                   <span>{{ item.longLabel }}</span>
                 </a>
-                @if (item.quickAction) {
-                  <button
-                    type="button"
-                    class="btn btn-plain btn-sm"
-                    (click)="runQuick(item.quickAction.id)"
-                  >
-                    <app-icon name="plus" [size]="16" />
-                    {{ item.quickAction.label }}
-                  </button>
-                }
               </li>
             }
           </ul>

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 
 import { GoogleDriveAuth } from './google-auth';
-import { Rgb, isMarker } from './markers';
+import { isMarker } from './markers';
 import {
   DocsBatchUpdateBody,
   DocsDocument,
@@ -172,9 +172,6 @@ function isMarkerEdit(request: Record<string, unknown>): boolean {
 
   const insert = request['insertText'] as { text?: unknown } | undefined;
   if (insert) return typeof insert.text === 'string' && isMarker(insert.text);
-
-  const style = request['updateTextStyle'] as { range?: DocsRange } | undefined;
-  if (style) return spansOneCharacter(style.range);
 
   const remove = request['deleteContentRange'] as { range?: DocsRange } | undefined;
   if (remove) return spansOneCharacter(remove.range);
@@ -514,20 +511,13 @@ export class DriveApi {
    */
   async insertMarkers(
     documentId: string,
-    markers: readonly { index: number; glyph: string; colour: Rgb }[],
+    markers: readonly { index: number; glyph: string }[],
   ): Promise<void> {
     if (!markers.length) return;
 
     const requests: unknown[] = [];
     for (const marker of [...markers].sort((a, b) => b.index - a.index)) {
       requests.push({ insertText: { location: { index: marker.index }, text: marker.glyph } });
-      requests.push({
-        updateTextStyle: {
-          range: { startIndex: marker.index, endIndex: marker.index + 1 },
-          textStyle: { foregroundColor: { color: { rgbColor: marker.colour } }, bold: true },
-          fields: 'foregroundColor,bold',
-        },
-      });
     }
 
     await this.post<unknown>(

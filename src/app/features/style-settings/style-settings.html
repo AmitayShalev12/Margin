@@ -448,4 +448,60 @@
     </button>
     <p class="hint">קובץ אחד עם כל התיקונים והדוגמאות. שלך, גם אם תפסיקי להשתמש כאן.</p>
   </div>
+
+  <!--
+    Everything, not only what was learned, and the way back in. Here because
+    this is the one screen that is already about what belongs to her.
+  -->
+  <section class="backup" aria-labelledby="backup-title">
+    <h2 id="backup-title" class="section-title">גיבוי</h2>
+    @if (autoBackupLine(); as line) {
+      <p class="hint">{{ line }}</p>
+    }
+
+    @if (restorePlan(); as plan) {
+      <div class="backup-confirm" role="group" aria-label="אישור שחזור">
+        <p>
+          {{ plan.count | count: 'פריט אחד חסר כאן ויחזור' : '# פריטים חסרים כאן ויחזרו' : 'שני פריטים חסרים כאן ויחזרו' }}.
+          מה שקיים עכשיו לא ישתנה.
+        </p>
+        <div class="backup-actions">
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="backupBusy()" (click)="confirmRestore()">
+            שחזור
+          </button>
+          <button type="button" class="btn btn-plain btn-sm" [disabled]="backupBusy()" (click)="restorePlan.set(null)">
+            ביטול
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="backup-actions">
+        <button type="button" class="btn btn-ghost btn-sm" [disabled]="backupBusy()" (click)="downloadBackup()">
+          הורדת גיבוי מלא
+        </button>
+        <label class="btn btn-plain btn-sm file-button">
+          שחזור מגיבוי
+          <input
+            type="file"
+            accept=".json,application/json"
+            class="file-input"
+            [disabled]="backupBusy()"
+            (change)="pickRestore($event)"
+          />
+        </label>
+      </div>
+    }
+
+    @if (backupError(); as message) {
+      <p class="import-error" role="alert">{{ message }}</p>
+    }
+    @if (backupDone(); as message) {
+      <p class="import-done" role="status">{{ message }}</p>
+    }
+
+    <p class="hint">
+      הגיבוי כולל את העבודות, ההערות, הציונים ומה שנלמד ממך, בלי סיסמאות ומפתחות. יש בו מידע חסוי על
+      התלמידות, אז כדאי לשמור אותו במקום פרטי.
+    </p>
+  </section>
 </div>

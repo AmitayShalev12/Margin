@@ -187,6 +187,8 @@ export interface StyleProfile {
     tags: string[];
     created_at: string;
   }[];
+  /** What she wrote with no draft to react to: own comments, notes, messages. */
+  own_writing: { source: string; student_text: string | null; teacher_text: string; at: string }[];
   decisions: {
     action: string;
     /** What was drafted for her. */
@@ -204,6 +206,7 @@ export function buildStyleProfile(input: {
   logs: readonly LearningFeedbackLog[];
   examples: readonly TeacherStyleExample[];
   annotations?: readonly Annotation[];
+  ownWriting?: StyleProfile['own_writing'];
   exportedAt: string;
 }): StyleProfile {
   const examples = input.examples.filter((e) => e.active);
@@ -221,6 +224,7 @@ export function buildStyleProfile(input: {
       tags: e.tags,
       created_at: e.created_at,
     })),
+    own_writing: [...(input.ownWriting ?? [])],
     decisions: [...input.logs]
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
       .map((l) => ({

@@ -118,6 +118,7 @@ export abstract class Repository {
    */
   abstract saveCourse(course: Course): Promise<void>;
   abstract saveAssignment(assignment: Assignment): Promise<void>;
+  abstract deleteAssignments(ids: readonly UUID[]): Promise<void>;
   abstract saveStudent(student: Student): Promise<void>;
   /** Enrollment rows. Written after the student and course they point at. */
   abstract saveCourseStudent(link: CourseStudent): Promise<void>;

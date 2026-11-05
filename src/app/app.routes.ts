@@ -3,17 +3,14 @@ import { Routes } from '@angular/router';
 import { FEATURES } from './core/features';
 
 export const routes: Routes = [
-  { path: '', pathMatch: 'full', redirectTo: 'home' },
-  {
-    // The overview: what she can do, and where to start.
-    path: 'home',
-    title: 'בית · Margin',
-    loadComponent: () => import('./features/home/home').then((m) => m.Home),
-  },
+  { path: '', pathMatch: 'full', redirectTo: 'courses' },
+  // There is no home screen any more; old links and saved tabs still land.
+  { path: 'home', redirectTo: 'courses' },
   {
     path: 'students',
     title: 'התלמידות שלי · Margin',
-    loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
+    loadComponent: () =>
+      import('./features/students-overview/students-overview').then((m) => m.StudentsOverview),
   },
   // The student list used to live here; old links and bookmarks still reach it.
   { path: 'dashboard', redirectTo: 'students' },
@@ -64,5 +61,5 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/style-settings/style-settings').then((m) => m.StyleSettings),
   },
-  { path: '**', redirectTo: 'home' },
+  { path: '**', redirectTo: 'courses' },
 ];

@@ -1,4 +1,3 @@
-import { AnnotationKind } from '../models';
 
 /**
  * The numbered marker Margin puts in the document beside a commented span.
@@ -15,7 +14,7 @@ import { AnnotationKind } from '../models';
  * everything about the format is chosen to keep that reversible and safe:
  *
  * - **One character.** Not `[1]`, not `⟦1⟧`. A single glyph is a single index
- *   to insert, to restyle and to remove, and the write guard can therefore
+ *   to insert and to remove, and the write guard can therefore
  *   refuse any request touching more than one character — which is what makes
  *   "it cannot damage her text" checkable rather than promised.
  * - **No digits.** A European digit inside right-to-left text forms its own
@@ -65,42 +64,6 @@ export function markerNumber(char: string): number | null {
 /** True for any glyph Margin could have inserted. */
 export function isMarker(char: string): boolean {
   return markerNumber(char) !== null;
-}
-
-export interface Rgb {
-  red: number;
-  green: number;
-  blue: number;
-}
-
-function hex(value: string): Rgb {
-  return {
-    red: parseInt(value.slice(1, 3), 16) / 255,
-    green: parseInt(value.slice(3, 5), 16) / 255,
-    blue: parseInt(value.slice(5, 7), 16) / 255,
-  };
-}
-
-/**
- * The category hues, taken from `_categories.scss` rather than re-picked.
- *
- * `--k-ink` in each class: the saturated hue the app already uses for that
- * category's spine, dot and legend swatch. A marker in a different green from
- * the one on screen would be a second vocabulary for the same thing.
- */
-export const MARKER_HEX: Record<AnnotationKind, string> = {
-  language: '#2b6f6a',
-  structure: '#42598f',
-  sources: '#a8642b',
-  content: '#7a4667',
-  praise: '#4a7a55',
-  // The two neutrals, kept deliberately quiet so they never compete.
-  formatting: '#5f6b70',
-  other: '#6b7579',
-};
-
-export function markerColour(kind: AnnotationKind): Rgb {
-  return hex(MARKER_HEX[kind]);
 }
 
 /** How a comment names itself, so the panel and the document line up. */

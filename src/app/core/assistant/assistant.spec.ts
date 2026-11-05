@@ -252,4 +252,18 @@ describe('when there is no answer', () => {
       expect(assistant.messages()[0].files).toEqual(['עבודה של נועה.txt']);
     });
   });
+
+  describe('her voice', () => {
+    it('sends what she wrote, and never the student sentence it was on', async () => {
+      const { store, assistant } = setup();
+      store.importStyleExamples([{ quote: 'משפט מתוך העבודה', body: 'כדאי לחדד את הטענה' }]);
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+
+      await assistant.send('שלום');
+
+      const context = sent[0].body.context as { her_voice: { samples: string[] } };
+      expect(context.her_voice.samples).toEqual(['כדאי לחדד את הטענה']);
+      expect(JSON.stringify(sent[0].body)).not.toContain('משפט מתוך העבודה');
+    });
+  });
 });

@@ -27,7 +27,6 @@ export interface ActionOutcome {
 }
 
 const SCREEN_TITLES: Record<string, string> = {
-  home: 'בית',
   students: 'התלמידות שלי',
   submissions: 'עבודות שהוגשו',
   courses: 'קורסים וחומרי רקע',

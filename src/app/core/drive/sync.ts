@@ -254,7 +254,7 @@ export class SyncService {
      * Refused up front, and named, because the fix is one form on the course
      * screen and she cannot guess that from "משהו השתבש בסנכרון".
      */
-    const assignment = this.store.assignment();
+    const assignment = this.store.ensureAssignment();
     if (!assignment) {
       return this.fail(empty, 'עדיין לא הוגדרה עבודה בקורס, ואין למה לצרף את הקבצים.');
     }
@@ -430,7 +430,7 @@ export class SyncService {
     const student = this.store.students().find((s) => s.id === studentId);
     if (!student) return { error: 'לא מצאתי את התלמידה הזו ברשימה.' };
 
-    const assignment = this.store.assignment();
+    const assignment = this.store.ensureAssignment();
     if (!assignment) return { error: 'עדיין לא הוגדרה עבודה בקורס.' };
 
     try {

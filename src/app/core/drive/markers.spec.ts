@@ -1,10 +1,8 @@
 import { isMarkerEditBatch } from './drive-api';
 import {
-  MARKER_HEX,
   MAX_MARKER,
   isMarker,
   markerChar,
-  markerColour,
   markerNumber,
 } from './markers';
 
@@ -51,15 +49,6 @@ describe('the marker glyph', () => {
   });
 
   /** The same hues the screen already uses, not a second vocabulary. */
-  it('carries the category colour from the stylesheet', () => {
-    expect(MARKER_HEX.language).toBe('#2b6f6a');
-    expect(MARKER_HEX.praise).toBe('#4a7a55');
-
-    const rgb = markerColour('language');
-    expect(rgb.red).toBeCloseTo(0x2b / 255, 5);
-    expect(rgb.green).toBeCloseTo(0x6f / 255, 5);
-    expect(rgb.blue).toBeCloseTo(0x6a / 255, 5);
-  });
 });
 
 /**
@@ -76,16 +65,21 @@ describe('what may be sent to the document', () => {
     expect(isMarkerEditBatch(DOC, insert('㊿'))).toBe(true);
   });
 
-  it('allows colouring and removing exactly one character', () => {
-    const style = {
-      requests: [{ updateTextStyle: { range: { startIndex: 12, endIndex: 13 }, textStyle: {} } }],
-    };
+  it('allows removing exactly one character', () => {
     const remove = {
       requests: [{ deleteContentRange: { range: { startIndex: 12, endIndex: 13 } } }],
     };
 
-    expect(isMarkerEditBatch(DOC, style)).toBe(true);
     expect(isMarkerEditBatch(DOC, remove)).toBe(true);
+  });
+
+  /** A marker should look like plain text she could have typed. */
+  it('refuses restyling, even of one character', () => {
+    const style = {
+      requests: [{ updateTextStyle: { range: { startIndex: 12, endIndex: 13 }, textStyle: {} } }],
+    };
+
+    expect(isMarkerEditBatch(DOC, style)).toBe(false);
   });
 
   /** The whole point: her writing cannot be inserted over, restyled or removed. */

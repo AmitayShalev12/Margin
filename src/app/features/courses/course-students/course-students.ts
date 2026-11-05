@@ -1,19 +1,26 @@
+import { LIGHT_LABEL, LIGHT_ORDER, Light, progressOf } from '../../../core/progress/traffic-light';
+import { dayOf } from '../../../core/dates/hebrew-date';
+import { SheetError } from '../../../core/import/xlsx';
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
-import { AnnotationGenerator } from '../../core/ai/annotation-generator';
-import { DataStore } from '../../core/data/data-store';
-import { normaliseName } from '../../core/drive/file-name';
-import { readDocxBlocks } from '../../core/import/docx-blocks';
-import { DocxError } from '../../core/import/docx-comments';
-import { UUID } from '../../core/models';
-import { PageHeader } from '../../shared/ui/page-header/page-header';
-import { Working } from '../../shared/ui/working/working';
+import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
+import { DataStore } from '../../../core/data/data-store';
+import { normaliseName } from '../../../core/drive/file-name';
+import { readDocxBlocks } from '../../../core/import/docx-blocks';
+import { DocxError } from '../../../core/import/docx-comments';
+import { Student, UUID } from '../../../core/models';
+import {
+  CONTACT_LABEL,
+  RosterPlan,
+  planRoster,
+  readRoster,
+} from '../../../core/roster/roster';
+import { Working } from '../../../shared/ui/working/working';
 
-import { CountPipe, count } from '../../core/presentation/count';
-import { QuickActions } from '../../shared/ui/quick-actions/quick-actions';
-import { Icon } from '../../shared/ui/icon/icon';
+import { CountPipe, count } from '../../../core/presentation/count';
+import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
 /** One row of the roster: everything the row answers without opening anything. */
 export interface StudentRow {
   id: UUID;
@@ -38,7 +45,15 @@ export interface StudentRow {
   toFix: number;
   /** Null when there are no comments yet — there is no share of nothing. */
   percent: number | null;
+  light: Light;
+  /** Tasks she has a paper for, of all the course's tasks. */
+  handedIn: number;
+  missed: number;
+  /** One per task, in order: whether she has handed it in. */
+  stages: boolean[];
 }
+
+export type StudentSort = 'name' | 'status';
 
 /**
  * The home screen: her class, a row each.
@@ -54,13 +69,13 @@ export interface StudentRow {
  * several rows; a list of students answers it on sight.
  */
 @Component({
-  selector: 'app-dashboard',
+  selector: 'app-course-students',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, DecimalPipe, RouterLink, PageHeader, Working, Icon],
-  templateUrl: './dashboard.html',
-  styleUrl: './dashboard.scss',
+  imports: [CountPipe, DecimalPipe, RouterLink, Working],
+  templateUrl: './course-students.html',
+  styleUrl: './course-students.scss',
 })
-export class Dashboard {
+export class CourseStudents {
   protected readonly data = inject(DataStore);
   protected readonly quick = inject(QuickActions);
   private readonly router = inject(Router);
@@ -68,10 +83,99 @@ export class Dashboard {
 
   protected readonly search = signal('');
 
+  // -- how the list is ordered ----------------------------------------------
+
+  protected readonly sort = signal<StudentSort>('name');
+  protected readonly filter = signal<Light | ''>('');
+  protected readonly lightLabel = LIGHT_LABEL;
+  protected readonly lightOrder = LIGHT_ORDER;
+
+  // -- leaving the course ---------------------------------------------------
+
+  /** Only this course. Removing a person altogether is in the overview. */
+  protected readonly removing = signal<UUID | null>(null);
+
+  protected removeFromCourse(id: UUID) {
+    const course = this.data.course();
+    if (course) this.data.unenrollStudent(id, course.id);
+    this.removing.set(null);
+  }
+
+  /** Students from before courses held their own lists, one press from a home. */
+  protected placeHere(id: UUID) {
+    const course = this.data.course();
+    if (course) this.data.enrollStudent(id, [course.id]);
+  }
+
+  protected contact(id: UUID): Student | undefined {
+    return this.data.students().find((s) => s.id === id);
+  }
+
+  // -- the student list as a file -------------------------------------------
+
+  protected readonly contactLabel = CONTACT_LABEL;
+  protected readonly rosterPlan = signal<RosterPlan | null>(null);
+  protected readonly rosterReplace = signal<ReadonlySet<string>>(new Set());
+  protected readonly rosterError = signal<string | null>(null);
+  protected readonly rosterDone = signal<string | null>(null);
+
+  protected async pickRoster(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    this.rosterError.set(null);
+    this.rosterDone.set(null);
+    if (!file) return;
+
+    try {
+      const rows = await readRoster(await file.arrayBuffer());
+      if (!rows.length) {
+        this.rosterError.set('לא מצאתי תלמידות בקובץ.');
+        return;
+      }
+      this.rosterReplace.set(new Set());
+      this.rosterPlan.set(planRoster(rows, this.data.students()));
+    } catch (error) {
+      this.rosterError.set(
+        error instanceof SheetError ? error.hebrew : 'הקובץ לא נקרא. צריך קובץ Excel מסוג .xlsx.',
+      );
+    }
+  }
+
+  protected toggleReplace(id: string) {
+    const next = new Set(this.rosterReplace());
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    this.rosterReplace.set(next);
+  }
+
+  protected applyRoster() {
+    const plan = this.rosterPlan();
+    if (!plan) return;
+    const { added, existing } = this.data.applyRoster(plan, this.rosterReplace());
+    this.rosterPlan.set(null);
+    this.rosterDone.set(
+      `${count(added, { one: 'נוספה תלמידה אחת', two: 'נוספו שתי תלמידות', many: 'נוספו # תלמידות' })}, ${count(existing, { one: 'אחת עודכנה', two: 'שתיים עודכנו', many: '# עודכנו' })}.`,
+    );
+  }
+
   /** Which girl's upload panel is open, and what it is doing. */
   protected readonly uploadFor = signal<UUID | null>(null);
   protected readonly uploadError = signal<string | null>(null);
   protected readonly reading = signal(false);
+  /** The task the file is for, when the course has several. */
+  protected readonly uploadTask = signal<UUID | null>(null);
+
+  /** The tasks she has no paper for yet: a task holds one paper per student. */
+  protected openTasks(studentId: UUID) {
+    const handed = new Set(
+      this.data
+        .submissions()
+        .filter((s) => s.student_id === studentId)
+        .map((s) => s.assignment_id),
+    );
+    return this.data.tasks().filter((t) => !handed.has(t.id));
+  }
 
   /** Which girl's folder address is being edited. */
   protected readonly folderFor = signal<UUID | null>(null);
@@ -94,11 +198,23 @@ export class Dashboard {
    * answer "how many need me".
    */
   private readonly allRows = computed<StudentRow[]>(() => {
-    const submissions = this.data.submissions();
-    const annotations = this.data.annotations();
+    const course = this.data.course();
+    if (!course) return [];
 
-    return this.data.students().map((student) => {
+    const tasks = this.data.assignmentsOf(course.id);
+    const taskIds = new Set(tasks.map((t) => t.id));
+    const submissions = this.data.submissions().filter((s) => taskIds.has(s.assignment_id));
+    const annotations = this.data.annotations();
+    const today = new Date().toISOString().slice(0, 10);
+
+    return this.data.studentsIn(course.id).map((student) => {
       const hers = submissions.filter((s) => s.student_id === student.id);
+      const handed = new Set(hers.map((s) => s.assignment_id));
+      const progress = progressOf(
+        tasks.map((t) => ({ id: t.id, due: dayOf(t.due_at) })),
+        handed,
+        today,
+      );
       const latest = [...hers].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
 
       const mine = latest ? annotations.filter((a) => a.submission_id === latest.id) : [];
@@ -124,6 +240,10 @@ export class Dashboard {
         decided,
         toFix: mine.filter((a) => a.status === 'accepted' || a.status === 'edited').length,
         percent: mine.length ? Math.round((decided / mine.length) * 100) : null,
+        light: progress.light,
+        handedIn: progress.handedIn,
+        missed: progress.missed,
+        stages: tasks.map((t) => handed.has(t.id)),
       };
     });
   });
@@ -131,13 +251,21 @@ export class Dashboard {
   /** What the list shows: her roster, narrowed by the search box. */
   protected readonly rows = computed<StudentRow[]>(() => {
     const query = normaliseName(this.search());
-    if (!query) return this.allRows();
-    return this.allRows().filter((row) => normaliseName(row.name).includes(query));
+    const wanted = this.filter();
+    const byName = (a: StudentRow, b: StudentRow) => a.name.localeCompare(b.name, 'he');
+    // Those furthest behind first; alphabetical within a level.
+    const byStatus = (a: StudentRow, b: StudentRow) =>
+      LIGHT_ORDER.indexOf(a.light) - LIGHT_ORDER.indexOf(b.light) || byName(a, b);
+
+    return this.allRows()
+      .filter((row) => !query || normaliseName(row.name).includes(query))
+      .filter((row) => !wanted || row.light === wanted)
+      .sort(this.sort() === 'status' ? byStatus : byName);
   });
 
   protected readonly subtitle = computed(() => {
-    const total = this.data.students().length;
-    if (!total) return 'עוד אין תלמידות ברשימה.';
+    const total = this.allRows().length;
+    if (!total) return 'עוד אין תלמידות בקורס.';
 
     const waiting = this.allRows().filter((r) => r.comments > r.decided).length;
     const students = count(total, { one: 'תלמידה אחת', two: 'שתי תלמידות', many: '# תלמידות' });
@@ -204,7 +332,10 @@ export class Dashboard {
 
     try {
       const blocks = await readDocxBlocks(await file.arrayBuffer());
+      const assignment = this.data.ensureAssignment();
       const created = this.data.addUploadedSubmission({
+        assignmentId:
+          this.uploadTask() ?? this.openTasks(studentId)[0]?.id ?? assignment?.id,
         studentId,
         title: null,
         blocks,
@@ -213,7 +344,9 @@ export class Dashboard {
       });
 
       if (!created) {
-        this.uploadError.set('צריך עבודה פתוחה בקורס לפני שאפשר להוסיף אליה קובץ.');
+        this.uploadError.set(
+          'לכל המשימות בקורס כבר יש לה עבודה, או שהקובץ ריק. אפשר להוסיף משימה במשימות ומועדים.',
+        );
         return;
       }
 

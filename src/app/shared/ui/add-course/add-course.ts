@@ -1,4 +1,7 @@
-import {
+import { yearKey } from '../../../core/dates/hebrew-date';
+import { Course } from '../../../core/models';
+import { CarryOver } from './carry-over';
+import { computed,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
@@ -23,6 +26,7 @@ import { QuickActions } from '../quick-actions/quick-actions';
 @Component({
   selector: 'app-add-course',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [CarryOver],
   templateUrl: './add-course.html',
 })
 export class AddCourse {
@@ -33,9 +37,11 @@ export class AddCourse {
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly name = signal('');
-  protected readonly year = signal('');
+  /** The year at the top: a new course belongs to the year she is looking at. */
+  protected readonly year = computed(() => this.data.year());
   protected readonly error = signal<string | null>(null);
   protected readonly done = signal<string | null>(null);
+  protected readonly created = signal<Course | null>(null);
 
   constructor() {
     effect(() => {
@@ -58,23 +64,32 @@ export class AddCourse {
 
   private reset() {
     this.name.set('');
-    this.year.set(this.data.course()?.year ?? '');
+    this.created.set(null);
     this.error.set(null);
     this.done.set(null);
   }
 
   protected submit() {
     this.error.set(null);
-    const course = this.data.createCourse(this.name(), this.year());
+    // Whether last year's course exists is asked before creating this one.
+    const name = this.name().trim();
+    const hadSameName = this.data
+      .courses()
+      .some((c) => c.name === name && yearKey(c.year) !== yearKey(this.year()));
+
+    const course = this.data.createCourse(name, this.year());
     if (!course) {
-      this.error.set(
-        this.name().trim() && this.year().trim()
-          ? 'לא הצלחתי ליצור את הקורס. ייתכן שצריך להתחבר מחדש.'
-          : 'צריך שם קורס ושנה.',
-      );
+      this.error.set(name ? 'לא הצלחתי ליצור את הקורס. ייתכן שצריך להתחבר מחדש.' : 'צריך שם לקורס.');
       return;
     }
-    this.done.set(`הקורס ${course.name} · ${course.year} נוסף, והוא עכשיו הקורס הפעיל.`);
+    // A new course starts clean. Only a course that ran before has anything to ask.
+    if (!hadSameName) {
+      this.close();
+      void this.router.navigateByUrl('/courses');
+      return;
+    }
+    this.created.set(course);
+    this.done.set(`הקורס ${course.name} נוסף לשנת ${course.year}.`);
   }
 
   protected toCourse() {

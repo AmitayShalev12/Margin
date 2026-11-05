@@ -55,3 +55,8 @@ Thumbs.db
 
 # Local Netlify folder
 .netlify
+
+# Backups and student lists hold confidential student data. The repo is public.
+margin-backup-*.json
+margin-students-*.xlsx
+*.xlsx

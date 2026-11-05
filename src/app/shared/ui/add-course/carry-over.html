@@ -1,0 +1,64 @@
+@if (finished(); as message) {
+  <p class="modal-done" role="status">{{ message }}</p>
+} @else if (source(); as from) {
+  <div class="modal-form">
+    <p class="label">לקחת משנה קודמת?</p>
+
+    <label class="field">
+      <span class="label">מאיזה קורס</span>
+      <select class="control" (change)="chooseSource($any($event.target).value)">
+        @for (option of sources(); track option.id) {
+          <option [value]="option.id" [selected]="option.id === from.id">
+            {{ option.name }} · {{ option.year }}
+          </option>
+        }
+      </select>
+    </label>
+
+    @if (rules().length) {
+      <fieldset class="modal-choices">
+        <legend class="label">אילו כללים</legend>
+        @for (rule of rules(); track rule.id) {
+          <label class="check">
+            <input type="checkbox" [checked]="isTicked(rule.id)" (change)="toggle(rule.id)" />
+            <span>{{ rule.body }}</span>
+          </label>
+        }
+      </fieldset>
+    }
+
+    @if (materials().length) {
+      <fieldset class="modal-choices">
+        <legend class="label">אילו חומרים</legend>
+        @for (material of materials(); track material.id) {
+          <label class="check">
+            <input type="checkbox" [checked]="isTicked(material.id)" (change)="toggle(material.id)" />
+            <span>{{ material.title }}</span>
+          </label>
+        }
+      </fieldset>
+    }
+
+    <label class="check">
+      <input
+        type="checkbox"
+        [checked]="gradingForm()"
+        (change)="gradingForm.set($any($event.target).checked)"
+      />
+      <span>טופס ההערכה וטון ההערות</span>
+    </label>
+
+    @if (error(); as message) {
+      <p class="modal-error" role="alert">{{ message }}</p>
+    }
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="take()">
+        לקחת את מה שסומן
+      </button>
+      <button type="button" class="btn btn-plain" [disabled]="busy()" (click)="skip()">
+        להתחיל נקי
+      </button>
+    </div>
+  </div>
+}

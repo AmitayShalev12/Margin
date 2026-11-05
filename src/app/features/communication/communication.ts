@@ -70,7 +70,7 @@ export class Communication {
   protected readonly copied = signal(false);
 
   protected readonly submissions = computed(() =>
-    this.data.submissions().map((s) => ({
+    this.data.courseSubmissions().map((s) => ({
       id: s.id,
       name: this.data.studentName(s.student_id),
       ready: standsBehind(this.data.annotations(), s.id, this.data.roundFor(s.id)?.id ?? null)
@@ -85,7 +85,7 @@ export class Communication {
       this.data.submission(id) ??
       // Whichever has review work waiting to be sent, else simply the first.
       this.data.submission(this.submissions().find((s) => s.ready && !s.sent)?.id) ??
-      this.data.submissions()[0]
+      this.data.courseSubmissions()[0]
     );
   });
 

@@ -6,7 +6,7 @@ import { KIND_LABEL } from '../presentation/annotation-kind';
 import { sectionsOf } from '../presentation/document-render';
 import { DriveApi, DriveError } from './drive-api';
 import { docsRange } from './docs-range';
-import { markerChar, markerColour, markerNumber } from './markers';
+import { markerChar, markerNumber } from './markers';
 import { DocsRange } from './drive-types';
 import { extractDocument } from './docs-extract';
 import { GoogleDriveAuth } from './google-auth';
@@ -355,7 +355,6 @@ export class CommentPoster {
           marking.map((item) => ({
             index: item.range.startIndex,
             glyph: markerChar(item.number)!,
-            colour: markerColour(item.annotation.kind),
           })),
         );
         for (const item of marking) {

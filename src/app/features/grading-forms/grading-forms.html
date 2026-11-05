@@ -357,7 +357,7 @@
                       }
                       @if (criterion.updatedAt) {
                         <span class="when">
-                          עודכן {{ criterion.updatedAt | date: 'd.M.yy HH:mm' }}
+                          עודכן {{ dateText(criterion.updatedAt) }}
                         </span>
                       }
                     </div>

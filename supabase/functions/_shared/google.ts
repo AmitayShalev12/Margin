@@ -35,7 +35,9 @@ export const DRIVE_WRITE_SCOPE = 'https://www.googleapis.com/auth/drive';
  * What the app does with it is narrower than what the scope permits, and that
  * is enforced in code rather than promised in a comment: `DriveApi` refuses any
  * request that is not a GET or a comment creation, so there is no path from
- * here to modifying a student's writing. See `drive-api.ts`.
+ * here to modifying a student's writing. See `drive-api.ts`. The one other
+ * write is `DriveBackup`, which can only create new files of its own and cannot
+ * address an existing one. See `drive-backup.ts`.
  *
  * `documents.readonly` stays read-only and stays separate — the Docs API is
  * only ever read, and the Drive scope does not cover it.

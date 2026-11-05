@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
-import { Dashboard } from './dashboard';
-import { DataStore } from '../../core/data/data-store';
-import { LocalRepository } from '../../core/data/local-repository';
-import { Repository } from '../../core/data/repository';
-import { seedStore } from '../../core/mock/seed-store';
-import { TEACHER_ID } from '../../core/mock/seed-data';
-import { SupabaseService } from '../../core/supabase/supabase';
+import { CourseStudents } from './course-students';
+import { DataStore } from '../../../core/data/data-store';
+import { LocalRepository } from '../../../core/data/local-repository';
+import { Repository } from '../../../core/data/repository';
+import { seedStore } from '../../../core/mock/seed-store';
+import { TEACHER_ID } from '../../../core/mock/seed-data';
+import { SupabaseService } from '../../../core/supabase/supabase';
 
 /**
  * The home screen, rebuilt as the roster.
@@ -58,7 +58,7 @@ function make() {
   const store = TestBed.inject(DataStore);
   seedStore(store);
 
-  const fixture = TestBed.createComponent(Dashboard);
+  const fixture = TestBed.createComponent(CourseStudents);
   fixture.detectChanges();
 
   return {
@@ -84,7 +84,9 @@ describe('the roster', () => {
 
     expect(component.rows().length).toBe(store.students().length);
     expect(component.rows().length).toBeGreaterThan(0);
-    expect(component.rows().map((r) => r.name)).toEqual(store.students().map((s) => s.full_name));
+    expect(component.rows().map((r) => r.name)).toEqual(
+      store.students().map((s) => s.full_name).sort((a, b) => a.localeCompare(b, 'he')),
+    );
   });
 
   /**
@@ -272,7 +274,7 @@ describe('what the row actually renders', () => {
     expect(labels.filter((t) => t === 'הוספת קובץ').length).toBe(component.rows().length);
     expect(labels.filter((t) => t === 'כתיבת טיוטה').length).toBe(component.rows().length);
     // Nothing is picking a file until she asks for one.
-    expect(host.querySelectorAll('input[type="file"]').length).toBe(0);
+    expect(host.querySelectorAll('.student input[type="file"]').length).toBe(0);
   });
 
   it('opens a file picker on the row she pressed, and on no other', () => {
@@ -282,7 +284,7 @@ describe('what the row actually renders', () => {
     component.openUpload(row.id);
     fixture.detectChanges();
 
-    const pickers = (fixture.nativeElement as HTMLElement).querySelectorAll('input[type="file"]');
+    const pickers = (fixture.nativeElement as HTMLElement).querySelectorAll('.student input[type="file"]');
     expect(pickers.length).toBe(1);
   });
 

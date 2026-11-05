@@ -202,6 +202,10 @@ export class SupabaseRepository extends Repository {
     await this.upsert(TABLES.assignments, assignment, 'id');
   }
 
+  async deleteAssignments(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.assignments, ids);
+  }
+
   async saveStudent(student: Student): Promise<void> {
     await this.upsert(TABLES.students, student, 'id');
   }

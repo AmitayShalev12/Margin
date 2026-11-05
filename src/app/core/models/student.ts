@@ -1,5 +1,13 @@
 import { OwnedByTeacher, Timestamped, UUID } from './common';
 
+/** Columns of the college's student list, kept so the export matches it. */
+export interface StudentRosterDetails {
+  status: string | null;
+  pedagogic_year: string | null;
+  track: string | null;
+  department: string | null;
+}
+
 export interface Student extends Timestamped, OwnedByTeacher {
   id: UUID;
   full_name: string;
@@ -22,4 +30,7 @@ export interface Student extends Timestamped, OwnedByTeacher {
   drive_folder_id: string | null;
   notes: string | null;
   active: boolean;
+  phone?: string | null;
+  mobile?: string | null;
+  roster_details?: StudentRosterDetails | null;
 }
