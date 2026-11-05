@@ -14,7 +14,8 @@ export type IconName =
   | 'plus'
   | 'close'
   | 'panel'
-  | 'send';
+  | 'send'
+  | 'clip';
 
 /**
  * Small inline-SVG icon set. Line icons at a single 1.6 stroke weight, drawn
@@ -86,6 +87,9 @@ export type IconName =
           <path
             d="M18.5 15.5c.2 1.4.9 2.1 2.3 2.3-1.4.2-2.1.9-2.3 2.3-.2-1.4-.9-2.1-2.3-2.3 1.4-.2 2.1-.9 2.3-2.3z"
           />
+        }
+        @case ('clip') {
+          <path d="M19 11.5 12 18.5a4.2 4.2 0 0 1-6-6l7.5-7.5a2.8 2.8 0 0 1 4 4l-7.5 7.5a1.4 1.4 0 0 1-2-2l6.8-6.8" />
         }
         @case ('plus') {
           <path d="M12 5v14M5 12h14" />

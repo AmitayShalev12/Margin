@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 
 import { AnnotationGenerator } from '../ai/annotation-generator';
 import { DataStore } from '../data/data-store';
+import { GoogleDriveAuth } from '../drive/google-auth';
 import { LocalRepository } from '../data/local-repository';
 import { Repository } from '../data/repository';
 import { SupabaseService } from '../supabase/supabase';
@@ -40,6 +41,10 @@ function setup() {
         useValue: { url: '/home', navigateByUrl: async () => true, navigate: async () => true },
       },
       { provide: AnnotationGenerator, useValue: { generate: async () => null, state: () => ({}) } },
+      {
+        provide: GoogleDriveAuth,
+        useValue: { connection: () => 'connected', refreshStatus: async () => 'connected' },
+      },
     ],
   });
   const store = TestBed.inject(DataStore);
@@ -189,5 +194,62 @@ describe('when there is no answer', () => {
     await assistant.send('שנייה');
 
     expect(sent[1].body.messages.map((m) => m.role)).toEqual(['user', 'user']);
+  });
+
+  describe('attached files', () => {
+    const SECRET = 'התוכן הסודי של העבודה';
+    const file = () => new File([SECRET], 'עבודה של נועה.txt');
+
+    /** Her students' work stays in the browser. The model gets the name only. */
+    it('sends the name of a file and never what is in it', async () => {
+      const { assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+
+      await assistant.send('תוסיפי לחומרים', [file()]);
+
+      const body = JSON.stringify(sent[0].body);
+      expect(body).toContain('עבודה של נועה.txt');
+      expect(body).not.toContain(SECRET);
+    });
+
+    it('remembers a file for the rest of the conversation', async () => {
+      const { assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+      await assistant.send('הנה קובץ', [file()]);
+
+      reply = {
+        status: 200,
+        json: {
+          reply: 'מוסיפה',
+          actions: [{ name: 'add_material_from_file', args: { file_name: 'עבודה של נועה.txt' } }],
+        },
+      };
+      await assistant.send('תוסיפי אותו לחומרים');
+
+      expect(assistant.messages().at(-1)!.steps[0].outcome.status).toBe('done');
+      expect(
+        (sent[1].body.context as { attached_files: string[] }).attached_files,
+      ).toEqual(['עבודה של נועה.txt']);
+    });
+
+    it('forgets the files when she starts a new conversation', async () => {
+      const { assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+      await assistant.send('הנה קובץ', [file()]);
+
+      assistant.clear();
+
+      expect(assistant.attachedNames()).toEqual([]);
+    });
+
+    it('can send a file with no words', async () => {
+      const { assistant } = setup();
+      reply = { status: 200, json: { reply: 'מה לעשות איתו?', actions: [] } };
+
+      await assistant.send('   ', [file()]);
+
+      expect(sent).toHaveLength(1);
+      expect(assistant.messages()[0].files).toEqual(['עבודה של נועה.txt']);
+    });
   });
 });

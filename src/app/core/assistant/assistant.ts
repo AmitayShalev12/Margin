@@ -1,8 +1,9 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { FAILURE_MESSAGES } from '../ai/annotation-generator';
 import { DataStore } from '../data/data-store';
+import { GoogleDriveAuth } from '../drive/google-auth';
 import { FunctionError, TRANSPORT_MESSAGES, callFunction } from '../supabase/function-call';
 import { SupabaseService } from '../supabase/supabase';
 import { ActionOutcome, AssistantActions } from './actions';
@@ -20,6 +21,8 @@ export interface ChatMessage {
   text: string;
   /** The actions this answer asked for, and what happened to each. */
   steps: ChatStep[];
+  /** Names of the files she attached with this message. */
+  files?: string[];
   /** A failure to get an answer at all, as opposed to an action that failed. */
   failed?: boolean;
 }
@@ -49,10 +52,19 @@ export class Assistant {
   private readonly router = inject(Router);
   private readonly supabase = inject(SupabaseService);
   private readonly actions = inject(AssistantActions);
+  private readonly auth = inject(GoogleDriveAuth);
 
   readonly isOpen = signal(false);
   readonly busy = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
+
+  /**
+   * Files attached in this conversation. Kept for its length, so "and add that
+   * one to Noa" works a message later. They stay in this browser: the model is
+   * told their names and never receives their contents.
+   */
+  private readonly attached = signal<File[]>([]);
+  readonly attachedNames = computed(() => this.attached().map((f) => f.name));
 
   /** Whether there is a backend to ask. Without one, the panel says so. */
   readonly available = this.supabase.isConfigured;
@@ -70,16 +82,23 @@ export class Assistant {
   }
 
   clear() {
-    if (!this.busy()) this.messages.set([]);
+    if (this.busy()) return;
+    this.messages.set([]);
+    this.attached.set([]);
   }
 
-  async send(text: string): Promise<void> {
-    const message = text.trim();
+  async send(text: string, files: readonly File[] = []): Promise<void> {
+    const message = text.trim() || (files.length ? 'צירפתי קובץ.' : '');
     if (!message || this.busy()) return;
+
+    if (files.length) {
+      const names = new Set(files.map((f) => f.name));
+      this.attached.update((list) => [...list.filter((f) => !names.has(f.name)), ...files]);
+    }
 
     this.messages.update((list) => [
       ...list,
-      { id: nextId(), role: 'user', text: message, steps: [] },
+      { id: nextId(), role: 'user', text: message, steps: [], files: files.map((f) => f.name) },
     ]);
     this.busy.set(true);
 
@@ -87,7 +106,10 @@ export class Assistant {
       const history: AssistantTurn[] = this.messages()
         .filter((m) => !m.failed)
         .slice(-HISTORY)
-        .map((m) => ({ role: m.role, text: m.text }));
+        .map((m) => ({
+          role: m.role,
+          text: m.files?.length ? `${m.text}\n[צירפה: ${m.files.join(', ')}]` : m.text,
+        }));
 
       const response = await callFunction<AssistantResponse>(this.supabase, 'assistant', {
         messages: history,
@@ -110,7 +132,7 @@ export class Assistant {
       // In order: "create the course, then add her to it" depends on it.
       for (const step of steps) {
         if (step.outcome.status !== 'running') continue;
-        const outcome = await this.actions.run(step.action);
+        const outcome = await this.actions.run(step.action, false, this.attached());
         this.setOutcome(id, step.id, outcome);
       }
     } catch (error) {
@@ -128,7 +150,7 @@ export class Assistant {
     const step = this.step(messageId, stepId);
     if (!step || step.outcome.status !== 'confirm') return;
     this.setOutcome(messageId, stepId, { ...step.outcome, status: 'running' });
-    this.setOutcome(messageId, stepId, await this.actions.run(step.action, true));
+    this.setOutcome(messageId, stepId, await this.actions.run(step.action, true, this.attached()));
   }
 
   /** She declined it. Nothing is done. */
@@ -138,7 +160,7 @@ export class Assistant {
     this.setOutcome(messageId, stepId, {
       status: 'cancelled',
       title: step.outcome.title,
-      detail: 'ביטלת. לא נמחק כלום.',
+      detail: 'ביטלת. לא נעשה שינוי.',
     });
   }
 
@@ -155,18 +177,39 @@ export class Assistant {
     return {
       today: new Date().toISOString().slice(0, 10),
       screen: this.router.url,
-      current_course: course ? { id: course.id, name: course.name, year: course.year } : null,
+      current_course: course
+        ? {
+            id: course.id,
+            name: course.name,
+            year: course.year,
+            tone: course.comment_tone,
+            rubric_criteria: this.data
+              .gradingCategories()
+              .filter((c) => c.active && c.max_points !== null).length,
+          }
+        : null,
       courses: this.data.courses().map((c) => ({ id: c.id, name: c.name, year: c.year })),
       students: this.data.students().map((s) => {
-        const papers = submissions.filter((p) => p.student_id === s.id);
+        const papers = submissions
+          .filter((p) => p.student_id === s.id)
+          .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
         return {
           id: s.id,
           name: s.full_name,
           course_ids: enrolment.filter((l) => l.student_id === s.id).map((l) => l.course_id),
           papers: papers.length,
           pending_comments: papers.reduce((sum, p) => sum + this.data.annotationsPending(p.id), 0),
+          latest_paper_file: papers[0]?.drive_file_name ?? null,
+          latest_paper_status: papers[0]?.status ?? null,
         };
       }),
+      drive: {
+        connection: this.auth.connection(),
+        course_folder_set: !!this.data.watchedFolderId(),
+        last_synced_at: this.data.sync().last_synced_at,
+        unmatched_files: this.data.sync().unmatched.slice(0, 20).map((f) => f.name),
+      },
+      attached_files: this.attachedNames(),
     };
   }
 

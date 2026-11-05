@@ -81,6 +81,22 @@ describe('reading the model answer', () => {
     expect(parsed!.actions[0].args).toEqual({ course_ids: ['c1'] });
   });
 
+  it('keeps the file a file action names, and its kind', () => {
+    const parsed = parseAssistantPayload(
+      JSON.stringify({
+        reply: 'בסדר',
+        actions: [
+          {
+            name: 'add_material_from_file',
+            args: { file_name: 'סילבוס.docx', material_kind: 'syllabus' },
+          },
+        ],
+      }),
+    );
+
+    expect(parsed!.actions[0].args).toEqual({ file_name: 'סילבוס.docx', material_kind: 'syllabus' });
+  });
+
   it(`stops at ${MAX_ACTIONS} actions`, () => {
     const actions = Array.from({ length: 20 }, () => ({
       name: 'open_screen',
@@ -102,8 +118,33 @@ describe('what is sent to the model', () => {
     screen: '/home',
     current_course: null,
     courses: [{ id: 'c1', name: 'סמינריון', year: 'תשפ״ז' }],
-    students: [{ id: 's1', name: 'נועה כהן', course_ids: ['c1'], papers: 1, pending_comments: 3 }],
+    students: [
+      {
+        id: 's1',
+        name: 'נועה כהן',
+        course_ids: ['c1'],
+        papers: 1,
+        pending_comments: 3,
+        latest_paper_file: 'עבודה.docx',
+        latest_paper_status: 'submitted',
+      },
+    ],
+    drive: {
+      connection: 'connected',
+      course_folder_set: true,
+      last_synced_at: null,
+      unmatched_files: ['קובץ לא משויך.docx'],
+    },
+    attached_files: ['מחוון.docx'],
   };
+
+  it('tells the model which files are attached and what Drive looks like', () => {
+    const prompt = assistantPrompt({ messages: [{ role: 'user', text: 'שלום' }], context });
+
+    expect(prompt).toContain('מחוון.docx');
+    expect(prompt).toContain('קובץ לא משויך.docx');
+    expect(prompt).toContain('connected');
+  });
 
   it('carries the facts and the conversation, ending with her', () => {
     const prompt = assistantPrompt({

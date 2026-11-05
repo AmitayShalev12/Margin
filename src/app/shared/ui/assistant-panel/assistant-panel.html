@@ -1,5 +1,10 @@
 @if (assistant.isOpen()) {
-  <aside class="panel" aria-labelledby="assistant-title" (keydown.escape)="close()">
+  <aside class="panel" aria-labelledby="assistant-title" (keydown.escape)="close()"
+    [class.is-dragging]="dragging()"
+    (dragover)="dragOver($event)"
+    (dragleave)="dragging.set(false)"
+    (drop)="drop($event)"
+  >
     <header class="panel-head">
       <span class="panel-mark" aria-hidden="true"><app-icon name="sparkle" [size]="18" /></span>
       <h2 id="assistant-title" class="panel-title">העוזר</h2>
@@ -27,8 +32,9 @@
       } @else if (!assistant.messages().length) {
         <div class="intro">
           <p>
-            אפשר לבקש ממני בעברית פשוטה, ואני אעשה את זה בשבילך — ואגיד אם זה הצליח. פעולה שאי אפשר
-            לבטל, כמו מחיקה, תחכה לאישור שלך.
+            אפשר לבקש ממני בעברית פשוטה ואני אעשה את זה — ואגיד אם זה הצליח. אפשר גם לשאול איך עושים
+            משהו, או לצרף קובץ: עבודה של תלמידה, חומר לקורס, טופס הערכה או דוגמאות מהכתיבה שלך. פעולה
+            שאי אפשר לבטל תחכה לאישור שלך.
           </p>
           <ul class="suggestions">
             @for (s of suggestions; track s) {
@@ -43,6 +49,13 @@
       @for (m of assistant.messages(); track m.id) {
         <div class="msg" [class.is-user]="m.role === 'user'" [class.is-failed]="m.failed">
           <p class="msg-text">{{ m.text }}</p>
+          @if (m.files?.length) {
+            <ul class="msg-files">
+              @for (name of m.files; track name) {
+                <li class="file-chip" dir="auto">{{ name }}</li>
+              }
+            </ul>
+          }
 
           @if (m.steps.length) {
             <!-- What the app actually did — reported by the app, not by the model. -->
@@ -81,7 +94,7 @@
                         class="btn btn-sm step-danger"
                         (click)="assistant.confirm(m.id, step.id)"
                       >
-                        כן, למחוק
+                        {{ step.outcome.confirmLabel ?? 'כן, למחוק' }}
                       </button>
                       <button
                         type="button"
@@ -107,7 +120,41 @@
       }
     </div>
 
+    @if (files().length) {
+      <ul class="pending-files">
+        @for (file of files(); track file.name) {
+          <li class="file-chip">
+            <span dir="auto">{{ file.name }}</span>
+            <button
+              type="button"
+              class="file-remove"
+              [attr.aria-label]="'הסרת ' + file.name"
+              (click)="removeFile(file.name)"
+            >
+              <app-icon name="close" [size]="12" />
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
     <form class="composer" (submit)="$event.preventDefault(); send()">
+      <label
+        class="composer-attach"
+        [class.is-disabled]="!assistant.available"
+        title="צירוף קובץ"
+      >
+        <app-icon name="clip" [size]="20" />
+        <span class="sr-only">צירוף קובץ</span>
+        <input
+          class="sr-only"
+          type="file"
+          multiple
+          accept=".docx,.txt,.md"
+          [disabled]="!assistant.available"
+          (change)="attach($event)"
+        />
+      </label>
       <label class="sr-only" for="assistant-input">מה לעשות?</label>
       <textarea
         #input
@@ -124,7 +171,7 @@
         type="submit"
         class="btn btn-primary composer-send"
         aria-label="שליחה"
-        [disabled]="!assistant.available || assistant.busy() || !draft().trim()"
+        [disabled]="!assistant.available || assistant.busy() || (!draft().trim() && !files().length)"
       >
         <app-icon name="send" [size]="18" />
       </button>

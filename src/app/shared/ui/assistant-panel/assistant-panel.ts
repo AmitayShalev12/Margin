@@ -31,12 +31,16 @@ export class AssistantPanel {
 
   protected readonly draft = signal('');
 
+  /** Files waiting to go with the next message. */
+  protected readonly files = signal<File[]>([]);
+  protected readonly dragging = signal(false);
+
   /** Things she can ask, to show what kind of thing it does. */
   protected readonly suggestions = [
     'מה מחכה לי היום?',
-    'להוסיף את נועה כהן לקורס הנוכחי',
-    'לפתוח את העבודה האחרונה של שירה',
-    'לנסח הערות לעבודה של יעל',
+    'איך מוסיפים הערות למסמך של תלמידה?',
+    'לסנכרן עכשיו עבודות מהדרייב',
+    'לנסח הערות לעבודה האחרונה של שירה',
   ];
 
   private readonly log = viewChild<ElementRef<HTMLElement>>('log');
@@ -58,15 +62,45 @@ export class AssistantPanel {
   }
 
   protected async send(text = this.draft()) {
-    if (!text.trim() || this.assistant.busy()) return;
+    const files = this.files();
+    if ((!text.trim() && !files.length) || this.assistant.busy()) return;
     this.draft.set('');
+    this.files.set([]);
     // The element too, not only the signal. `[value]` writes to the DOM only
     // when the bound value changes between renders: typed and sent within one
     // tick, the binding never saw the text, so '' looks like no change and the
     // sent message stayed in the box.
     const element = this.input()?.nativeElement;
     if (element) element.value = '';
-    await this.assistant.send(text);
+    await this.assistant.send(text, files);
+  }
+
+  protected attach(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.add(input.files);
+    // So picking the same file again still fires.
+    input.value = '';
+  }
+
+  protected drop(event: DragEvent) {
+    event.preventDefault();
+    this.dragging.set(false);
+    this.add(event.dataTransfer?.files ?? null);
+  }
+
+  protected dragOver(event: DragEvent) {
+    event.preventDefault();
+    this.dragging.set(true);
+  }
+
+  protected removeFile(name: string) {
+    this.files.update((list) => list.filter((f) => f.name !== name));
+  }
+
+  private add(list: FileList | null) {
+    const incoming = [...(list ?? [])];
+    const names = new Set(incoming.map((f) => f.name));
+    this.files.update((current) => [...current.filter((f) => !names.has(f.name)), ...incoming]);
   }
 
   /** Enter sends; Shift+Enter is a new line, as in every chat. */

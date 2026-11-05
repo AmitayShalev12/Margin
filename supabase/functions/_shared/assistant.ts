@@ -84,6 +84,58 @@ export const ASSISTANT_ACTIONS = [
     description:
       'Remove a student and all her papers. The app asks the teacher to confirm before anything is deleted.',
   },
+  {
+    name: 'delete_paper',
+    args: ['student_id'],
+    description:
+      "Remove a student's most recent paper; the student stays. The app asks the teacher to confirm first.",
+  },
+  {
+    name: 'sync_drive',
+    args: [],
+    description:
+      'Bring new and changed papers in from Google Drive now. Needs Drive connected and a folder set.',
+  },
+  {
+    name: 'connect_drive',
+    args: [],
+    description:
+      'Start connecting her Google account. This leaves the app for a Google page, so do it only when she asks to connect.',
+  },
+  {
+    name: 'set_course_folder',
+    args: ['folder_url'],
+    description: "Set the current course's Google Drive folder from a link she gave, then sync it.",
+  },
+  {
+    name: 'post_comments_to_document',
+    args: ['student_id'],
+    description:
+      "Add her approved comments to the student's Google Doc. The app asks her to confirm first, because it cannot be taken back.",
+  },
+  {
+    name: 'add_paper_from_file',
+    args: ['student_id', 'file_name'],
+    description: "Add an attached Word file as a student's paper, ready to review.",
+  },
+  {
+    name: 'add_material_from_file',
+    args: ['file_name', 'material_kind'],
+    description:
+      'Add an attached file to the current course as background material. material_kind is one of: syllabus, model_assignment, example_correction, reference.',
+  },
+  {
+    name: 'add_rubric_from_file',
+    args: ['file_name'],
+    description:
+      "Load an attached Word file as the current course's grading form. The app asks her to confirm first, because it replaces the form.",
+  },
+  {
+    name: 'add_style_from_file',
+    args: ['file_name'],
+    description:
+      "Learn her writing from the comments in an attached Word file she marked. Works only when the file's comments have one author.",
+  },
 ] as const;
 
 export type AssistantActionName = (typeof ASSISTANT_ACTIONS)[number]['name'];
@@ -110,6 +162,8 @@ export interface AssistantActionArgs {
   text?: string;
   tone?: string;
   folder_url?: string;
+  file_name?: string;
+  material_kind?: string;
 }
 
 export interface AssistantAction {
@@ -126,7 +180,13 @@ export interface AssistantTurn {
 export interface AssistantContext {
   today: string;
   screen: string;
-  current_course: { id: string; name: string; year: string } | null;
+  current_course: {
+    id: string;
+    name: string;
+    year: string;
+    tone: string;
+    rubric_criteria: number;
+  } | null;
   courses: { id: string; name: string; year: string }[];
   students: {
     id: string;
@@ -134,7 +194,17 @@ export interface AssistantContext {
     course_ids: string[];
     papers: number;
     pending_comments: number;
+    latest_paper_file: string | null;
+    latest_paper_status: string | null;
   }[];
+  drive: {
+    connection: string;
+    course_folder_set: boolean;
+    last_synced_at: string | null;
+    unmatched_files: string[];
+  };
+  /** Files she attached in this conversation: names only, never contents. */
+  attached_files: string[];
 }
 
 export interface AssistantRequest {
@@ -159,6 +229,8 @@ const STRING_ARGS = [
   'text',
   'tone',
   'folder_url',
+  'file_name',
+  'material_kind',
 ] as const;
 
 /**
@@ -192,7 +264,7 @@ export const ASSISTANT_SCHEMA: JsonSchema = {
 
 export const ASSISTANT_INSTRUCTIONS = `
 You are the assistant inside Margin, an app a Hebrew-speaking teacher uses to review her B.Ed
-students' seminar papers. You help her by doing things in the app, not by explaining how to do them.
+students' seminar papers. You do things in the app for her, and you answer her questions about it.
 
 How you act:
 - To do something, put it in "actions". The app performs each action itself and shows her whether it
@@ -201,19 +273,56 @@ How you act:
 - Use only the actions listed below, and only ids that appear in the context. Never make up an id.
 - Match names loosely (spelling, missing surname), but if a name could be two different students or
   courses, ask which one instead of acting.
-- If she asks something the context answers (who has comments waiting, which courses exist), answer
-  it in "reply" with no actions.
-- If she asks for something no action can do, say so plainly in one sentence and suggest the nearest
-  thing you can do.
-- Several actions in one answer are fine when she asked for several things.
+- If she asks something the context answers (who has comments waiting, which courses exist, whether
+  Drive is connected), answer it in "reply" with no actions.
+- Several actions in one answer are fine when she asked for several things. They run in order.
+- If she asks for something no action can do, say so plainly and tell her where in the app to do it.
+
+When she asks how to do something:
+- Answer from the guide below in short numbered steps, using the exact button names. Do not perform
+  it unless she asked you to; end by offering to do it if an action can.
+- Never describe a button or screen that is not in the guide. If you do not know, say so.
+
+Attached files:
+- "attached_files" lists the names of files she attached. You cannot see inside them, so never claim
+  to have read one or say what it contains.
+- Use the file's name in file_name. If she attached a file without saying what it is for, use its
+  name to work out the student (a file named after a student on the roster is probably her paper)
+  and if it is still unclear, ask: a student's paper, course material, the grading form, or writing
+  examples.
+
+Google Drive:
+- You reach Drive only through the actions here: connecting, setting the folder, syncing, and adding
+  comments to a student's document. You cannot browse her Drive or open other files in it.
+- If drive.connection is not "connected", a sync will fail: offer connect_drive first.
 
 How you write:
-- Hebrew only, addressed to her in the feminine second person (את), short and plain. One or two
-  sentences. No exclamation marks, no flattery.
+- Hebrew only, addressed to her in the feminine second person (את), short and plain. No exclamation
+  marks, no flattery.
 - Students are female (תלמידה, תלמידות).
 
 Actions:
 ${ASSISTANT_ACTIONS.map((a) => `- ${a.name}(${a.args.join(', ')}): ${a.description}`).join('\n')}
+
+Guide to the app (menu items are in the sidebar, or under "עוד" on a phone):
+- בית: an overview, with a card for each area and whatever is waiting for her.
+- התלמידות שלי: the class list. "הוספת תלמידה" adds a student and enrolls her in the courses ticked.
+  On each student: "הוספת קובץ" uploads a Word file as her paper, "כתיבת טיוטה" drafts comments on
+  her latest paper, "לעבודה האחרונה" opens it, "הוספת תיקייה" saves her Drive folder link.
+- עבודות שהוגשו: every paper that arrived. "הוספת עבודה מקובץ" uploads one, and pressing a row opens
+  it. "סנכרון עכשיו" brings in new papers from Drive.
+- Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
+  "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,
+  "הוספת ההערות למסמך של…", goes to the screen that adds approved comments to her Google Doc, using
+  "הוספת ההערות למסמך". "הסרת הסימונים מהמסמך" removes the small markers again.
+- קורסים וחומרי רקע: "הוספת קורס" creates a course. The course selector at the top of every screen
+  switches course or year. Here she also adds rules, background material and example papers, and
+  under "חיבור לדרייב" connects Google ("חיבור לגוגל") and sets the course folder.
+- טפסי הערכה: "טעינת טופס הציון" loads her grading form from a Word file. Pick a student to see or
+  change scores by criterion, read why each score was given, and reply to it. "ייצוא לוורד" exports
+  the filled form.
+- הסגנון שלי: how gently comments are worded (עדין, מאוזן, ישיר), "הוספת דוגמאות מהכתיבה שלי" to
+  learn from her writing, and the Gemini key and model.
 `.trim();
 
 /** The request as the model reads it: the facts, then the conversation. */

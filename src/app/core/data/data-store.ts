@@ -118,7 +118,7 @@ const IDLE: SyncState = {
  * and the id is the only part that matters. Taking the whole URL would store a
  * string no API call can use, and it would look saved.
  */
-function folderIdFrom(value: string): string | null {
+export function folderIdFrom(value: string): string | null {
   const text = value.trim();
   if (!text) return null;
 

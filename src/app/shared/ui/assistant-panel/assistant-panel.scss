@@ -245,3 +245,75 @@
   inline-size: 2.75rem;
   padding: 0;
 }
+
+.panel.is-dragging {
+  outline: 2px dashed var(--c-accent);
+  outline-offset: -6px;
+}
+
+.composer-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: var(--r-md);
+  color: var(--c-ink-3);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--c-accent);
+  }
+
+  &.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.pending-files,
+.msg-files {
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.pending-files {
+  padding: var(--s-2) var(--s-4) 0;
+}
+
+.msg-files {
+  margin-block-start: var(--s-2);
+  padding: 0;
+}
+
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-inline-size: 100%;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-full);
+  background: var(--c-surface);
+  border: 1px solid var(--c-line-strong);
+  color: var(--c-ink-2);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.file-remove {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-ink-3);
+  cursor: pointer;
+}
