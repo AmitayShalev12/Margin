@@ -409,11 +409,11 @@
 
                 <label class="field">
                   <span class="label">
-                    {{ s.add.of === 'rule' ? 'הכללים — שורה לכל כלל' : 'הטקסט שאני קוראת' }}
+                    {{ s.add.of === 'rule' ? 'הכלל' : 'הטקסט שאני קוראת' }}
                   </span>
                   <textarea
                     class="control"
-                    [rows]="s.add.of === 'rule' ? (draftRuleCount() > 1 ? 6 : 2) : 6"
+                    [rows]="s.add.of === 'rule' ? 4 : 6"
                     [value]="draftBody()"
                     (input)="draftBody.set($any($event.target).value)"
                   ></textarea>
@@ -457,14 +457,12 @@
                 <p class="kb-hint">אפשר גם להעתיק את הטקסט לתיבה למעלה.</p>
 
                 <!--
-                  Said before she presses save. One rule and forty rules look
-                  identical in a textarea, and a page of them pasted as a single
-                  record reaches the model as one enormous bullet among a dozen
-                  short ones.
+                  Said before she presses save: a file becomes one rule per
+                  line, unlike text she typed or pasted.
                 -->
-                @if (s.add.of === 'rule' && draftRuleCount() > 1) {
+                @if (s.add.of === 'rule' && loadedList() && draftRuleCount() > 1) {
                   <p class="kb-hint">
-                    כל שורה תיכנס ככלל נפרד —
+                    כל שורה בקובץ תיכנס ככלל נפרד —
                     {{ draftRuleCount() | count: 'כלל אחד' : '# כללים' : 'שני כללים' }}.
                   </p>
                 }

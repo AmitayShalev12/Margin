@@ -479,3 +479,57 @@ describe('adding a student who may already be there', () => {
     expect(page.component.clashMessage()).toBeNull();
   });
 });
+
+describe('adding a rule', () => {
+  beforeEach(() => localStorage.clear());
+
+  const section = { id: 'rules', add: { of: 'rule', origin: 'teacher' } };
+  const fourLines = 'שורה ראשונה\nשורה שנייה\nשורה שלישית\nשורה רביעית';
+
+  function form() {
+    const { fixture, component } = make();
+    return {
+      fixture,
+      store: TestBed.inject(DataStore),
+      component: component as unknown as {
+        startAdding(id: string): void;
+        readFile(event: Event): Promise<void>;
+        draftBody: { set(v: string): void };
+        save(s: unknown): void;
+      },
+    };
+  }
+
+  /** Reported from use: a four-line rule, pasted, came back as four tiny ones. */
+  it('keeps pasted text as one rule, however many lines it runs to', () => {
+    const { store, component } = form();
+
+    component.startAdding('rules');
+    component.draftBody.set(fourLines);
+    component.save(section);
+
+    expect(store.courseRules().map((r) => r.body)).toEqual([fourLines]);
+  });
+
+  it('still makes one rule per line from a file, which is a list', async () => {
+    const { store, component } = form();
+
+    component.startAdding('rules');
+    await component.readFile(pick('כללים.txt', fourLines));
+    component.save(section);
+
+    expect(store.courseRules()).toHaveLength(4);
+  });
+
+  it('does not carry a file from one form to the next', async () => {
+    const { store, component } = form();
+
+    component.startAdding('rules');
+    await component.readFile(pick('כללים.txt', fourLines));
+    component.startAdding('rules');
+    component.draftBody.set(fourLines);
+    component.save(section);
+
+    expect(store.courseRules()).toHaveLength(1);
+  });
+});

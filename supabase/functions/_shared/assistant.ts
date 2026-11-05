@@ -59,7 +59,7 @@ export const ASSISTANT_ACTIONS = [
     name: 'add_course_rule',
     args: ['text'],
     description:
-      "Add one of the teacher's own marking rules to the current course (it guides future drafted comments).",
+      "Add one of the teacher's own marking rules to the current course (it guides future drafted comments). Text she gives as one rule stays one action with all of it in text, even across several lines, unless she asks for separate rules.",
   },
   {
     name: 'set_comment_tone',

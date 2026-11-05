@@ -477,6 +477,7 @@ export class Courses {
 
   protected startAdding(id: string) {
     this.adding.set(id);
+    this.draftFromFile.set(false);
     this.draftBody.set('');
     this.draftTitle.set('');
     this.addError.set(null);
@@ -505,6 +506,7 @@ export class Courses {
 
     try {
       const text = await this.textOf(file);
+      this.draftFromFile.set(true);
       // Appended rather than replacing: she may have typed a rule already, and
       // silently discarding it because she then reached for a file is the kind
       // of small loss nobody reports and everybody resents.
@@ -560,11 +562,18 @@ export class Courses {
   }
 
   /**
-   * How many rules the text in the box would become.
+   * How many rules a loaded file would become.
    *
    * Shown before she saves, because "one rule" and "forty rules" look
    * identical in a textarea and are very different things to have added.
    */
+  /**
+   * What she types or pastes is one rule, however many lines it runs to. A
+   * file is a list she already keeps, so each of its lines is a rule.
+   */
+  private readonly draftFromFile = signal(false);
+  protected readonly loadedList = this.draftFromFile.asReadonly();
+
   protected readonly draftRuleCount = computed(
     () =>
       this.draftBody()
@@ -577,12 +586,19 @@ export class Courses {
     const scope = this.addForAll() ? 'all' : 'course';
     const written =
       section.add.of === 'rule'
-        ? this.data.addCourseRules(
-            sectionRuleKind(section.id),
-            this.draftBody(),
-            section.add.origin,
-            scope,
-          )
+        ? this.draftFromFile()
+          ? this.data.addCourseRules(
+              sectionRuleKind(section.id),
+              this.draftBody(),
+              section.add.origin,
+              scope,
+            )
+          : this.data.addCourseRule(
+              sectionRuleKind(section.id),
+              this.draftBody(),
+              section.add.origin,
+              scope,
+            )
         : this.data.addCourseMaterial(
             section.add.kind,
             this.draftTitle(),

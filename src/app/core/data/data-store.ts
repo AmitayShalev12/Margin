@@ -966,10 +966,9 @@ export class DataStore {
   }
 
   /**
-   * A page of rules, as rules — one per line.
+   * A file of rules, as rules — one per line.
    *
-   * Her rules do not arrive one at a time. They arrive as a list she already
-   * keeps, typed or in a Word file, and the whole page pasted into a single
+   * A file is a list she already keeps, and the whole page saved as a single
    * record would reach the prompt as one enormous bullet among a dozen short
    * ones. The model reads that as a single instruction and weighs it as one.
    *

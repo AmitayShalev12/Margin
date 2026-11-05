@@ -78,21 +78,23 @@ import { Icon } from '../icon/icon';
       align-items: center;
       flex: 0 1 12rem;
       min-width: 6.5rem;
-      border: 1px solid transparent;
+      border: 1px solid var(--c-accent-line);
       border-block-end: 0;
       border-start-start-radius: var(--r-md);
       border-start-end-radius: var(--r-md);
-      color: var(--c-ink-2);
+      background: var(--c-accent-soft);
+      color: var(--c-accent-strong);
       transition: background var(--dur-fast) var(--ease);
 
       &:hover {
-        background: color-mix(in srgb, var(--c-surface) 55%, transparent);
+        background: var(--c-accent-line);
       }
     }
 
     /* Lifted onto the page: same surface, no border underneath, so the tab
        and what it shows read as one sheet — the Firefox cue for "this one". */
-    .tab.is-active {
+    .tab.is-active,
+    .tab.is-active:hover {
       background: var(--c-paper);
       border-color: var(--c-line);
       color: var(--c-ink);
@@ -129,11 +131,11 @@ import { Icon } from '../icon/icon';
       border: 0;
       border-radius: var(--r-sm);
       background: none;
-      color: var(--c-ink-3);
+      color: inherit;
       cursor: pointer;
 
       &:hover {
-        background: var(--c-surface-sunk);
+        background: color-mix(in srgb, var(--c-accent-line) 60%, transparent);
         color: var(--c-ink);
       }
     }

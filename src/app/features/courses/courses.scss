@@ -102,6 +102,8 @@
 .kb-main {
   display: block;
   font-size: 14px;
+  // A rule she pasted across several lines keeps them.
+  white-space: pre-line;
 }
 
 .kb-note {
