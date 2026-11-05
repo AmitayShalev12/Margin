@@ -1,3 +1,4 @@
+import { MessageTemplate } from '../messages/student-message';
 import { Injectable, inject } from '@angular/core';
 
 import {
@@ -119,6 +120,7 @@ export class SupabaseRepository extends Repository {
       courseRules,
       courseMaterials,
       courseStudents,
+      messageTemplates,
     ] = await Promise.all([
       client.from(TABLES.submissions).select('*'),
       client.from(TABLES.submissionRounds).select('*'),
@@ -137,6 +139,7 @@ export class SupabaseRepository extends Repository {
       client.from(TABLES.courseRules).select('*'),
       client.from(TABLES.courseMaterials).select('*'),
       client.from(TABLES.courseStudents).select('*'),
+      client.from(TABLES.messageTemplates).select('*'),
     ]);
 
     // Paired with their tables, so a failed load names the query that failed.
@@ -160,6 +163,7 @@ export class SupabaseRepository extends Repository {
       [TABLES.courseRules, courseRules],
       [TABLES.courseMaterials, courseMaterials],
       [TABLES.courseStudents, courseStudents],
+      [TABLES.messageTemplates, messageTemplates],
     ];
 
     const failed = results.find(([, result]) => result.error);
@@ -191,6 +195,7 @@ export class SupabaseRepository extends Repository {
       driveFolders,
       feedbackLogs: (feedbackLogs.data ?? []) as LearningFeedbackLog[],
       styleExamples: (styleExamples.data ?? []) as TeacherStyleExample[],
+      messageTemplates: (messageTemplates.data ?? []) as MessageTemplate[],
     };
   }
 
@@ -200,6 +205,10 @@ export class SupabaseRepository extends Repository {
 
   async saveAssignment(assignment: Assignment): Promise<void> {
     await this.upsert(TABLES.assignments, assignment, 'id');
+  }
+
+  async saveMessageTemplate(template: MessageTemplate): Promise<void> {
+    await this.upsert(TABLES.messageTemplates, template, 'id');
   }
 
   async deleteAssignments(ids: readonly UUID[]): Promise<void> {

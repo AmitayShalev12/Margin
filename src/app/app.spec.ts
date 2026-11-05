@@ -50,7 +50,7 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelectorAll('nav[aria-label="ניווט ראשי"]').length).toBeGreaterThan(0);
-    expect(compiled.textContent).toContain('עבודות');
+    expect(compiled.textContent).toContain('קורסים');
   });
 
   it('shows which account she is signed in as, and the way out', async () => {
@@ -136,31 +136,17 @@ describe('the navigation', () => {
     return { fixture, rail, press };
   }
 
-  it('groups the places, each group with a heading of its own', async () => {
+  /** Everything else moved inside a course. */
+  it('holds only the overview and the assistant', async () => {
     const { rail } = await render();
-    const heads = [...rail.querySelectorAll('.group-head')].map((h) => h.textContent?.trim());
 
-    expect(heads).toEqual(['הקורס', 'תלמידות ועבודות', 'הגדרות']);
-    expect(rail.textContent).toContain('התלמידות שלי');
-    expect(rail.textContent).toContain('טפסי הערכה');
-  });
-
-  /** Hidden from the interface, kept in the code. */
-  it('has no mail entry while mailing is switched off, and has one when it is on', async () => {
-    expect((await render(false)).rail.textContent).not.toContain('מיילים');
-    expect((await render(true)).rail.textContent).toContain('מיילים לתלמידות');
-  });
-
-  it('folds one group away and leaves the others', async () => {
-    const { rail, press } = await render();
-
-    press('.group-head', 'הקורס');
-
-    expect(rail.textContent).not.toContain('טפסי הערכה');
-    expect(rail.textContent).toContain('התלמידות שלי');
-    expect(rail.querySelector('.group-head[aria-expanded="false"]')?.textContent).toContain(
-      'הקורס',
-    );
+    expect([...rail.querySelectorAll('a.rail-link')].map((a) => a.textContent?.trim())).toEqual([
+      'התלמידות שלי',
+    ]);
+    expect(rail.textContent).toContain('העוזר');
+    for (const moved of ['עבודות שהוגשו', 'קורסים וחומרי רקע', 'טפסי הערכה', 'הסגנון שלי', 'בית']) {
+      expect(rail.textContent).not.toContain(moved);
+    }
   });
 
   it('folds the whole rail to icons, every place still reachable', async () => {

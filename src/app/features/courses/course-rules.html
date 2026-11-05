@@ -1,29 +1,5 @@
 <div class="page">
-  <app-page-header [title]="title()" [subtitle]="subtitle()">
-    <button type="button" class="btn btn-primary btn-sm" (click)="quick.openAddCourse()">
-      הוספת קורס
-    </button>
-  </app-page-header>
-
-  <ul class="course-list">
-    @for (item of courses(); track item.id) {
-      <li>
-        <button
-          type="button"
-          class="course-item"
-          [class.is-open]="item.id === course()?.id"
-          [attr.aria-current]="item.id === course()?.id ? 'true' : null"
-          (click)="open(item.id)"
-        >
-          {{ item.name }}
-        </button>
-      </li>
-    }
-  </ul>
-
   @if (course(); as opened) {
-  <app-course-students />
-
   <div class="take-rules">
     @if (takingRules()) {
       <div class="card take-rules-card">
@@ -256,8 +232,5 @@
     }
   </div>
 
-  <app-course-tasks />
-  <app-process-flow />
-  <app-drive-folder />
   }
 </div>

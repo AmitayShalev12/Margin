@@ -309,33 +309,31 @@ How you write:
 Actions:
 ${ASSISTANT_ACTIONS.map((a) => `- ${a.name}(${a.args.join(', ')}): ${a.description}`).join('\n')}
 
-Guide to the app (menu items are in the sidebar, or under "עוד" on a phone):
-- בית: an overview, with a card for each area and whatever is waiting for her.
-- Top bar, on every screen: first a year select, then a course select listing that year's courses.
-  The year decides everything shown below it.
-- קורסים (where the app opens): "הוספת קורס" adds a course to the selected year, and if a course of
-  that name existed she is asked which rules and materials to keep. Opening a course shows, on the
-  same screen:
-  - Its students. "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list. On each
-    student: a mark of how she is doing against the deadlines, "הוספת קובץ" uploads a Word file for
-    a task, "כתיבת טיוטה" drafts comments on her latest paper, "לעבודה האחרונה" opens it, "הוספת
-    תיקייה" saves her Drive folder, and "הסרה מהקורס" takes her out of this course only.
-  - Its rules, in three groups: כללי העבודה, כללי משרד החינוך, הכללים שלי.
-  - "משימות ומועדים": up to 15 tasks with dates, added by hand or by "ייבוא מקובץ Excel".
-  - Background material, and under "חיבור לדרייב" connecting Google and setting the course folder.
-- התלמידות שלי: a table of every student across the year's courses. "ייצוא לאקסל" exports the list
-  and "מחיקה" removes a student from everything.
-- עבודות שהוגשו: every paper that arrived. "הוספת עבודה מקובץ" uploads one, and pressing a row opens
-  it. "סנכרון עכשיו" brings in new papers from Drive.
+Guide to the app:
+- Top bar, on every screen: the year select, which decides everything shown below it; a search box
+  that finds a student or a course; and a bell, "מה מחכה לי?", listing what waits for her.
+- Tabs under it start with "קורסים": the selected year's courses as cards. "הוספת קורס" adds one to
+  that year; if a course of that name existed she is asked which rules and materials to keep.
+- Pressing a card opens the course. Everything inside belongs to that course alone, in these parts:
+  - תלמידות: its students. "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list.
+    On each: a mark of how she stands against the deadlines, "הוספת קובץ" for a task, "כתיבת טיוטה"
+    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה", "הסרה מהקורס".
+  - עבודות: papers that arrived. "הוספת עבודה מקובץ" uploads one, and pressing a row opens it. "סנכרון
+    עכשיו" brings in new ones from Drive, and "חיבור לדרייב" connects Google and sets the folder.
+  - כללים וחומרים: rules in three groups (כללי העבודה, כללי משרד החינוך, הכללים שלי), background
+    material, and "לקחת כללים מקורס אחר".
+  - משימות ותהליך: up to 15 tasks with dates, "ייבוא מקובץ Excel", and the stages of the work.
+  - טופס הערכה: "טעינת טופס הציון" loads her form from a Word file; scores by criterion for a student.
+  - הסגנון בקורס: tone, and "הוספת דוגמאות מהכתיבה שלי". Style belongs to this course.
+  - הודעות: who is ready to hear back, and the templates she writes herself.
+- התלמידות שלי, in the sidebar: a table of every student across the year's courses. "ייצוא לאקסל"
+  exports the list and "מחיקה" removes a student from everything.
+- הגדרות, beside the account: her Gemini key and backups.
 - Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
   "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,
   "הוספת ההערות למסמך של…", goes to the screen that adds approved comments to her Google Doc, using
-  "הוספת ההערות למסמך". "הסרת הסימונים מהמסמך" removes the small markers again.
-- טפסי הערכה: "טעינת טופס הציון" loads her grading form from a Word file. Pick a student to see or
-  change scores by criterion, read why each score was given, and reply to it. "ייצוא לוורד" exports
-  the filled form.
-- הסגנון שלי: how gently comments are worded (עדין, מאוזן, ישיר), "הוספת דוגמאות מהכתיבה שלי" to
-  learn from her writing, and the Gemini key and model.
+  "הוספת ההערות למסמך". "הסרת הסימונים מהמסמך" removes the small markers again. "אישור ושליחה" walks
+  her through the comments, a template and the final message, then opens her mail app.
 `.trim();
 
 /** The request as the model reads it: the facts, then the conversation. */

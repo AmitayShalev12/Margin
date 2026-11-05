@@ -33,15 +33,15 @@ export interface AppTab {
 }
 
 const STORAGE_KEY = 'margin.tabs';
+const MOVED_INSIDE_A_COURSE = ['home', 'submissions', 'grading-forms', 'style'];
 /** Enough to hold a working afternoon; past it the oldest unused one goes. */
 export const MAX_TABS = 8;
 
 const SECTIONS: Record<string, { title: string; icon: IconName }> = {
   students: { title: 'התלמידות שלי', icon: 'users' },
-  submissions: { title: 'עבודות', icon: 'docs' },
   courses: { title: 'קורסים', icon: 'book' },
-  'grading-forms': { title: 'טפסי הערכה', icon: 'clipboard' },
-  style: { title: 'הסגנון שלי', icon: 'quill' },
+  settings: { title: 'הגדרות', icon: 'more' },
+  approve: { title: 'אישור ושליחה', icon: 'mail' },
   review: { title: 'בדיקה', icon: 'docs' },
 };
 
@@ -54,6 +54,9 @@ export function tabKey(url: string): string {
   const [first, second] = path.split('/').filter(Boolean);
   if (!first || first === 'home') return 'courses';
   if (first === 'review' && second) return `review:${second}`;
+  if (first === 'approve' && second) return `approve:${second}`;
+  // One tab per course; it remembers which part of the course she was in.
+  if (first === 'courses' && second && second !== 'current') return `course:${second}`;
   return first;
 }
 
@@ -136,6 +139,15 @@ export class Tabs {
       const name = submission ? this.data.studentName(submission.student_id) : '';
       return { title: name || 'בדיקה', icon: 'docs' };
     }
+    if (key.startsWith('course:')) {
+      const course = this.data.courses().find((c) => c.id === key.slice('course:'.length));
+      return { title: course?.name ?? 'קורס', icon: 'book' };
+    }
+    if (key.startsWith('approve:')) {
+      const submission = this.data.submission(key.slice('approve:'.length));
+      const name = submission ? this.data.studentName(submission.student_id) : '';
+      return { title: name ? `אישור: ${name}` : 'אישור ושליחה', icon: 'mail' };
+    }
     if (key === 'communication') {
       return this.mailing
         ? { title: 'מיילים', icon: 'mail' }
@@ -165,8 +177,8 @@ function restore(): StoredTab[] {
           typeof t.key === 'string' &&
           typeof t.url === 'string' &&
           typeof t.lastUsed === 'number' &&
-          // Saved before the home screen was removed.
-          t.key !== 'home',
+          // Places that moved inside a course, saved before they did.
+          !MOVED_INSIDE_A_COURSE.includes(t.key),
       )
       .slice(0, MAX_TABS);
   } catch {

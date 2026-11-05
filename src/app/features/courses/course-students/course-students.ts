@@ -2,7 +2,7 @@ import { LIGHT_LABEL, LIGHT_ORDER, Light, progressOf } from '../../../core/progr
 import { dayOf } from '../../../core/dates/hebrew-date';
 import { SheetError } from '../../../core/import/xlsx';
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
@@ -77,11 +77,21 @@ export type StudentSort = 'name' | 'status';
 })
 export class CourseStudents {
   protected readonly data = inject(DataStore);
+
+  constructor() {
+    effect(() => {
+      const name = this.q();
+      if (name) untracked(() => this.search.set(name));
+    });
+  }
+
   protected readonly quick = inject(QuickActions);
   private readonly router = inject(Router);
   protected readonly generator = inject(AnnotationGenerator);
 
   protected readonly search = signal('');
+  /** A student picked in the top bar's search arrives as a name to filter by. */
+  readonly q = input<string>();
 
   // -- how the list is ordered ----------------------------------------------
 

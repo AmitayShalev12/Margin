@@ -1,21 +1,8 @@
-<div class="switcher">
-  <label class="switch-field">
-    <span class="sr-only">שנה</span>
-    <select class="control pick-year" (change)="chooseYear($event)">
-      @for (year of years(); track year) {
-        <option [value]="year" [selected]="same(year)">{{ year }}</option>
-      }
-    </select>
-  </label>
-
-  <label class="switch-field">
-    <span class="sr-only">קורס</span>
-    <select class="control pick-course" [disabled]="!courses().length" (change)="chooseCourse($event)">
-      @for (course of courses(); track course.id) {
-        <option [value]="course.id" [selected]="course.id === current()?.id">{{ course.name }}</option>
-      } @empty {
-        <option value="" selected>אין קורסים בשנה הזו</option>
-      }
-    </select>
-  </label>
-</div>
+<label class="switch-field">
+  <span class="sr-only">שנה</span>
+  <select class="control pick-year" (change)="chooseYear($event)">
+    @for (year of years(); track year) {
+      <option [value]="year" [selected]="same(year)">{{ year }}</option>
+    }
+  </select>
+</label>

@@ -83,22 +83,23 @@ goes unread.
 **Recommendation:** a link, with a one-line fallback ("it is also in your folder in Drive").
 The link stays one document with no copies. Word files are the open question; check how many there are.
 
-## Decide: "הסגנון שלי" per course (requirement 21)
+## Approve: names and layout inside a course (requirement 6)
 
-Today her voice is shared across courses, while corrections already stay in their course
-(requirement 13, built).
+"קורסים וחומרי רקע" is gone. Pressing a course card opens it on its students, with these parts along
+the top: **תלמידות, עבודות, כללים וחומרים, משימות ותהליך, טופס הערכה, הסגנון בקורס, הודעות**. Expect to
+refine this after she sees it. Drive connection sits in עבודות, because that is the work it brings in.
 
-**Recommendation: keep one shared voice, and let each course add to it.** Her voice is one person's;
-what varies by course is strictness, which corrections and rules already carry.
+Her Gemini key and backups belong to no single course, so they moved to a small "הגדרות" link beside
+the account name. That is the one thing beyond "התלמידות שלי" and "העוזר" near the sidebar.
 
-| | Shared voice + per-course corrections | Fully separate per course |
-|---|---|---|
-| New course | Sounds like her from day one | Sounds generic until taught |
-| Strict vs lenient | Handled by corrections and rules | Handled |
-| What was learned | Kept as is | Has to be assigned to a course. Imported examples have none, so they either apply everywhere or need sorting by hand |
+## Approve: where what was already learned goes (requirement 15)
 
-If she still wants separate: existing examples would stay global as a fallback, and new ones go to
-the course. That loses nothing, so it can be added later.
+Style now belongs to one course. Her own comments, grade notes and rewrites already record which
+course they came from, so they simply stay there. Only imported writing examples were truly shared.
+
+**Built, and nothing deleted:** examples imported before 6 November 2026 keep working in every course,
+because the course recorded on them only says what was open at the time. New ones stay in their
+course. **To decide:** leave the old ones shared, or have her assign them to courses one by one.
 
 ## Before any real student work goes to the AI (requirement 22)
 
@@ -113,15 +114,40 @@ from the code. What has to change:
 
 Until then, requirements 12, 14 and 15 can be tested only on synthetic papers.
 
+## Decide: work with the app closed (requirement 24)
+
+Today Drive sync and drafting run in her browser, so the bell and "מה מחכה לי?" know only what happened
+while the app was open, and she gets no Outlook message (requirement 19).
+
+What it needs:
+- **Scheduled server work:** a timed job that runs an Edge Function. Supabase can do this.
+- **Reaching her Drive:** her refresh token is already held on the server, so the job can list her
+  folders without her. Reading files moves from the browser to the server, which needs its own review.
+- **Time limits:** drafting takes a minute or two, close to Edge Function limits. A long paper may
+  need splitting into steps.
+- **Emailing her:** either Graph, sending from her own account (needs the same IT answer as above), or
+  a sending service with its own domain. Check current pricing.
+- **Cost:** the Supabase plan (see Pro above), a paid Gemini key, and any sending service.
+- **Confidential content:** the email should hold a student's name at most, and a link into the app
+  behind her login. Never the paper or comments.
+
+**Recommended first step:** a daily job that only checks Drive for new files and emails her "new work
+has arrived, open Margin". No AI and no paper content, so it can start before a paid key.
+
 ## Not built yet, and why
 
 | Req. | State | What it needs |
 |---|---|---|
-| 12 Past graded papers | Only comment import exists | Paid key, then a design for storing paper, comments, fixes and grade form together |
-| 14 Chain checks, unanswered comments | Absent. The model sees only the current round | Paid key. Tasks now give the order of submissions, and flags can be a list of independent checks |
-| 15 Comments that follow the stage | Absent. The prompt has no stage | Paid key, and 12 |
-| 16 How the AI understands the process | Stages and counts are built; the AI's understanding is not | 12 |
-| 17–18 Message to the student | Not built. Today's AI-drafted mail screen is untouched | Outlook decision. **Should the AI drafts stay alongside her templates?** |
+| 14 Past graded papers | Only comment import exists | Paid key, then a design for storing paper, comments, fixes and grade form together |
+| 16 Chain checks | Two built with no AI: a commented sentence still there word for word, and a skipped earlier task. Topic drift needs reading for meaning | Paid key. New checks are one function each |
+| 17 Comments that follow the stage | Absent. The prompt has no stage | Paid key, and 14 |
+| 18 How the AI understands the process | Stages and each student's progress are built; the AI's understanding is not | 14 |
+| 19 Message to her in Outlook | Not built | Requirement 24 and the Outlook decision |
+| 21 Opening in Outlook | Opens through `mailto:`, so whichever mail app is the computer's default, as plain text | Outlook decision |
+| Attendance | Column is empty | A source for the data |
+
+**Should the AI-drafted emails stay alongside her templates?** They are kept for now, behind a link in
+the approval flow.
 
 ## Open questions from the build
 

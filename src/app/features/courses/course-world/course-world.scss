@@ -1,0 +1,58 @@
+.world {
+  max-inline-size: 72rem;
+  margin-inline: auto;
+  padding: var(--s-4);
+}
+
+.world-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-1) var(--s-3);
+}
+
+.back {
+  flex: 1 0 100%;
+  font-size: var(--fs-sm);
+}
+
+.world-title {
+  font-size: var(--fs-xl);
+}
+
+.world-year {
+  color: var(--c-ink-3);
+}
+
+.sections {
+  display: flex;
+  gap: var(--s-1);
+  margin-block: var(--s-3) var(--s-4);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--c-line);
+}
+
+.section {
+  flex: 0 0 auto;
+  padding: var(--s-2) var(--s-3);
+  border-block-end: 2px solid transparent;
+  color: var(--c-ink-2);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--c-ink);
+  }
+
+  &.is-active {
+    border-block-end-color: var(--c-accent);
+    color: var(--c-accent-strong);
+    font-weight: 600;
+  }
+}
+
+// Each section is a screen that also stands alone: inside a course it must not
+// add a second page's padding and width on top of this one's.
+:host ::ng-deep .page {
+  padding: 0;
+  max-inline-size: none;
+}

@@ -1,3 +1,4 @@
+import { TopTools } from './shared/ui/top-tools/top-tools';
 import { BackupService } from './core/backup/backup-service';
 import { DataStore } from './core/data/data-store';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
@@ -5,8 +6,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 
 import { Assistant } from './core/assistant/assistant';
-import { FEATURE_FLAGS } from './core/features';
-import { navGroups, navItems } from './core/navigation';
+import { MOBILE_NAV, RAIL_NAV } from './core/navigation';
 import { SupabaseService } from './core/supabase/supabase';
 import { Tabs } from './core/tabs';
 import { SignIn } from './features/sign-in/sign-in';
@@ -19,7 +19,6 @@ import { SaveError } from './shared/ui/save-error/save-error';
 import { TabStrip } from './shared/ui/tab-strip/tab-strip';
 
 const RAIL_KEY = 'margin.rail-collapsed';
-const GROUPS_KEY = 'margin.closed-groups';
 
 @Component({
   selector: 'app-root',
@@ -35,8 +34,7 @@ const GROUPS_KEY = 'margin.closed-groups';
     TabStrip,
     AddStudent,
     AddCourse,
-    AssistantPanel,
-  ],
+    AssistantPanel, TopTools],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -44,8 +42,8 @@ export class App {
   private readonly supabase = inject(SupabaseService);
   protected readonly assistant = inject(Assistant);
 
-  protected readonly groups = navGroups(inject(FEATURE_FLAGS));
-  protected readonly primaryNav = navItems(this.groups).filter((i) => i.primary);
+  protected readonly railNav = RAIL_NAV;
+  protected readonly primaryNav = MOBILE_NAV;
 
   /**
    * The gate. Everything behind it reads and writes the teacher's own rows, so
@@ -72,9 +70,6 @@ export class App {
    * hers about the screen, not a record.
    */
   protected readonly railCollapsed = signal(readFlag(RAIL_KEY));
-
-  /** Groups she has folded away. */
-  private readonly closedGroups = signal<ReadonlySet<string>>(new Set(readList(GROUPS_KEY)));
 
   constructor(router: Router) {
     // Created here so it is listening from the first navigation, not from
@@ -108,18 +103,6 @@ export class App {
     writeValue(RAIL_KEY, this.railCollapsed() ? '1' : '');
   }
 
-  protected isGroupOpen(id: string): boolean {
-    return !this.closedGroups().has(id);
-  }
-
-  protected toggleGroup(id: string) {
-    const next = new Set(this.closedGroups());
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    this.closedGroups.set(next);
-    writeValue(GROUPS_KEY, JSON.stringify([...next]));
-  }
-
   protected openAssistant() {
     this.moreOpen.set(false);
     this.assistant.open();
@@ -145,14 +128,6 @@ function readFlag(key: string): boolean {
   }
 }
 
-function readList(key: string): string[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-  } catch {
-    return [];
-  }
-}
 
 function writeValue(key: string, value: string) {
   try {

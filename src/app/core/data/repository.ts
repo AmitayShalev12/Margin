@@ -1,3 +1,4 @@
+import { MessageTemplate } from '../messages/student-message';
 import {
   Annotation,
   Assignment,
@@ -66,6 +67,8 @@ export interface PersistedSnapshot {
   feedbackLogs: LearningFeedbackLog[];
   /** Samples of her own writing. Read-only for now; nothing here writes them. */
   styleExamples: TeacherStyleExample[];
+  /** The message templates she writes herself. */
+  messageTemplates: MessageTemplate[];
 }
 
 /**
@@ -97,6 +100,7 @@ export const EMPTY_SNAPSHOT: PersistedSnapshot = {
   driveFolders: {},
   feedbackLogs: [],
   styleExamples: [],
+  messageTemplates: [],
 };
 
 /**
@@ -127,6 +131,7 @@ export abstract class Repository {
   abstract saveCourseRule(rule: CourseRule): Promise<void>;
   abstract saveCourseMaterial(material: CourseMaterial): Promise<void>;
   abstract saveStyleExample(example: TeacherStyleExample): Promise<void>;
+  abstract saveMessageTemplate(template: MessageTemplate): Promise<void>;
 
   abstract saveGradingCategory(category: GradingFormCategory): Promise<void>;
   abstract saveCriterionScore(score: GradingCriterionScore): Promise<void>;

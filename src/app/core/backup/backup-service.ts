@@ -126,6 +126,7 @@ export class BackupService {
     for (const row of missing.reliabilityChecks) await r.saveReliabilityCheck(row);
     for (const row of missing.feedbackLogs) await r.saveFeedbackLog(row);
     for (const row of missing.styleExamples) await r.saveStyleExample(row);
+    for (const row of missing.messageTemplates) await r.saveMessageTemplate(row);
     for (const [owner, folder] of Object.entries(missing.driveFolders)) {
       await r.saveDriveFolder(owner, folder);
     }

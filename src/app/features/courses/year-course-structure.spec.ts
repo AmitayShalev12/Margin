@@ -10,7 +10,8 @@ import { SupabaseService } from '../../core/supabase/supabase';
 import { StudentsOverview } from '../students-overview/students-overview';
 import { CourseStudents } from './course-students/course-students';
 import { CourseTasks } from './course-tasks/course-tasks';
-import { Courses } from './courses';
+import { CoursesHome } from './courses-home/courses-home';
+import { CourseRules } from './course-rules';
 import { ProcessFlow } from './process-flow/process-flow';
 
 /** Year, then course, then everything inside it. All names are invented. */
@@ -282,7 +283,7 @@ describe('the rules', () => {
     store.addCourseRule('language', 'כלל ישן', 'teacher');
     store.addCourseRule('language', 'כלל של משרד', 'teacher', 'course', 'ministry');
 
-    const { instance } = render(Courses);
+    const { instance } = render(CourseRules);
     const sections = (instance as unknown as {
       sections(): { id: string; title: string; items: { text: string }[] }[];
     }).sections();
@@ -298,34 +299,33 @@ describe('the rules', () => {
 });
 
 describe('the courses screen', () => {
-  it('lists only this year’s courses, and opening one stays on the screen', () => {
+  it('shows this year’s courses as cards, leading into the course', () => {
     const store = setup();
     store.createCourse('של שנה אחרת', 'תשפ״ו');
     const first = store.createCourse('ראשון', 'תשפ״ז')!;
-    const second = store.createCourse('שני', 'תשפ״ז')!;
+    store.createCourse('שני', 'תשפ״ז');
     store.addStudent('נועה', undefined, [first.id]);
 
-    const { host, fixture } = render(Courses);
-    const items = [...host.querySelectorAll<HTMLButtonElement>('.course-item')];
-    expect(items.map((i) => i.textContent?.trim()).sort()).toEqual(['ראשון', 'שני']);
-    expect(store.course()!.id).toBe(second.id);
+    const { host } = render(CoursesHome);
+    const cards = [...host.querySelectorAll<HTMLAnchorElement>('.course-card')];
 
-    items.find((i) => i.textContent?.includes('ראשון'))!.click();
-    fixture.detectChanges();
-
-    expect(store.course()!.id).toBe(first.id);
-    expect(host.querySelector('app-course-students')?.textContent).toContain('נועה');
+    expect(cards.map((c) => c.querySelector('.card-title')?.textContent).sort()).toEqual([
+      'ראשון',
+      'שני',
+    ]);
+    const card = cards.find((c) => c.textContent?.includes('ראשון'))!;
+    expect(card.getAttribute('href')).toBe(`/courses/${first.id}`);
+    expect(card.textContent).toContain('תלמידה אחת');
   });
 
-  it('says so when the year has no courses, and shows nothing of another year', () => {
+  it('says so when the year has no courses', () => {
     const store = setup();
     store.createCourse('של שנה אחרת', 'תשפ״ו');
-    store.addStudent('נועה', undefined, [store.course()!.id]);
     store.selectYear('תשפ״ח');
 
-    const { host } = render(Courses);
+    const { host } = render(CoursesHome);
 
-    expect(host.querySelector('app-course-students')).toBeNull();
+    expect(host.querySelector('.course-card')).toBeNull();
     expect(host.textContent).toContain('עוד אין קורסים בשנת');
   });
 
@@ -381,11 +381,58 @@ describe('corrections stay in their course', () => {
 describe('no way in is left broken', () => {
   const redirect = (path: string) => routes.find((r) => r.path === path)?.redirectTo;
 
-  it('sends old links to her courses', () => {
+  it('sends every old address somewhere real', () => {
     expect(redirect('')).toBe('courses');
     expect(redirect('home')).toBe('courses');
     expect(redirect('**')).toBe('courses');
     expect(redirect('dashboard')).toBe('students');
+    expect(redirect('submissions')).toBe('courses/current/papers');
+    expect(redirect('grading-forms')).toBe('courses/current/grading');
+    expect(redirect('style')).toBe('courses/current/style');
+    expect(redirect('communication')).toBe('courses/current/messages');
+  });
+
+  it('has a screen for every part of a course', () => {
+    const world = routes.find((r) => r.path === 'courses/:courseId')!;
+    expect(world.children!.map((c) => c.path).filter(Boolean)).toEqual([
+      'students',
+      'papers',
+      'rules',
+      'process',
+      'grading',
+      'style',
+      'messages',
+    ]);
+  });
+});
+
+describe('style belongs to one course', () => {
+  const example = (store: DataStore, course: string | null, at: string, text: string) => ({
+    id: text,
+    teacher_id: 'teacher-1',
+    course_id: course,
+    source: 'manual' as const,
+    student_text: null,
+    teacher_text: text,
+    tags: [],
+    active: true,
+    created_at: at,
+    updated_at: at,
+  });
+
+  it('keeps new examples in their course, and older shared ones everywhere', () => {
+    const store = setup();
+    const first = store.createCourse('ראשון', 'תשפ״ז')!;
+    const second = store.createCourse('שני', 'תשפ״ז')!;
+    (store as unknown as { _styleExamples: { set(v: unknown[]): void } })._styleExamples.set([
+      example(store, first.id, '2026-12-01', 'חדש של הראשון'),
+      example(store, second.id, '2026-12-01', 'חדש של השני'),
+      example(store, first.id, '2026-09-01', 'ישן'),
+    ]);
+
+    expect(store.herWriting().map((w) => w.teacher_text).sort()).toEqual(['חדש של השני', 'ישן']);
+    store.selectCourse(first.id);
+    expect(store.herWriting().map((w) => w.teacher_text).sort()).toEqual(['חדש של הראשון', 'ישן']);
   });
 });
 

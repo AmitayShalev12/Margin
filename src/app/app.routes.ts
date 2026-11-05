@@ -1,23 +1,69 @@
-import { Routes } from '@angular/router';
+import { Route, Routes } from '@angular/router';
 
 import { FEATURES } from './core/features';
 
+const section = (path: string, load: Route['loadComponent']): Route => ({ path, loadComponent: load });
+
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'courses' },
-  // There is no home screen any more; old links and saved tabs still land.
+  // Old addresses, from links and saved tabs. "current" is the course on screen.
   { path: 'home', redirectTo: 'courses' },
+  { path: 'dashboard', redirectTo: 'students' },
+  { path: 'submissions', redirectTo: 'courses/current/papers' },
+  { path: 'grading-forms', redirectTo: 'courses/current/grading' },
+  { path: 'style', redirectTo: 'courses/current/style' },
   {
     path: 'students',
     title: 'התלמידות שלי · Margin',
     loadComponent: () =>
       import('./features/students-overview/students-overview').then((m) => m.StudentsOverview),
   },
-  // The student list used to live here; old links and bookmarks still reach it.
-  { path: 'dashboard', redirectTo: 'students' },
   {
-    path: 'submissions',
-    title: 'עבודות · Margin',
-    loadComponent: () => import('./features/submissions/submissions').then((m) => m.Submissions),
+    path: 'courses',
+    pathMatch: 'full',
+    title: 'קורסים · Margin',
+    loadComponent: () =>
+      import('./features/courses/courses-home/courses-home').then((m) => m.CoursesHome),
+  },
+  {
+    path: 'courses/:courseId',
+    title: 'קורס · Margin',
+    loadComponent: () =>
+      import('./features/courses/course-world/course-world').then((m) => m.CourseWorld),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'students' },
+      section('students', () =>
+        import('./features/courses/course-students/course-students').then((m) => m.CourseStudents),
+      ),
+      section('papers', () =>
+        import('./features/submissions/submissions').then((m) => m.Submissions),
+      ),
+      section('rules', () =>
+        import('./features/courses/course-rules').then((m) => m.CourseRules),
+      ),
+      section('process', () =>
+        import('./features/courses/course-world/course-process').then((m) => m.CourseProcess),
+      ),
+      section('grading', () =>
+        import('./features/grading-forms/grading-forms').then((m) => m.GradingForms),
+      ),
+      section('style', () =>
+        import('./features/style-settings/style-settings').then((m) => m.StyleSettings),
+      ),
+      section('messages', () =>
+        import('./features/courses/course-world/course-messages').then((m) => m.CourseMessages),
+      ),
+    ],
+  },
+  {
+    path: 'settings',
+    title: 'הגדרות · Margin',
+    loadComponent: () => import('./features/settings/settings').then((m) => m.Settings),
+  },
+  {
+    path: 'approve/:submissionId',
+    title: 'אישור ושליחה · Margin',
+    loadComponent: () => import('./features/approval/approval').then((m) => m.Approval),
   },
   {
     // The annotation screen. Reachable without an id while it is a stub.
@@ -31,17 +77,6 @@ export const routes: Routes = [
     loadComponent: () => import('./features/review/review').then((m) => m.Review),
   },
   {
-    path: 'courses',
-    title: 'קורסים · Margin',
-    loadComponent: () => import('./features/courses/courses').then((m) => m.Courses),
-  },
-  {
-    path: 'grading-forms',
-    title: 'טפסי הערכה · Margin',
-    loadComponent: () =>
-      import('./features/grading-forms/grading-forms').then((m) => m.GradingForms),
-  },
-  {
     // Where the review screen's primary action lands, with the submission
     // already chosen. The bare path is the same screen reached from the nav.
     path: 'communication/:submissionId',
@@ -49,17 +84,6 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/communication/communication').then((m) => m.Communication),
   },
-  {
-    path: 'communication',
-    title: FEATURES.mailing ? 'מיילים לתלמידות · Margin' : 'ההערות במסמך · Margin',
-    loadComponent: () =>
-      import('./features/communication/communication').then((m) => m.Communication),
-  },
-  {
-    path: 'style',
-    title: 'הסגנון שלי · Margin',
-    loadComponent: () =>
-      import('./features/style-settings/style-settings').then((m) => m.StyleSettings),
-  },
+  { path: 'communication', redirectTo: 'courses/current/messages' },
   { path: '**', redirectTo: 'courses' },
 ];

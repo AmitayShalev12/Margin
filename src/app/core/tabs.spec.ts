@@ -61,10 +61,10 @@ describe('opening places', () => {
   it('opens a tab for each new place and marks the one on screen', () => {
     const { tabs } = setup();
 
-    tabs.visit('/style');
+    tabs.visit('/settings');
     tabs.visit('/students');
 
-    expect(tabs.tabs().map((t) => t.key)).toEqual(['style', 'students']);
+    expect(tabs.tabs().map((t) => t.key)).toEqual(['settings', 'students']);
     expect(
       tabs
         .tabs()
@@ -140,23 +140,23 @@ describe('opening places', () => {
 describe('closing tabs', () => {
   it('moves to the neighbour when the tab on screen closes', () => {
     const { tabs, navigated } = setup();
-    tabs.visit('/style');
+    tabs.visit('/settings');
     tabs.visit('/students');
     tabs.visit('/courses');
     tabs.visit('/students');
 
     tabs.close('students');
 
-    expect(tabs.tabs().map((t) => t.key)).toEqual(['style', 'courses']);
+    expect(tabs.tabs().map((t) => t.key)).toEqual(['settings', 'courses']);
     expect(navigated).toEqual(['/courses']);
   });
 
   it('closes a background tab without going anywhere', () => {
     const { tabs, navigated } = setup();
-    tabs.visit('/style');
+    tabs.visit('/settings');
     tabs.visit('/students');
 
-    tabs.close('style');
+    tabs.close('settings');
 
     expect(tabs.tabs().map((t) => t.key)).toEqual(['students']);
     expect(navigated).toEqual([]);
@@ -175,11 +175,11 @@ describe('closing tabs', () => {
 describe('remembering them', () => {
   it('brings the tabs back in a new session', () => {
     const first = setup();
-    first.tabs.visit('/style');
+    first.tabs.visit('/settings');
     first.tabs.visit('/courses');
 
     const second = setup();
-    expect(second.tabs.tabs().map((t) => t.key)).toEqual(['style', 'courses']);
+    expect(second.tabs.tabs().map((t) => t.key)).toEqual(['settings', 'courses']);
   });
 
   /** Private windows and blocked storage: the strip simply starts empty. */
@@ -191,15 +191,26 @@ describe('remembering them', () => {
 });
 
 describe('tabs saved before the home screen was removed', () => {
-  it('drops the home tab and keeps the others', () => {
+  it('drops places that moved inside a course, and keeps the others', () => {
     localStorage.setItem(
       'margin.tabs',
       JSON.stringify([
         { key: 'home', url: '/home', lastUsed: 1 },
+        { key: 'submissions', url: '/submissions', lastUsed: 1 },
+        { key: 'grading-forms', url: '/grading-forms', lastUsed: 1 },
+        { key: 'style', url: '/style', lastUsed: 1 },
         { key: 'students', url: '/students', lastUsed: 2 },
       ]),
     );
 
     expect(setup().tabs.tabs().map((t) => t.key)).toEqual(['students']);
+  });
+});
+
+describe('a course is one tab', () => {
+  it('whichever part of it she is in', () => {
+    expect(tabKey('/courses/c1/students')).toBe('course:c1');
+    expect(tabKey('/courses/c1/rules')).toBe('course:c1');
+    expect(tabKey('/courses')).toBe('courses');
   });
 });

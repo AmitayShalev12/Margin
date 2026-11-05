@@ -1,3 +1,4 @@
+import { MessageTemplate } from '../messages/student-message';
 import { currentYearLabel, yearChoices, yearKey } from '../dates/hebrew-date';
 import { ContactField, RosterPlan } from '../roster/roster';
 import { Injectable, computed, inject, signal } from '@angular/core';
@@ -135,6 +136,8 @@ export function folderIdFrom(value: string): string | null {
 
 const YEAR_KEY = 'margin.year';
 const MAX_TASKS = 15;
+/** Before this, style was shared across courses. See docs/restructure-decisions.md. */
+const STYLE_SPLIT_AT = '2026-11-06';
 
 function readSavedYear(): string | null {
   try {
@@ -249,15 +252,52 @@ export class DataStore {
   readonly feedbackLogs = this._feedbackLogs.asReadonly();
   readonly styleExamples = this._styleExamples.asReadonly();
 
-  /** All her own words, newest first: what the model learns her voice from. */
-  readonly herWriting = computed(() =>
-    herWriting({
-      examples: this._styleExamples(),
-      annotations: this._annotations(),
-      scores: this._criterionScores(),
-      emails: this._studentEmails(),
-    }),
-  );
+  /**
+   * Her own words in this course, newest first: what the model learns from.
+   *
+   * Style belongs to one course. Examples imported before that was so have no
+   * course that means anything, so they stay in every course until she decides
+   * where they belong. Nothing already learned is removed.
+   */
+  readonly herWriting = computed(() => {
+    const here = this._course()?.id ?? null;
+    const papers = new Set(this.courseSubmissions().map((p) => p.id));
+    return herWriting({
+      examples: this._styleExamples().filter(
+        (e) => e.course_id === null || e.course_id === here || e.created_at < STYLE_SPLIT_AT,
+      ),
+      annotations: this._annotations().filter((a) => papers.has(a.submission_id)),
+      scores: this._criterionScores().filter((s) => papers.has(s.submission_id)),
+      emails: this._studentEmails().filter((e) => papers.has(e.submission_id)),
+    });
+  });
+
+  /** Her decisions in this course: strict and lenient courses stay apart. */
+  readonly courseFeedbackLogs = computed(() => {
+    const here = this._course()?.id;
+    return this._feedbackLogs().filter((l) => l.course_id === here);
+  });
+
+  private readonly _messageTemplates = signal<MessageTemplate[]>([]);
+  readonly messageTemplates = this._messageTemplates.asReadonly();
+
+  saveMessageTemplate(slot: number, title: string, body: string) {
+    const teacherId = this.supabase.teacherId;
+    if (!teacherId) return;
+    const now = new Date().toISOString();
+    const existing = this._messageTemplates().find((t) => t.slot === slot);
+    const template: MessageTemplate = {
+      id: existing?.id ?? newId(),
+      teacher_id: teacherId,
+      slot,
+      title: title.trim() || `תבנית ${slot}`,
+      body,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    };
+    this._messageTemplates.update((list) => [...list.filter((t) => t.slot !== slot), template]);
+    this.persist(() => this.repository.saveMessageTemplate(template));
+  }
 
   /**
    * Her course, or null before she has made one.
@@ -858,6 +898,7 @@ export class DataStore {
     // Merged by id: a decision she made stands on its own.
     this._feedbackLogs.update((list) => mergeById(list, snapshot.feedbackLogs));
     this._styleExamples.update((list) => mergeById(list, snapshot.styleExamples));
+    this._messageTemplates.update((list) => mergeById(list, snapshot.messageTemplates ?? []));
 
     // The grading form's headings come from her own past years when there are
     // any; `buildCategories` falls back to the starting set only for a course
@@ -1689,6 +1730,7 @@ export class DataStore {
     this._reliabilityChecks.set([]);
     this._annotations.set([]);
     this._feedbackLogs.set([]);
+    this._messageTemplates.set([]);
     this._styleExamples.set([]);
     this.folders.set({});
     this._sync.set(IDLE);

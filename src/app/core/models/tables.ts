@@ -20,6 +20,7 @@ export const TABLES = {
   learningFeedbackLogs: 'learning_feedback_logs',
   studentEmails: 'student_emails',
   reliabilityChecks: 'reliability_checks',
+  messageTemplates: 'message_templates',
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

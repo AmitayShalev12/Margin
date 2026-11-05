@@ -1,3 +1,4 @@
+import { DriveFolder } from '../courses/drive-folder/drive-folder';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -43,7 +44,7 @@ function matches(filter: FilterKey, status: SubmissionStatus): boolean {
 @Component({
   selector: 'app-submissions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, RouterLink, PageHeader],
+  imports: [CountPipe, RouterLink, PageHeader, DriveFolder],
   templateUrl: './submissions.html',
   styleUrl: './submissions.scss',
 })

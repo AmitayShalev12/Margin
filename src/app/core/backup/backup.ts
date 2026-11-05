@@ -53,6 +53,7 @@ export const RESTORE_ORDER = [
   'reliabilityChecks',
   'feedbackLogs',
   'styleExamples',
+  'messageTemplates',
 ] as const satisfies readonly TableKey[];
 
 type Row = { id: string; teacher_id?: string };
@@ -63,7 +64,7 @@ function rows(snapshot: PersistedSnapshot, table: TableKey): Row[] {
 
 export function buildBackup(snapshot: PersistedSnapshot, exportedAt: string): MarginBackup {
   const counts: Record<string, number> = {};
-  for (const table of RESTORE_ORDER) counts[table] = rows(snapshot, table).length;
+  for (const table of RESTORE_ORDER) counts[table] = (rows(snapshot, table) ?? []).length;
 
   return {
     format: BACKUP_FORMAT,
@@ -102,6 +103,8 @@ export function parseBackup(text: string): MarginBackup {
   }
 
   for (const table of RESTORE_ORDER) {
+    // Backups made before templates existed are still good.
+    if (table === 'messageTemplates') continue;
     if (!Array.isArray(parsed.data[table])) throw new BackupError('קובץ הגיבוי פגום או חסר.');
   }
 
@@ -126,8 +129,8 @@ export function missingFrom(
   const missing: PersistedSnapshot = { ...EMPTY_SNAPSHOT, driveFolders: {} };
 
   for (const table of RESTORE_ORDER) {
-    const existing = new Set(rows(current, table).map((r) => r.id));
-    const absent = rows(backup, table)
+    const existing = new Set((rows(current, table) ?? []).map((r) => r.id));
+    const absent = (rows(backup, table) ?? [])
       .filter((r) => !existing.has(r.id))
       .map((r) => (teacherId && 'teacher_id' in r ? { ...r, teacher_id: teacherId } : r));
     (missing as unknown as Record<string, Row[]>)[table] = absent;
@@ -141,5 +144,5 @@ export function missingFrom(
 }
 
 export function rowCount(snapshot: PersistedSnapshot): number {
-  return RESTORE_ORDER.reduce((sum, table) => sum + rows(snapshot, table).length, 0);
+  return RESTORE_ORDER.reduce((sum, table) => sum + (rows(snapshot, table) ?? []).length, 0);
 }

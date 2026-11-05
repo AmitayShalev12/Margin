@@ -3,16 +3,10 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { DataStore } from '../../core/data/data-store';
 import { DocxError, readDocxText } from '../../core/import/docx-comments';
 import { CourseMaterialKind, CourseRuleOrigin, RuleGroup } from '../../core/models';
-import { PageHeader } from '../../shared/ui/page-header/page-header';
-import { DriveFolder } from './drive-folder/drive-folder';
 
 import { CountPipe, count } from '../../core/presentation/count';
 import { dualDateText } from '../../core/dates/hebrew-date';
-import { QuickActions } from '../../shared/ui/quick-actions/quick-actions';
 import { CarryOver } from '../../shared/ui/add-course/carry-over';
-import { CourseStudents } from './course-students/course-students';
-import { CourseTasks } from './course-tasks/course-tasks';
-import { ProcessFlow } from './process-flow/process-flow';
 interface KbItem {
   /**
    * Which table the row came from, so a row knows how to edit and delete
@@ -57,37 +51,20 @@ interface KbSection {
  * panel — one collapsed row per kind of material, opened when she wants it.
  */
 @Component({
-  selector: 'app-courses',
+  selector: 'app-course-rules',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, PageHeader, DriveFolder, CarryOver, CourseStudents, CourseTasks, ProcessFlow],
-  templateUrl: './courses.html',
-  styleUrl: './courses.scss',
+  imports: [CountPipe, CarryOver],
+  templateUrl: './course-rules.html',
+  styleUrl: './course-rules.scss',
 })
-export class Courses {
+export class CourseRules {
   private readonly data = inject(DataStore);
 
   protected readonly course = this.data.course;
   protected readonly assignment = this.data.assignment;
-  protected readonly quick = inject(QuickActions);
-  /** This year's courses, the list she opens one from. */
-  protected readonly courses = this.data.coursesInYear;
-  protected readonly year = this.data.year;
   /** "Take rules from another course": open only when she asks. */
   protected readonly takingRules = signal(false);
 
-  protected open(id: string) {
-    this.data.selectCourse(id);
-    this.takingRules.set(false);
-  }
-
-  /** The page's own name before there is a course to name it after. */
-  protected readonly title = computed(() => 'הקורסים שלי');
-
-  protected readonly subtitle = computed(() => {
-    return this.courses().length
-      ? `שנת ${this.year()}. פותחים קורס, ובתוכו התלמידות והכללים שלו.`
-      : `עוד אין קורסים בשנת ${this.year()}.`;
-  });
 
   private readonly sectionsOpen = signal<Record<string, boolean>>({
     'rules-work': true,

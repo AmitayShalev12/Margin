@@ -1,3 +1,4 @@
+import { runChecks } from '../../core/checks/checks';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -131,6 +132,26 @@ export class Review {
   );
 
   protected readonly student = computed(() => this.data.studentName(this.submission().student_id));
+
+  protected readonly flags = computed(() => {
+    const paper = this.submission();
+    const round = paper && this.data.roundFor(paper.id);
+    const task = paper && this.data.assignmentById(paper.assignment_id);
+    if (!paper || !round) return [];
+    const hers = this.data.submissions().filter((s) => s.student_id === paper.student_id);
+    const courseTasks = task ? this.data.assignmentsOf(task.course_id) : [];
+    const earlier = this.data
+      .rounds()
+      .filter((r) => r.id !== round.id && hers.some((p) => p.id === r.submission_id));
+    return runChecks({
+      paper,
+      round,
+      earlierRounds: earlier,
+      annotations: this.data.annotations(),
+      tasks: courseTasks,
+      handedIn: new Set(hers.map((s) => s.assignment_id)),
+    });
+  });
 
   /** First name only — the send button reads better as "לנועה" than in full. */
   protected readonly firstName = computed(() => this.student().split(' ')[0]);

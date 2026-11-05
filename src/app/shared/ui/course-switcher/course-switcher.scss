@@ -1,34 +1,15 @@
 :host {
   display: block;
-  min-width: 0;
-}
-
-.switcher {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-width: 0;
+  flex: 0 0 6rem;
 }
 
 .switch-field {
   display: block;
-  min-width: 0;
-}
-
-/* The course name gives way on a narrow bar; a year is always short. */
-.switch-field:first-child {
-  flex: 0 0 6rem;
-}
-
-.switch-field:last-child {
-  flex: 1 1 auto;
-  min-inline-size: 5rem;
-  max-inline-size: 16rem;
 }
 
 .control {
   block-size: 2.25rem;
-  min-block-size: 2.25rem;
+  min-height: 2.25rem;
   padding-block: 0;
   padding-inline: var(--s-2) var(--s-6);
   inline-size: 100%;

@@ -1,3 +1,4 @@
+import { MessageTemplate } from '../messages/student-message';
 import { Injectable } from '@angular/core';
 
 import {
@@ -77,6 +78,12 @@ export class LocalRepository extends Repository {
     const gone = new Set(ids);
     this.mutate((snapshot) => {
       snapshot.courseStudents = (snapshot.courseStudents ?? []).filter((l) => !gone.has(l.id));
+    });
+  }
+
+  async saveMessageTemplate(template: MessageTemplate): Promise<void> {
+    this.mutate((snapshot) => {
+      snapshot.messageTemplates = replaceById(snapshot.messageTemplates ?? [], template);
     });
   }
 
@@ -290,6 +297,7 @@ function read(): PersistedSnapshot {
       driveFolders: parsed.driveFolders ?? {},
       feedbackLogs: parsed.feedbackLogs ?? [],
       styleExamples: parsed.styleExamples ?? [],
+      messageTemplates: parsed.messageTemplates ?? [],
     };
   } catch {
     // Corrupt or unavailable storage shouldn't stop the app booting.
@@ -317,6 +325,7 @@ function clone(snapshot: PersistedSnapshot): PersistedSnapshot {
     driveFolders: { ...snapshot.driveFolders },
     feedbackLogs: [...snapshot.feedbackLogs],
     styleExamples: [...snapshot.styleExamples],
+    messageTemplates: [...(snapshot.messageTemplates ?? [])],
   };
 }
 

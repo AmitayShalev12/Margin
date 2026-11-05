@@ -107,6 +107,7 @@ describe('SupabaseRepository', () => {
       'course_rules',
       'course_materials',
       'course_students',
+      'message_templates',
     ]);
     expect(snapshot.submissions).toEqual([SUBMISSION]);
     // A course with no folder set must not appear as an empty one.

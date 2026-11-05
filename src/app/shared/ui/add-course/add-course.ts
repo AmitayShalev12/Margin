@@ -85,7 +85,7 @@ export class AddCourse {
     // A new course starts clean. Only a course that ran before has anything to ask.
     if (!hadSameName) {
       this.close();
-      void this.router.navigateByUrl('/courses');
+      void this.router.navigate(['/courses', course.id]);
       return;
     }
     this.created.set(course);
@@ -93,8 +93,9 @@ export class AddCourse {
   }
 
   protected toCourse() {
+    const id = this.created()?.id;
     this.quick.close();
-    void this.router.navigateByUrl('/courses');
+    void this.router.navigateByUrl(id ? `/courses/${id}` : '/courses');
   }
 
   protected close() {

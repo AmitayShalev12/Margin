@@ -84,6 +84,18 @@
     -->
     <app-reliability-panel [submissionId]="submission().id" [studentName]="firstName()" />
 
+    <!-- For her to judge. Nothing changes because of a flag. -->
+    @if (flags().length) {
+      <details class="card flags">
+        <summary>{{ flags().length }} דברים שכדאי להסתכל עליהם</summary>
+        <ul>
+          @for (flag of flags(); track flag.id) {
+            <li>{{ flag.text }}</li>
+          }
+        </ul>
+      </details>
+    }
+
     <div class="layout">
       <!-- The document itself. Comments live on the text, not beside a copy of it. -->
       <!--
@@ -413,6 +425,7 @@
         it marked the submission as sent and went back to the list, so a review
         that never reached the student looked exactly like one that had.
       -->
+      <a class="btn btn-ghost" [routerLink]="['/approve', submission().id]">אישור ושליחה</a>
       <button type="button" class="btn btn-primary" (click)="send()">
         {{ mailing ? 'כתיבת המייל ל' + firstName() : 'הוספת ההערות למסמך של ' + firstName() }}
       </button>

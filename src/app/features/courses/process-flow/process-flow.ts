@@ -23,6 +23,29 @@ import { DualDate } from '../../../shared/ui/dual-date/dual-date';
             </li>
           }
         </ol>
+
+        <div class="people" tabindex="0" role="region" aria-label="ההתקדמות של כל תלמידה">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">תלמידה</th>
+                @for (stage of stages(); track stage.id; let i = $index) {
+                  <th scope="col" [title]="stage.title">{{ i + 1 }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (person of people(); track person.id) {
+                <tr>
+                  <th scope="row">{{ person.name }}</th>
+                  @for (done of person.stages; track $index) {
+                    <td [attr.aria-label]="done ? 'הוגש' : 'לא הוגש'">{{ done ? '✓' : '·' }}</td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </section>
     }
   `,
@@ -60,6 +83,24 @@ import { DualDate } from '../../../shared/ui/dual-date/dual-date';
     .stage-title {
       font-weight: 600;
     }
+    .people {
+      margin-block-start: var(--s-3);
+      overflow-x: auto;
+      font-size: var(--fs-sm);
+    }
+    .people table {
+      border-collapse: collapse;
+    }
+    .people th,
+    .people td {
+      padding: var(--s-1) var(--s-2);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .people tbody th {
+      text-align: start;
+      font-weight: 500;
+    }
     .stage-count {
       color: var(--c-ink-2);
       font-size: var(--fs-sm);
@@ -72,6 +113,21 @@ export class ProcessFlow {
   protected readonly total = computed(() => {
     const course = this.data.course();
     return course ? this.data.studentsIn(course.id).length : 0;
+  });
+
+  protected readonly people = computed(() => {
+    const course = this.data.course();
+    if (!course) return [];
+    const papers = this.data.submissions();
+    return [...this.data.studentsIn(course.id)]
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, 'he'))
+      .map((student) => ({
+        id: student.id,
+        name: student.full_name,
+        stages: this.data
+          .tasks()
+          .map((t) => papers.some((p) => p.assignment_id === t.id && p.student_id === student.id)),
+      }));
   });
 
   protected readonly stages = computed(() => {

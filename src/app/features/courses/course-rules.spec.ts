@@ -1,7 +1,7 @@
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 
-import { Courses } from './courses';
+import { CourseRules } from './course-rules';
 import { DataStore } from '../../core/data/data-store';
 import { LocalRepository } from '../../core/data/local-repository';
 import { Repository } from '../../core/data/repository';
@@ -48,7 +48,7 @@ function make() {
   const store = TestBed.inject(DataStore);
   store.createCourse('סמינריון', 'תשפ״ו');
 
-  const fixture = TestBed.createComponent(Courses);
+  const fixture = TestBed.createComponent(CourseRules);
   fixture.detectChanges();
 
   return {
