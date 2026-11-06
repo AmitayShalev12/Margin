@@ -12,7 +12,7 @@ import {
   SubmissionStatus,
 } from '../models';
 import { blocksToText, countWords, extractDocumentBlocks } from './docs-extract';
-import { parseSubmissionName, searchPrefixes } from './file-name';
+import { parseSubmissionName, searchPrefixes, taskForFile } from './file-name';
 import { DOCX_MIME, DriveApi, DriveError } from './drive-api';
 import {
   DriveFile,
@@ -36,7 +36,9 @@ export type UnmatchedReason =
   /** A shortcut whose document is not shared with her. */
   | 'shortcut_unreadable'
   /** A second file naming a student who already has one this round. */
-  | 'duplicate_student';
+  | 'duplicate_student'
+  /** The course has several tasks, and the file's name does not say which. */
+  | 'no_task';
 
 export interface UnmatchedFile {
   name: string;
@@ -624,6 +626,13 @@ export class SyncService {
           : matchStudent(file, students);
       if (!student) return 'no_student';
 
+      // With one task there is nothing to choose. With several, the file's name
+      // has to say which, and a name that does not is hers to see, not ours to guess.
+      const tasks = this.store.tasks();
+      const named = taskForFile(file.name, tasks);
+      if (tasks.length > 1 && !named) return 'no_task';
+      const target = named ?? assignment;
+
       /**
        * She may already have a row for this girl under a different file.
        *
@@ -638,7 +647,7 @@ export class SyncService {
        * its `owns_submission` check — which reads as a permissions error
        * rather than as a missing parent.
        */
-      const hers = this.store.submissionFor(assignment.id, student.id);
+      const hers = this.store.submissionFor(target.id, student.id);
       if (hers) {
         // A second file naming the same student. She gets one submission per
         // assignment, so this one is surfaced rather than fought over.
@@ -649,7 +658,7 @@ export class SyncService {
         return 'updated';
       }
 
-      await this.create(file, student.id, assignment);
+      await this.create(file, student.id, target);
       return 'created';
     }
 

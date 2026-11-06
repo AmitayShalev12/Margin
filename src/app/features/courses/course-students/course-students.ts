@@ -1,4 +1,11 @@
-import { LIGHT_LABEL, LIGHT_ORDER, Light, progressOf } from '../../../core/progress/traffic-light';
+import {
+  LIGHT_LABEL,
+  LIGHT_ORDER,
+  Light,
+  lateNote,
+  latePapers,
+  progressOf,
+} from '../../../core/progress/traffic-light';
 import { dayOf } from '../../../core/dates/hebrew-date';
 import { SheetError } from '../../../core/import/xlsx';
 import { DecimalPipe } from '@angular/common';
@@ -49,6 +56,8 @@ export interface StudentRow {
   /** Tasks she has a paper for, of all the course's tasks. */
   handedIn: number;
   missed: number;
+  /** Her late papers, each saying it was handed in and whether it was checked. */
+  lateNotes: string[];
   /** One per task, in order: whether she has handed it in. */
   stages: boolean[];
 }
@@ -220,11 +229,9 @@ export class CourseStudents {
     return this.data.studentsIn(course.id).map((student) => {
       const hers = submissions.filter((s) => s.student_id === student.id);
       const handed = new Set(hers.map((s) => s.assignment_id));
-      const progress = progressOf(
-        tasks.map((t) => ({ id: t.id, due: dayOf(t.due_at) })),
-        handed,
-        today,
-      );
+      const dated = tasks.map((t) => ({ id: t.id, due: dayOf(t.due_at) }));
+      const late = latePapers(dated, hers);
+      const progress = progressOf(dated, handed, today, new Set(late.map((l) => l.taskId)));
       const latest = [...hers].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
 
       const mine = latest ? annotations.filter((a) => a.submission_id === latest.id) : [];
@@ -253,6 +260,9 @@ export class CourseStudents {
         light: progress.light,
         handedIn: progress.handedIn,
         missed: progress.missed,
+        lateNotes: late.map((l) =>
+          lateNote(tasks.find((t) => t.id === l.taskId)?.title ?? '', l.checked),
+        ),
         stages: tasks.map((t) => handed.has(t.id)),
       };
     });

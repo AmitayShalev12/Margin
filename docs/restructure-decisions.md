@@ -2,22 +2,21 @@
 
 Nothing here is final. Each section says what we recommend and what has to be decided.
 
-## Approve: traffic light (requirement 6)
-
-Built with these definitions so they can be seen working. Change them freely.
+## Approve: traffic light
 
 | Mark | Meaning |
 |---|---|
-| אדום, "באיחור" | Missed two or more deadlines, or a deadline passed and she has handed in nothing |
-| כתום, "מועד אחד הוחמץ" | Missed exactly one deadline, and has handed in something |
+| אדום, "באיחור" | Behind on two or more deadlines, or a deadline passed and she has handed in nothing |
+| כתום, "איחור במועד אחד" | Behind on exactly one deadline, and has handed in something |
 | צהוב, "עוד לא התחילה" | Has handed in nothing, and no deadline has passed |
-| ירוק, "בזמן" | Has handed in something and missed nothing |
+| ירוק, "בזמן" | Has handed in something and is behind on nothing |
 
-"Missed" means the date passed and that task has no paper of hers. A late paper stops counting as
-missed once it arrives. A task with no date can never be missed.
+"Behind" means a task with no paper after its date, or a paper that came in after it. **Decided by the
+client:** a late paper stays marked late, and says it was handed in and checked ("הוגשה באיחור ונבדקה").
+A task with no date can never be late.
 
-**To decide:** should a paper handed in late stay marked as late? Should "very early stage" be its
-own level? That needs a definition of early, such as the first task still to come within 14 days.
+**To decide:** should "very early stage" be its own level? That needs a definition of early, such as
+the first task still to come within 14 days.
 
 ## Approve: how a student's data works (requirement 8)
 
@@ -151,9 +150,10 @@ the approval flow.
 
 ## Open questions from the build
 
-- **Drive files and tasks:** a file from Drive has no task. It goes to the course's first task, and
-  a later version of it becomes a new round. How should Drive know which task a file is for? A folder
-  per task, or the file name?
+- **Drive files and tasks (decided by the client):** papers stay shared and are not moved into her
+  Drive, so the file's name says which task it is for: `שם התלמידה - שם המשימה`. With several tasks, a
+  name that does not include a task title is reported to her and not filed. Files already synced stay
+  where they are. She has to ask students to name files this way.
 - **Papers possibly in the wrong course:** before this change an upload could attach to another
   course's assignment. Those papers are not lost, but may show under the wrong course. This should be
   checked on the real data once deployed.

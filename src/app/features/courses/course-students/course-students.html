@@ -185,6 +185,10 @@
           </p>
         }
 
+        @for (note of row.lateNotes; track note) {
+          <p class="late-note">{{ note }}</p>
+        }
+
         <p class="rollup">
           <span class="stat">{{
             row.files | count: 'קובץ אחד שנקלט' : '# קבצים שנקלטו' : 'שני קבצים שנקלטו'

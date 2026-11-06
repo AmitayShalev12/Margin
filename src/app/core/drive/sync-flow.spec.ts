@@ -285,6 +285,38 @@ describe('SyncService', () => {
     expect(submission?.title).toBe('עבודת גמר');
   });
 
+  /** Papers stay shared, not moved into her Drive, so the name says which task. */
+  it('files a shared paper under the task its name says', async () => {
+    const proposal = store.createAssignment('הצעת מחקר')!;
+    api.sharedByName = [
+      shiraFile({
+        id: 'shared-proposal',
+        name: 'שירה אלמוג - הצעת מחקר',
+        owners: [{ emailAddress: 'unknown@gmail.com' }],
+      }),
+    ];
+
+    await sync.syncNow();
+
+    expect(store.submissionByDriveFile('shared-proposal')?.assignment_id).toBe(proposal.id);
+  });
+
+  it('asks about a paper whose name says no task, rather than guessing', async () => {
+    store.createAssignment('הצעת מחקר');
+    api.sharedByName = [
+      shiraFile({
+        id: 'shared-vague',
+        name: 'שירה אלמוג - גרסה סופית',
+        owners: [{ emailAddress: 'unknown@gmail.com' }],
+      }),
+    ];
+
+    const outcome = await sync.syncNow();
+
+    expect(store.submissionByDriveFile('shared-vague')).toBeFalsy();
+    expect(outcome.unmatched).toContainEqual({ name: 'שירה אלמוג - גרסה סופית', reason: 'no_task' });
+  });
+
   /**
    * The convention is the whole claim, so it is read exactly.
    *

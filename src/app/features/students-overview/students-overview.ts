@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { DataStore } from '../../core/data/data-store';
 import { dayOf } from '../../core/dates/hebrew-date';
 import { Course, UUID } from '../../core/models';
-import { LIGHT_LABEL, Light, progressOf } from '../../core/progress/traffic-light';
+import { LIGHT_LABEL, Light, lateNote, latePapers, progressOf } from '../../core/progress/traffic-light';
 import { rosterMismatches, writeRoster } from '../../core/roster/roster';
 import { PageHeader } from '../../shared/ui/page-header/page-header';
 
@@ -11,6 +11,7 @@ interface Cell {
   light: Light;
   label: string;
   detail: string;
+  late: string[];
 }
 
 /**
@@ -64,6 +65,9 @@ interface Cell {
                     @if (cell; as c) {
                       <span class="light" [class]="'is-' + c.light">{{ c.label }}</span>
                       <span class="detail">{{ c.detail }}</span>
+                      @for (note of c.late; track note) {
+                        <span class="detail detail-late">{{ note }}</span>
+                      }
                     } @else {
                       <span class="none" aria-label="לא בקורס">—</span>
                     }
@@ -151,8 +155,12 @@ interface Cell {
       font-weight: 600;
     }
     .detail {
+      display: block;
       color: var(--c-ink-3);
       font-size: var(--fs-xs);
+    }
+    .detail-late {
+      color: var(--c-attention);
     }
     .is-red {
       color: var(--c-danger);
@@ -193,18 +201,16 @@ export class StudentsOverview {
     const cellFor = (course: Course, studentId: UUID): Cell | null => {
       if (!members.get(course.id)?.has(studentId)) return null;
       const tasks = this.data.assignmentsOf(course.id);
-      const handed = new Set(
-        papers.filter((p) => p.student_id === studentId).map((p) => p.assignment_id),
-      );
-      const progress = progressOf(
-        tasks.map((t) => ({ id: t.id, due: dayOf(t.due_at) })),
-        handed,
-        today,
-      );
+      const hers = papers.filter((p) => p.student_id === studentId);
+      const handed = new Set(hers.map((p) => p.assignment_id));
+      const dated = tasks.map((t) => ({ id: t.id, due: dayOf(t.due_at) }));
+      const late = latePapers(dated, hers);
+      const progress = progressOf(dated, handed, today, new Set(late.map((l) => l.taskId)));
       return {
         light: progress.light,
         label: LIGHT_LABEL[progress.light],
         detail: `${progress.handedIn} מתוך ${tasks.length}`,
+        late: late.map((l) => lateNote(tasks.find((t) => t.id === l.taskId)?.title ?? '', l.checked)),
       };
     };
 

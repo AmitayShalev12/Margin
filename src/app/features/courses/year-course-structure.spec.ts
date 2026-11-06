@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { routes } from '../../app.routes';
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
 import { DataStore } from '../../core/data/data-store';
+import { taskForFile } from '../../core/drive/file-name';
 import { LocalRepository } from '../../core/data/local-repository';
 import { Repository } from '../../core/data/repository';
 import { SupabaseService } from '../../core/supabase/supabase';
@@ -224,7 +225,8 @@ describe('students inside a course', () => {
     expect(list.rows().map((r) => r.name)).toEqual(['שירה', 'אביגיל']);
     expect(list.rows()[0].light).toBe('red');
 
-    list.filter.set('green');
+    // Her paper came in after the date, so it stays marked late.
+    list.filter.set('orange');
     expect(list.rows().map((r) => r.name)).toEqual(['אביגיל']);
   });
 
@@ -466,5 +468,26 @@ describe('everything below the year follows it', () => {
     store.selectCourse(first.id);
     expect(store.gradingCategories().every((c) => c.course_id === first.id)).toBe(true);
     expect(store.gradingCategories().map((c) => c.name)).toContain('1 טענה');
+  });
+});
+
+describe('which task a file is for', () => {
+  const tasks = [{ title: 'בחירת נושא' }, { title: 'פרק' }, { title: 'פרק ראשון' }];
+
+  it('reads it from the name', () => {
+    expect(taskForFile('נועה כהן - בחירת נושא.docx', tasks)?.title).toBe('בחירת נושא');
+  });
+
+  it('takes the longest title found', () => {
+    expect(taskForFile('נועה כהן - פרק ראשון.docx', tasks)?.title).toBe('פרק ראשון');
+  });
+
+  it('does not guess when the name says nothing', () => {
+    expect(taskForFile('נועה כהן - גרסה סופית.docx', tasks)).toBeNull();
+  });
+
+  it('does not guess between two titles of equal length', () => {
+    expect(taskForFile('הצעה תקציר', [{ title: 'הצעה' }, { title: 'תקצ' }, { title: 'תקציר' }])?.title).toBe('תקציר');
+    expect(taskForFile('הצעה סיכם', [{ title: 'הצעה' }, { title: 'סיכם' }])).toBeNull();
   });
 });

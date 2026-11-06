@@ -127,3 +127,27 @@ export function searchPrefixes(students: readonly Student[]): string[] {
 
   return [...new Set(prefixes)];
 }
+
+/**
+ * Which task a file is for, from its name.
+ *
+ * The client's decision: papers stay shared rather than moved into her Drive, so
+ * a folder per task is not possible, and the name is what says it. The longest
+ * title found wins, so "פרק ראשון" beats "פרק". A tie, or no title at all, comes
+ * back null for her to see: a paper filed under the wrong task is worse than one
+ * she is asked about.
+ */
+export function taskForFile<T extends { title: string }>(
+  fileName: string | undefined,
+  tasks: readonly T[],
+): T | null {
+  const name = normaliseName(fileName ?? '');
+  const found = tasks
+    .filter((t) => normaliseName(t.title) && name.includes(normaliseName(t.title)))
+    .sort((a, b) => normaliseName(b.title).length - normaliseName(a.title).length);
+
+  if (!found.length) return null;
+  const longest = normaliseName(found[0].title).length;
+  const tied = found.filter((t) => normaliseName(t.title).length === longest);
+  return tied.length === 1 ? tied[0] : null;
+}
