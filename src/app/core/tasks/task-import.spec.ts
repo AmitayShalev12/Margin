@@ -58,12 +58,12 @@ describe('splitting a sheet into tasks', () => {
     expect(tasks).toEqual([{ title: 'נושא', date: { kind: 'ok', iso: '2026-10-15' } }]);
   });
 
-  it('stops at fifteen and says how many were left out', () => {
+  it('stops at sixteen and says how many were left out', () => {
     const rows = Array.from({ length: 18 }, (_, i) => [text(`משימה ${i}`)]);
     const { tasks, overflow } = tasksFromSheet([[text('תיאור'), text('אחר')], ...rows]);
 
-    expect(tasks).toHaveLength(15);
-    expect(overflow).toBe(4);
+    expect(tasks).toHaveLength(16);
+    expect(overflow).toBe(3);
   });
 
   it('skips empty rows', () => {

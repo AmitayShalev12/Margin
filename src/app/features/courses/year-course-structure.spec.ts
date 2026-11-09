@@ -14,6 +14,7 @@ import { CourseTasks } from './course-tasks/course-tasks';
 import { CoursesHome } from './courses-home/courses-home';
 import { CourseRules } from './course-rules';
 import { ProcessFlow } from './process-flow/process-flow';
+import { ProcessTable } from './process-table/process-table';
 
 /** Year, then course, then everything inside it. All names are invented. */
 
@@ -101,11 +102,11 @@ describe('a task belongs to its course', () => {
   });
 });
 
-describe('fifteen tasks', () => {
-  it('stops at fifteen', () => {
+describe('sixteen tasks', () => {
+  it('stops at sixteen', () => {
     const store = setup();
     store.createCourse('ראשון', 'תשפ״ז');
-    for (let i = 0; i < 15; i += 1) expect(store.addTask(`משימה ${i}`, null)).not.toBeNull();
+    for (let i = 0; i < 16; i += 1) expect(store.addTask(`משימה ${i}`, null)).not.toBeNull();
 
     expect(store.addTask('עוד אחת', null)).toBeNull();
   });
@@ -230,17 +231,56 @@ describe('students inside a course', () => {
     expect(list.rows().map((r) => r.name)).toEqual(['אביגיל']);
   });
 
-  it('removing from a course keeps the student and her other courses', () => {
+  it('removing from a course keeps a student who is in another, without this course', () => {
     const store = setup();
     const first = store.createCourse('ראשון', 'תשפ״ז')!;
     const second = store.createCourse('שני', 'תשפ״ז')!;
     const student = store.addStudent('נועה', undefined, [first.id, second.id])!;
 
-    const { instance } = render(CourseStudents);
-    (instance as unknown as { removeFromCourse(id: string): void }).removeFromCourse(student.id);
+    store.removeFromCourse(student.id, second.id);
 
     expect(store.students()).toHaveLength(1);
     expect(store.coursesOf(student.id).map((c) => c.id)).toEqual([first.id]);
+  });
+
+  it('removing from her only course deletes her, so nobody is left stranded', () => {
+    const store = setup();
+    const course = store.createCourse('ראשון', 'תשפ״ז')!;
+    const student = store.addStudent('נועה', undefined, [course.id])!;
+
+    store.removeFromCourse(student.id, course.id);
+
+    expect(store.students()).toEqual([]);
+  });
+
+  it('removing takes her papers in this course and leaves those in another', () => {
+    const store = setup();
+    const first = store.createCourse('ראשון', 'תשפ״ז')!;
+    const firstTask = store.createAssignment('א')!;
+    const second = store.createCourse('שני', 'תשפ״ז')!;
+    const secondTask = store.createAssignment('ב')!;
+    const student = store.addStudent('נועה', undefined, [first.id, second.id])!;
+    paper(store, student.id, firstTask.id);
+    paper(store, student.id, secondTask.id);
+
+    store.removeFromCourse(student.id, second.id);
+
+    expect(store.submissions().map((p) => p.assignment_id)).toEqual([firstTask.id]);
+    expect(store.studentsIn(second.id)).toEqual([]);
+  });
+
+  it('removes everyone ticked', () => {
+    const store = setup();
+    const course = store.createCourse('ראשון', 'תשפ״ז')!;
+    store.addStudent('נועה', undefined, [course.id]);
+    store.addStudent('שירה', undefined, [course.id]);
+
+    const { instance } = render(CourseStudents);
+    const list = instance as unknown as { toggleAll(): void; removeSelected(): void };
+    list.toggleAll();
+    list.removeSelected();
+
+    expect(store.students()).toEqual([]);
   });
 });
 
@@ -267,14 +307,58 @@ describe('the overview', () => {
     expect(shira.querySelector('.none')).not.toBeNull();
   });
 
-  it('still lists someone in no course, so nobody disappears', () => {
+  /** The bug she reported: the same students were dragged into every year. */
+  it('shows only that year, and is empty for a year with no courses', () => {
     const store = setup();
-    store.createCourse('ראשון', 'תשפ״ז');
-    store.addStudent('נועה');
+    const past = store.createCourse('ישן', 'תשפ״ו')!;
+    store.addStudent('נועה', undefined, [past.id]);
+    store.selectYear('תשפ״ט');
 
     const { host } = render(StudentsOverview);
 
-    expect(host.querySelector('tbody')?.textContent).toContain('נועה');
+    expect(host.querySelector('tbody')?.textContent).not.toContain('נועה');
+  });
+
+  it('compares years, listing only students of more than one', () => {
+    const store = setup();
+    const past = store.createCourse('ישן', 'תשפ״ו')!;
+    const now = store.createCourse('חדש', 'תשפ״ז')!;
+    store.addStudent('נועה', undefined, [past.id, now.id]);
+    store.addStudent('שירה', undefined, [now.id]);
+
+    const { instance } = render(StudentsOverview);
+    const compared = (instance as unknown as {
+      compared(): { years: string[]; rows: { name: string; cells: string[] }[] };
+    }).compared();
+
+    expect(compared.rows.map((r) => r.name)).toEqual(['נועה']);
+    expect(compared.rows[0].cells).toEqual(['ישן', 'חדש']);
+  });
+
+  it('deletes everyone ticked, only after she confirms', () => {
+    const store = setup();
+    const course = store.createCourse('ראשון', 'תשפ״ז')!;
+    store.addStudent('נועה', undefined, [course.id]);
+    store.addStudent('שירה', undefined, [course.id]);
+
+    const { instance } = render(StudentsOverview);
+    const table = instance as unknown as { toggleAll(): void; deleteSelected(): void };
+    table.toggleAll();
+    expect(store.students()).toHaveLength(2);
+
+    table.deleteSelected();
+    expect(store.students()).toEqual([]);
+  });
+
+  it('shows a seminar student research question', () => {
+    const store = setup();
+    const course = store.createCourse('סמינר', 'תשפ״ז', { isSeminar: true, asksQuestion: true })!;
+    const noa = store.addStudent('נועה', undefined, [course.id])!;
+    store.setResearchQuestion(noa.id, course.id, 'מה הקשר בין א ל־ב?');
+
+    const { host } = render(StudentsOverview);
+
+    expect(host.querySelector('tbody')?.textContent).toContain('מה הקשר בין א ל־ב?');
   });
 });
 
@@ -388,7 +472,7 @@ describe('no way in is left broken', () => {
     expect(redirect('home')).toBe('courses');
     expect(redirect('**')).toBe('courses');
     expect(redirect('dashboard')).toBe('students');
-    expect(redirect('submissions')).toBe('courses/current/papers');
+    expect(redirect('submissions')).toBe('courses/current/students');
     expect(redirect('grading-forms')).toBe('courses/current/grading');
     expect(redirect('style')).toBe('courses/current/style');
     expect(redirect('communication')).toBe('courses/current/messages');
@@ -489,5 +573,71 @@ describe('which task a file is for', () => {
   it('does not guess between two titles of equal length', () => {
     expect(taskForFile('הצעה תקציר', [{ title: 'הצעה' }, { title: 'תקצ' }, { title: 'תקציר' }])?.title).toBe('תקציר');
     expect(taskForFile('הצעה סיכם', [{ title: 'הצעה' }, { title: 'סיכם' }])).toBeNull();
+  });
+});
+
+describe('a seminar course', () => {
+  it('records whether it is one, and whether it asks for a research question', () => {
+    const store = setup();
+    const course = store.createCourse('סמינר', 'תשפ״ז', { isSeminar: true, asksQuestion: true })!;
+
+    expect(course.is_seminar).toBe(true);
+    expect(course.asks_research_question).toBe(true);
+  });
+
+  it('does not ask for one when it is not a seminar', () => {
+    const store = setup();
+    const course = store.createCourse('רגיל', 'תשפ״ז', { isSeminar: false, asksQuestion: true })!;
+
+    expect(course.asks_research_question).toBe(false);
+  });
+
+  it('keeps the question per course', () => {
+    const store = setup();
+    const first = store.createCourse('א', 'תשפ״ז', { isSeminar: true, asksQuestion: true })!;
+    const second = store.createCourse('ב', 'תשפ״ז', { isSeminar: true, asksQuestion: true })!;
+    const noa = store.addStudent('נועה', undefined, [first.id, second.id])!;
+
+    store.setResearchQuestion(noa.id, first.id, 'שאלה ראשונה');
+
+    expect(store.researchQuestion(noa.id, first.id)).toBe('שאלה ראשונה');
+    expect(store.researchQuestion(noa.id, second.id)).toBeNull();
+  });
+
+  it('loads the sixteen stages of the map in order', () => {
+    const store = setup();
+    store.createCourse('סמינר', 'תשפ״ז', { isSeminar: true, asksQuestion: false });
+
+    const { instance } = render(CourseTasks);
+    (instance as unknown as { loadMap(): void }).loadMap();
+
+    expect(store.tasks()).toHaveLength(16);
+    expect(store.tasks()[0].title).toBe('שאלת המחקר');
+    expect(store.tasks()[15].title).toBe('הגשת העבודה המלאה המתוקנת לציון');
+  });
+});
+
+describe('the process summary', () => {
+  it('filters by a column, and links what was handed in', () => {
+    const store = setup();
+    const course = store.createCourse('ראשון', 'תשפ״ז')!;
+    const task = store.addTask('נושא', '2030-01-01')!;
+    const noa = store.addStudent('נועה', undefined, [course.id])!;
+    store.addStudent('שירה', undefined, [course.id]);
+    paper(store, noa.id, task.id);
+
+    const { instance, host, fixture } = render(ProcessTable);
+    const table = instance as unknown as {
+      rows(): { name: string }[];
+      setFilter(id: string, value: string): void;
+    };
+    expect(host.querySelector('tbody a')?.textContent?.trim()).toBe('הוגש');
+
+    table.setFilter(task.id, 'no');
+    fixture.detectChanges();
+    expect(table.rows().map((r) => r.name)).toEqual(['שירה']);
+
+    table.setFilter(task.id, 'yes');
+    expect(table.rows().map((r) => r.name)).toEqual(['נועה']);
   });
 });

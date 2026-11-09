@@ -49,9 +49,8 @@ export class CourseWorld {
 
   protected readonly sections = [
     { path: 'students', label: 'תלמידות' },
-    { path: 'papers', label: 'עבודות' },
     { path: 'rules', label: 'כללים וחומרים' },
-    { path: 'process', label: 'משימות ותהליך' },
+    { path: 'process', label: 'סיכום משימות ותהליך' },
     { path: 'grading', label: 'טופס הערכה' },
     { path: 'style', label: 'הסגנון בקורס' },
     ...(inject(FEATURE_FLAGS).mailing ? [{ path: 'messages', label: 'הודעות' }] : []),

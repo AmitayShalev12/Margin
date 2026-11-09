@@ -1,3 +1,4 @@
+import { MAX_TASKS } from '../tasks/task-import';
 import { MessageTemplate } from '../messages/student-message';
 import { currentYearLabel, yearChoices, yearKey } from '../dates/hebrew-date';
 import { ContactField, RosterPlan } from '../roster/roster';
@@ -135,7 +136,6 @@ export function folderIdFrom(value: string): string | null {
 }
 
 const YEAR_KEY = 'margin.year';
-const MAX_TASKS = 15;
 /** Before this, style was shared across courses. See docs/restructure-decisions.md. */
 const STYLE_SPLIT_AT = '2026-11-06';
 
@@ -957,7 +957,11 @@ export class DataStore {
    * and it would sit on screen looking saved, because writes are
    * fire-and-forget.
    */
-  createCourse(name: string, year: string): Course | null {
+  createCourse(
+    name: string,
+    year: string,
+    seminar: { isSeminar: boolean; asksQuestion: boolean } = { isSeminar: false, asksQuestion: false },
+  ): Course | null {
     const teacherId = this.supabase.teacherId;
     if (!teacherId) return null;
 
@@ -978,6 +982,8 @@ export class DataStore {
       // The middle setting. A new course has told us nothing about its
       // students yet, and guessing at gentle or blunt is guessing about them.
       comment_tone: 'balanced',
+      is_seminar: seminar.isSeminar,
+      asks_research_question: seminar.isSeminar && seminar.asksQuestion,
       archived: false,
       created_at: now,
       updated_at: now,
@@ -1089,6 +1095,61 @@ export class DataStore {
     this._assignments.update((list) => [...list, assignment]);
     this.persist(() => this.repository.saveAssignment(assignment));
     return assignment;
+  }
+
+  updateCourseKind(change: { is_seminar: boolean; asks_research_question: boolean }) {
+    const course = this._course();
+    if (!course) return;
+    const written: Course = {
+      ...course,
+      ...change,
+      asks_research_question: change.is_seminar && change.asks_research_question,
+      updated_at: new Date().toISOString(),
+    };
+    this._courses.update((list) => list.map((c) => (c.id === written.id ? written : c)));
+    this.persist(() => this.repository.saveCourse(written));
+  }
+
+  researchQuestion(studentId: UUID, courseId: UUID): string | null {
+    return (
+      this._courseStudents().find((l) => l.student_id === studentId && l.course_id === courseId)
+        ?.research_question ?? null
+    );
+  }
+
+  setResearchQuestion(studentId: UUID, courseId: UUID, text: string) {
+    // A student known here only through a paper has no enrollment row yet.
+    this.enrollStudent(studentId, [courseId]);
+    const link = this._courseStudents().find(
+      (l) => l.student_id === studentId && l.course_id === courseId,
+    );
+    if (!link) return;
+    const written = { ...link, research_question: text.trim() || null };
+    this._courseStudents.update((list) => list.map((l) => (l.id === written.id ? written : l)));
+    this.persist(() => this.repository.saveCourseStudent(written));
+  }
+
+  /**
+   * Takes a student out of one course, with her papers in it.
+   *
+   * If that was the only place she appears she is deleted altogether; otherwise
+   * she would stay on the books with no way to see or remove her.
+   */
+  removeFromCourse(studentId: UUID, courseId: UUID) {
+    const tasks = new Set(this.assignmentsOf(courseId).map((a) => a.id));
+    const papers = this._submissions().filter((p) => p.student_id === studentId);
+    const elsewhere =
+      this._courseStudents().some((l) => l.student_id === studentId && l.course_id !== courseId) ||
+      papers.some((p) => !tasks.has(p.assignment_id));
+
+    if (!elsewhere) {
+      this.deleteStudent(studentId);
+      return;
+    }
+    for (const paper of papers.filter((p) => tasks.has(p.assignment_id))) {
+      this.deleteSubmission(paper.id);
+    }
+    this.unenrollStudent(studentId, courseId);
   }
 
   /** A paper needs a task to attach to, and tasks are optional: make one quietly. */

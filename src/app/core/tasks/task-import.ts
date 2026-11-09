@@ -1,7 +1,7 @@
 import { isRealDay } from '../dates/hebrew-date';
 import { SheetCell, readSheet } from '../import/xlsx';
 
-export const MAX_TASKS = 15;
+export const MAX_TASKS = 16;
 
 /**
  * What a date cell turned out to be.
@@ -69,7 +69,7 @@ export function readTaskDate(cell: SheetCell | undefined): ReadDate {
  */
 export function tasksFromSheet(rows: readonly (readonly SheetCell[])[]): {
   tasks: ImportedTask[];
-  /** Rows past the fifteenth, which are not imported. */
+  /** Rows past the limit, which are not imported. */
   overflow: number;
 } {
   let titleColumn = 0;

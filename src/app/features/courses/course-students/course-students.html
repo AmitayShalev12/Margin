@@ -15,6 +15,8 @@
     </div>
   </div>
 
+  <app-process-flow />
+
   @if (rosterError(); as message) {
     <p class="draft-error" role="alert">{{ message }}</p>
   }
@@ -67,8 +69,28 @@
     </section>
   }
 
+  @if (selected().size) {
+    <div class="card bulk" role="group" aria-label="הסרת תלמידות">
+      @if (asking()) {
+        <p class="bulk-ask">
+          להסיר {{ selected().size }} תלמידות מהקורס הזה, עם העבודות שלהן בקורס? תלמידה שלא לומדת בקורס
+          אחר תימחק לגמרי. אי אפשר לבטל את זה.
+        </p>
+        <button type="button" class="btn btn-primary btn-sm" (click)="removeSelected()">כן, להסיר</button>
+        <button type="button" class="btn btn-plain btn-sm" (click)="asking.set(false)">ביטול</button>
+      } @else {
+        <span>נבחרו {{ selected().size }}</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="asking.set(true)">הסרת הנבחרות</button>
+      }
+    </div>
+  }
+
   @if (rows().length || search() || filter()) {
     <div class="list-tools">
+    <label class="check select-all">
+      <input type="checkbox" [checked]="allSelected()" (change)="toggleAll()" />
+      <span>בחירת כולן</span>
+    </label>
     <label class="field roster-search">
       <span class="sr-only">חיפוש תלמידה</span>
       <input
@@ -106,6 +128,12 @@
     @for (row of rows(); track row.id; let number = $index) {
       <li class="student">
         <div class="head">
+          <input
+            type="checkbox"
+            [attr.aria-label]="'בחירת ' + row.name"
+            [checked]="selected().has(row.id)"
+            (change)="toggleSelected(row.id)"
+          />
           <span class="row-number">{{ number + 1 }}</span>
           <span class="light" [class]="'light is-' + row.light">
             <span class="light-dot" aria-hidden="true"></span>
@@ -179,10 +207,31 @@
         @if (row.stages.length) {
           <p class="stages" [attr.aria-label]="'הגישה ' + row.handedIn + ' מתוך ' + row.stages.length + ' משימות'">
             @for (done of row.stages; track $index) {
-              <span class="stage-dot" [class.is-done]="done" aria-hidden="true"></span>
+              @if (done.paperId; as id) {
+                <a
+                  class="stage-dot is-done"
+                  [routerLink]="['/review', id]"
+                  [title]="done.title"
+                  [attr.aria-label]="'לעבודה: ' + done.title"
+                ></a>
+              } @else {
+                <span class="stage-dot" [title]="done.title" aria-hidden="true"></span>
+              }
             }
             <span class="stage-text">{{ row.handedIn }} מתוך {{ row.stages.length }}</span>
           </p>
+        }
+
+        @if (data.course()?.asks_research_question) {
+          <label class="question">
+            <span class="question-label">שאלת המחקר</span>
+            <input
+              class="control"
+              type="text"
+              [value]="question(row.id)"
+              (change)="saveQuestion(row.id, $any($event.target).value)"
+            />
+          </label>
         }
 
         @for (note of row.lateNotes; track note) {
@@ -279,17 +328,6 @@
             }
           }
 
-          @if (removing() === row.id) {
-            <span class="remove-ask">להסיר את {{ row.name }} מהקורס הזה? העבודות שלה נשארות.</span>
-            <button type="button" class="btn btn-primary btn-sm" (click)="removeFromCourse(row.id)">
-              הסרה
-            </button>
-            <button type="button" class="btn btn-plain btn-sm" (click)="removing.set(null)">ביטול</button>
-          } @else {
-            <button type="button" class="btn btn-plain btn-sm" (click)="removing.set(row.id)">
-              הסרה מהקורס
-            </button>
-          }
         </div>
 
         @if (uploadFor() === row.id) {
@@ -351,9 +389,33 @@
             <button type="button" class="btn btn-plain btn-sm" (click)="placeHere(student.id)">
               לצרף לקורס הזה
             </button>
+            <button type="button" class="btn btn-plain btn-sm" (click)="data.deleteStudent(student.id)">
+              מחיקה
+            </button>
           </li>
         }
       </ul>
     </details>
   }
+
+  <details class="course-settings">
+    <summary>הגדרות הקורס וחיבור לדרייב</summary>
+    @if (data.course(); as open) {
+      <label class="check">
+        <input type="checkbox" [checked]="open.is_seminar" (change)="setSeminar($any($event.target).checked)" />
+        <span>זה קורס סמינריון</span>
+      </label>
+      @if (open.is_seminar) {
+        <label class="check">
+          <input
+            type="checkbox"
+            [checked]="open.asks_research_question"
+            (change)="setAsksQuestion($any($event.target).checked)"
+          />
+          <span>לרשום לכל תלמידה את שאלת המחקר שלה</span>
+        </label>
+      }
+    }
+    <app-drive-folder />
+  </details>
 </section>

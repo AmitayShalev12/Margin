@@ -17,6 +17,18 @@ const PLACEHOLDER_MARKER = 'YOUR-';
  * Everything data-related in the app goes through `client`; auth state is
  * mirrored into signals so components can read it without subscribing.
  */
+function sessionStore(): Storage | undefined {
+  try {
+    // Sessions saved the old way must not keep working on a shared computer.
+    for (const key of Object.keys(localStorage)) {
+      if (/^sb-.*-auth-token/.test(key)) localStorage.removeItem(key);
+    }
+    return sessionStorage;
+  } catch {
+    return undefined;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {
   private readonly supabase: SupabaseClient;
@@ -55,6 +67,9 @@ export class SupabaseService {
     this.supabase = createClient(environment.supabaseUrl, environment.supabaseAnonKey, {
       auth: {
         persistSession: true,
+        // Ends with the browser. Kept in localStorage, a session outlived her
+        // visit, and anyone later opening that browser walked straight in.
+        storage: sessionStore(),
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
@@ -111,7 +126,8 @@ export class SupabaseService {
   signInWithGoogle(redirectTo: string = window.location.origin) {
     return this.supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      // Otherwise Google silently picks whichever account Chrome is signed in to.
+      options: { redirectTo, queryParams: { prompt: 'select_account' } },
     });
   }
 

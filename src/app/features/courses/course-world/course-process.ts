@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 import { CourseTasks } from '../course-tasks/course-tasks';
-import { ProcessFlow } from '../process-flow/process-flow';
+import { ProcessTable } from '../process-table/process-table';
 
 @Component({
   selector: 'app-course-process',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CourseTasks, ProcessFlow],
+  imports: [CourseTasks, ProcessTable],
   template: `
-    <app-process-flow />
+    <app-process-table />
     <app-course-tasks />
   `,
 })

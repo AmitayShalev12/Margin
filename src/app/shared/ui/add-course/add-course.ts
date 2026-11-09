@@ -37,6 +37,8 @@ export class AddCourse {
   private readonly dialog = viewChild<ElementRef<HTMLDialogElement>>('dialog');
 
   protected readonly name = signal('');
+  protected readonly isSeminar = signal<boolean | null>(null);
+  protected readonly asksQuestion = signal(true);
   /** The year at the top: a new course belongs to the year she is looking at. */
   protected readonly year = computed(() => this.data.year());
   protected readonly error = signal<string | null>(null);
@@ -64,6 +66,8 @@ export class AddCourse {
 
   private reset() {
     this.name.set('');
+    this.isSeminar.set(null);
+    this.asksQuestion.set(true);
     this.created.set(null);
     this.error.set(null);
     this.done.set(null);
@@ -77,7 +81,15 @@ export class AddCourse {
       .courses()
       .some((c) => c.name === name && yearKey(c.year) !== yearKey(this.year()));
 
-    const course = this.data.createCourse(name, this.year());
+    if (this.isSeminar() === null) {
+      this.error.set('צריך לבחור אם זה קורס סמינריון.');
+      return;
+    }
+
+    const course = this.data.createCourse(name, this.year(), {
+      isSeminar: !!this.isSeminar(),
+      asksQuestion: this.asksQuestion(),
+    });
     if (!course) {
       this.error.set(name ? 'לא הצלחתי ליצור את הקורס. ייתכן שצריך להתחבר מחדש.' : 'צריך שם לקורס.');
       return;

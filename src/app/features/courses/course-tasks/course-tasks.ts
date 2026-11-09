@@ -1,3 +1,4 @@
+import { SEMINAR_STAGES } from '../../../core/tasks/seminar-map';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { DataStore } from '../../../core/data/data-store';
@@ -33,7 +34,7 @@ function previewOf(task: ImportedTask): PreviewRow {
 }
 
 /**
- * Up to fifteen tasks and dates. None are required.
+ * Up to sixteen tasks and dates. None are required.
  *
  * Each is an assignment, which already has a title and a due date, and to which
  * a student's paper already belongs. What a task involves or triggers can be
@@ -124,6 +125,11 @@ function previewOf(task: ImportedTask): PreviewRow {
         </div>
       } @else {
         <div class="task-actions">
+          @if (canLoadMap()) {
+            <button type="button" class="btn btn-primary btn-sm" (click)="loadMap()">
+              טעינת שלבי הסמינריון
+            </button>
+          }
           <button
             type="button"
             class="btn btn-ghost btn-sm"
@@ -214,6 +220,14 @@ export class CourseTasks {
 
   protected readonly room = computed(() => MAX_TASKS - this.tasks().length);
 
+  protected readonly canLoadMap = computed(
+    () => !!this.data.course()?.is_seminar && !this.tasks().length,
+  );
+
+  protected loadMap() {
+    for (const title of SEMINAR_STAGES) this.data.addTask(title, null);
+  }
+
   protected due(value: string | null): string {
     return dayOf(value) ?? '';
   }
@@ -261,7 +275,7 @@ export class CourseTasks {
       const fits = tasks.slice(0, this.room());
       this.overflow.set(overflow + tasks.length - fits.length);
       this.preview.set(fits.map(previewOf));
-      if (!fits.length) this.error.set('כבר יש 15 משימות בקורס.');
+      if (!fits.length) this.error.set(`כבר יש ${MAX_TASKS} משימות בקורס.`);
     } catch (error) {
       this.error.set(
         error instanceof SheetError ? error.hebrew : 'הקובץ לא נקרא. צריך קובץ Excel מסוג .xlsx.',

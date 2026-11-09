@@ -24,6 +24,29 @@
         />
       </label>
 
+      <fieldset class="modal-choices">
+        <legend class="label">האם זה סמינריון?</legend>
+        <label class="check">
+          <input type="radio" name="seminar" [checked]="isSeminar() === true" (change)="isSeminar.set(true)" />
+          <span>סמינריון</span>
+        </label>
+        <label class="check">
+          <input type="radio" name="seminar" [checked]="isSeminar() === false" (change)="isSeminar.set(false)" />
+          <span>לא סמינריון</span>
+        </label>
+      </fieldset>
+
+      @if (isSeminar()) {
+        <label class="check">
+          <input
+            type="checkbox"
+            [checked]="asksQuestion()"
+            (change)="asksQuestion.set($any($event.target).checked)"
+          />
+          <span>לרשום לכל תלמידה את שאלת המחקר שלה</span>
+        </label>
+      }
+
       @if (error(); as message) {
         <p class="modal-error" role="alert">{{ message }}</p>
       }

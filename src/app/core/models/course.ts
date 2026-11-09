@@ -16,6 +16,9 @@ import { ISODateTime, OwnedByTeacher, Timestamped, UUID } from './common';
 export type CommentTone = 'gentle' | 'balanced' | 'direct';
 
 export interface Course extends Timestamped, OwnedByTeacher {
+  is_seminar?: boolean;
+  /** A seminar that records each student's research question. */
+  asks_research_question?: boolean;
   id: UUID;
   name: string;
   /**
@@ -139,4 +142,6 @@ export interface CourseStudent {
   course_id: UUID;
   student_id: UUID;
   created_at: ISODateTime;
+  /** Her research question in this course, in a seminar that records one. */
+  research_question?: string | null;
 }

@@ -26,7 +26,7 @@
   @if (!submission()) {
     <div class="card empty">
       <p class="hint">אין עדיין עבודות לכתוב עליהן.</p>
-      <a class="btn btn-primary" routerLink="/submissions">לרשימת העבודות</a>
+      <a class="btn btn-primary" routerLink="/courses/current/students">לרשימת העבודות</a>
     </div>
   } @else if (comments().length === 0 && !email()) {
     <!-- Not an error: she simply hasn't finished the review yet. -->
@@ -175,7 +175,7 @@
             </p>
           </div>
           <button type="button" class="btn btn-plain" (click)="unskip()">בכל זאת לכתוב</button>
-          <a class="btn btn-plain" routerLink="/submissions">לרשימת העבודות</a>
+          <a class="btn btn-plain" routerLink="/courses/current/students">לרשימת העבודות</a>
         </div>
       } @else if (isSent()) {
         <div class="card sent">
@@ -190,7 +190,7 @@
               <p class="sent-note" [class.is-warn]="deliveryIncomplete()">{{ note }}</p>
             }
           </div>
-          <a class="btn btn-plain" routerLink="/submissions">לרשימת העבודות</a>
+          <a class="btn btn-plain" routerLink="/courses/current/students">לרשימת העבודות</a>
         </div>
       } @else {
         <div class="card send">

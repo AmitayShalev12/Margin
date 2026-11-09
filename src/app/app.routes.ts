@@ -9,7 +9,7 @@ export const routes: Routes = [
   // Old addresses, from links and saved tabs. "current" is the course on screen.
   { path: 'home', redirectTo: 'courses' },
   { path: 'dashboard', redirectTo: 'students' },
-  { path: 'submissions', redirectTo: 'courses/current/papers' },
+  { path: 'submissions', redirectTo: 'courses/current/students' },
   { path: 'grading-forms', redirectTo: 'courses/current/grading' },
   { path: 'style', redirectTo: 'courses/current/style' },
   {
@@ -35,9 +35,7 @@ export const routes: Routes = [
       section('students', () =>
         import('./features/courses/course-students/course-students').then((m) => m.CourseStudents),
       ),
-      section('papers', () =>
-        import('./features/submissions/submissions').then((m) => m.Submissions),
-      ),
+      { path: 'papers', redirectTo: 'students' },
       section('rules', () =>
         import('./features/courses/course-rules').then((m) => m.CourseRules),
       ),

@@ -22,7 +22,7 @@ export const ASSISTANT_ACTIONS = [
     name: 'open_screen',
     args: ['screen'],
     description:
-      'Open one of the main screens. screen is one of: students, submissions, courses, grading-forms, style.',
+      'Open one of the main screens. screen is one of: students, courses, grading-forms, style.',
   },
   {
     name: 'open_student_work',
@@ -142,7 +142,6 @@ export type AssistantActionName = (typeof ASSISTANT_ACTIONS)[number]['name'];
 
 export const SCREENS = [
   'students',
-  'submissions',
   'courses',
   'grading-forms',
   'style',
@@ -317,17 +316,20 @@ Guide to the app:
 - Pressing a card opens the course. Everything inside belongs to that course alone, in these parts:
   - תלמידות: its students. "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list.
     On each: a mark of how she stands against the deadlines, "הוספת קובץ" for a task, "כתיבת טיוטה"
-    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה", "הסרה מהקורס".
-  - עבודות: papers that arrived. "הוספת עבודה מקובץ" uploads one, and pressing a row opens it. "סנכרון
-    עכשיו" brings in new ones from Drive, and "חיבור לדרייב" connects Google and sets the folder.
+    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה". Each stage mark opens that paper. Ticking students offers removing them from the course.
+    At the bottom: "הגדרות הקורס" and "חיבור לדרייב", which connects Google and syncs new papers.
   - כללים וחומרים: rules in three groups (כללי העבודה, כללי משרד החינוך, הכללים שלי), background
     material, and "לקחת כללים מקורס אחר".
-  - משימות ותהליך: up to 15 tasks with dates, "ייבוא מקובץ Excel", and the stages of the work.
+  - סיכום משימות ותהליך: a table of who handed in what, filtered from its column headers, then up to
+    16 tasks with dates and "ייבוא מקובץ Excel".
   - טופס הערכה: "טעינת טופס הציון" loads her form from a Word file; scores by criterion for a student.
   - הסגנון בקורס: tone, and "הוספת דוגמאות מהכתיבה שלי". Style belongs to this course.
   - הודעות: who is ready to hear back, and the templates she writes herself.
 - התלמידות שלי, in the sidebar: a table of every student across the year's courses. "ייצוא לאקסל"
-  exports the list and "מחיקה" removes a student from everything.
+  exports the list, "השוואה בין שנים" lists students of more than one year, and ticking students
+  offers deleting them from everything.
+- If she asks to delete an uploaded student list: Margin does not keep that file. It copies the names
+  and details and the file stays only on her computer, so there is nothing to delete here. Say so.
 - הגדרות, beside the account: her Gemini key and backups.
 - Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
   "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,

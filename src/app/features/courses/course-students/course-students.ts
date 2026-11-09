@@ -1,3 +1,5 @@
+import { DriveFolder } from '../drive-folder/drive-folder';
+import { ProcessFlow } from '../process-flow/process-flow';
 import {
   LIGHT_LABEL,
   LIGHT_ORDER,
@@ -58,8 +60,8 @@ export interface StudentRow {
   missed: number;
   /** Her late papers, each saying it was handed in and whether it was checked. */
   lateNotes: string[];
-  /** One per task, in order: whether she has handed it in. */
-  stages: boolean[];
+  /** One per task, in order: her paper for it, if she handed one in. */
+  stages: { title: string; paperId: UUID | null }[];
 }
 
 export type StudentSort = 'name' | 'status';
@@ -80,7 +82,7 @@ export type StudentSort = 'name' | 'status';
 @Component({
   selector: 'app-course-students',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, DecimalPipe, RouterLink, Working],
+  imports: [CountPipe, DecimalPipe, RouterLink, Working, ProcessFlow, DriveFolder],
   templateUrl: './course-students.html',
   styleUrl: './course-students.scss',
 })
@@ -111,13 +113,56 @@ export class CourseStudents {
 
   // -- leaving the course ---------------------------------------------------
 
-  /** Only this course. Removing a person altogether is in the overview. */
-  protected readonly removing = signal<UUID | null>(null);
+  protected readonly selected = signal<ReadonlySet<UUID>>(new Set());
+  protected readonly asking = signal(false);
+
+  protected readonly allSelected = computed(
+    () => this.rows().length > 0 && this.rows().every((r) => this.selected().has(r.id)),
+  );
+
+  protected toggleSelected(id: UUID) {
+    const next = new Set(this.selected());
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    this.selected.set(next);
+    this.asking.set(false);
+  }
+
+  protected toggleAll() {
+    this.selected.set(this.allSelected() ? new Set() : new Set(this.rows().map((r) => r.id)));
+    this.asking.set(false);
+  }
 
   protected removeFromCourse(id: UUID) {
     const course = this.data.course();
-    if (course) this.data.unenrollStudent(id, course.id);
-    this.removing.set(null);
+    if (course) this.data.removeFromCourse(id, course.id);
+  }
+
+  protected removeSelected() {
+    for (const id of this.selected()) this.removeFromCourse(id);
+    this.selected.set(new Set());
+    this.asking.set(false);
+  }
+
+  protected question(studentId: UUID): string {
+    const course = this.data.course();
+    return (course && this.data.researchQuestion(studentId, course.id)) ?? '';
+  }
+
+  protected saveQuestion(studentId: UUID, text: string) {
+    const course = this.data.course();
+    if (course) this.data.setResearchQuestion(studentId, course.id, text);
+  }
+
+  protected setSeminar(isSeminar: boolean) {
+    this.data.updateCourseKind({
+      is_seminar: isSeminar,
+      asks_research_question: !!this.data.course()?.asks_research_question,
+    });
+  }
+
+  protected setAsksQuestion(asks: boolean) {
+    this.data.updateCourseKind({ is_seminar: true, asks_research_question: asks });
   }
 
   /** Students from before courses held their own lists, one press from a home. */
@@ -174,7 +219,7 @@ export class CourseStudents {
     const { added, existing } = this.data.applyRoster(plan, this.rosterReplace());
     this.rosterPlan.set(null);
     this.rosterDone.set(
-      `${count(added, { one: 'נוספה תלמידה אחת', two: 'נוספו שתי תלמידות', many: 'נוספו # תלמידות' })}, ${count(existing, { one: 'אחת עודכנה', two: 'שתיים עודכנו', many: '# עודכנו' })}.`,
+      `${count(added, { one: 'נוספה תלמידה אחת', two: 'נוספו שתי תלמידות', many: 'נוספו # תלמידות' })}, ${count(existing, { one: 'אחת עודכנה', two: 'שתיים עודכנו', many: '# עודכנו' })}. הקובץ עצמו לא נשמר במערכת: נקלטו רק הפרטים, והוא נשאר רק במחשב שלך.`,
     );
   }
 
@@ -263,7 +308,10 @@ export class CourseStudents {
         lateNotes: late.map((l) =>
           lateNote(tasks.find((t) => t.id === l.taskId)?.title ?? '', l.checked),
         ),
-        stages: tasks.map((t) => handed.has(t.id)),
+        stages: tasks.map((t) => ({
+          title: t.title,
+          paperId: hers.find((p) => p.assignment_id === t.id)?.id ?? null,
+        })),
       };
     });
   });

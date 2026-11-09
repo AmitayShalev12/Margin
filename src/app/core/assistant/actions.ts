@@ -28,7 +28,6 @@ export interface ActionOutcome {
 
 const SCREEN_TITLES: Record<string, string> = {
   students: 'התלמידות שלי',
-  submissions: 'עבודות שהוגשו',
   courses: 'קורסים וחומרי רקע',
   'grading-forms': 'טפסי הערכה',
   style: 'הסגנון שלי',
@@ -476,7 +475,7 @@ function syncReport(title: string, outcome: SyncOutcome): ActionOutcome {
   const loose = outcome.unmatched.length
     ? ` ${count(outcome.unmatched.length, { one: 'קובץ אחד לא שויך לתלמידה', many: '# קבצים לא שויכו לתלמידה' })}.`
     : '';
-  return done(title, `${parts.join(', ')}.${loose}`, '/submissions');
+  return done(title, `${parts.join(', ')}.${loose}`, '/courses/current/students');
 }
 
 /** The file she meant: by name, or the only one attached. */

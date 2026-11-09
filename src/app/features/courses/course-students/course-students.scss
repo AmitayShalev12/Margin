@@ -342,3 +342,42 @@
   color: var(--c-attention);
   font-size: var(--fs-sm);
 }
+
+.bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  margin-block: var(--s-2);
+}
+
+.bulk-ask {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.select-all {
+  flex: 0 0 auto;
+}
+
+.question {
+  display: block;
+  margin-block-start: var(--s-2);
+}
+
+.question-label {
+  display: block;
+  margin-block-end: var(--s-1);
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.course-settings {
+  margin-block-start: var(--s-4);
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+}
