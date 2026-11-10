@@ -109,7 +109,7 @@ import { Icon } from '../icon/icon';
           title="החשבון"
           (click)="accountOpen.set(!accountOpen())"
         >
-          <app-icon name="users" [size]="18" />
+          <app-icon name="user" [size]="18" />
         </button>
         @if (accountOpen()) {
           <div class="backdrop" (click)="accountOpen.set(false)"></div>
