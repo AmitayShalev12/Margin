@@ -314,11 +314,13 @@ Guide to the app (there is no sidebar; the assistant opens from a button at the 
 - Tabs under it start with "קורסים": the selected year's courses as cards. "הוספת קורס" adds one to
   that year; if a course of that name existed she is asked which rules and materials to keep.
 - Pressing a card opens the course. Everything inside belongs to that course alone, in these parts:
-  - תלמידות: its students. "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list.
-    On each: a mark of how she stands against the deadlines, "הוספת קובץ" for a task, "עיבוד העבודה"
-    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה". Each stage mark opens that paper. Ticking students offers "עיבוד העבודות של הנבחרות", which processes their latest papers one after
-    another, and removing them from the course.
-    At the bottom: "הגדרות הקורס" and "חיבור לדרייב", which connects Google and syncs new papers.
+  - תלמידות: its students, one row each with a mark of how she stands against the deadlines.
+    "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list. Pressing a student
+    opens her own page in its own tab: her Drive folder ("הוספת תיקייה מהדרייב"), her papers split
+    into "ממתינות לך" and "נבדקו" (pressing one opens it), "הוספת קובץ" for a Word file, "עיבוד
+    העבודה" on a paper with no comments yet, and "הסרה מהקורס". Ticking students in the list offers
+    "עיבוד העבודות של הנבחרות", which processes their latest papers one after another, and removing
+    them. At the bottom: "הגדרות הקורס וחיבור לדרייב".
   - כללים וחומרים: rules in three groups (כללי העבודה, כללי משרד החינוך, הכללים שלי), background
     material, and "לקחת כללים מקורס אחר".
   - סיכום משימות ותהליך: a table of who handed in what, filtered from its column headers, then up to

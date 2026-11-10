@@ -263,65 +263,18 @@ describe('the summary line', () => {
  * a real answer.
  */
 describe('what the row actually renders', () => {
-  it('puts both buttons on every row, not just the first', () => {
-    const { fixture, component } = make();
+  /** Everything about one student is on her own page now; the row opens it. */
+  it('makes each student a link to her own page, with nothing else to press', () => {
+    const { fixture, component, store } = make();
     const host = fixture.nativeElement as HTMLElement;
-    const labels = [...host.querySelectorAll('.row-actions .btn')].map((b) =>
-      (b.textContent ?? '').trim(),
+    const links = [...host.querySelectorAll<HTMLAnchorElement>('a.student-link')];
+
+    expect(links).toHaveLength(component.rows().length);
+    expect(links[0].getAttribute('href')).toBe(
+      `/courses/${store.course()!.id}/student/${component.rows()[0].id}`,
     );
-
-    expect(component.rows().length).toBeGreaterThan(1);
-    expect(labels.filter((t) => t === 'הוספת קובץ').length).toBe(component.rows().length);
-    expect(labels.filter((t) => t === 'עיבוד העבודה').length).toBe(component.rows().length);
-    // Nothing is picking a file until she asks for one.
-    expect(host.querySelectorAll('.student input[type="file"]').length).toBe(0);
-  });
-
-  it('opens a file picker on the row she pressed, and on no other', () => {
-    const { fixture, component } = make();
-    const row = component.rows()[1];
-
-    component.openUpload(row.id);
-    fixture.detectChanges();
-
-    const pickers = (fixture.nativeElement as HTMLElement).querySelectorAll('.student input[type="file"]');
-    expect(pickers.length).toBe(1);
-  });
-
-  it('shows the folder field, and keeps it open when the paste is refused', () => {
-    const { fixture, component } = make();
-    const row = component.rows()[0];
-
-    component.startFolder(row.id, row.folder);
-    fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('.folder-edit')).not.toBeNull();
-
-    component.folderDraft.set('התיקייה של נועה');
-    component.saveFolder(row.id);
-    fixture.detectChanges();
-
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('.folder-edit')).not.toBeNull();
-    expect(host.querySelector('.folder-errorline')?.textContent).toContain('קישור לתיקייה');
-  });
-
-  it('shows the folder as a link once it is saved', () => {
-    const { fixture, component } = make();
-    const row = component.rows()[0];
-
-    component.startFolder(row.id, row.folder);
-    component.folderDraft.set(
-      'https://drive.google.com/drive/folders/1A2b3C4d5E6f7G8h?usp=sharing',
-    );
-    component.saveFolder(row.id);
-    fixture.detectChanges();
-
-    const link = (fixture.nativeElement as HTMLElement).querySelector(
-      'a.folder-link',
-    ) as HTMLAnchorElement | null;
-    expect(link?.getAttribute('href')).toBe(
-      'https://drive.google.com/drive/folders/1A2b3C4d5E6f7G8h',
-    );
+    expect(host.querySelectorAll('.student button')).toHaveLength(0);
+    expect(host.querySelectorAll('.student input[type="file"]')).toHaveLength(0);
   });
 });
 

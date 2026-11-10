@@ -12,21 +12,18 @@ import { dayOf } from '../../../core/dates/hebrew-date';
 import { SheetError } from '../../../core/import/xlsx';
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
 import { DataStore } from '../../../core/data/data-store';
 import { normaliseName } from '../../../core/drive/file-name';
-import { readDocxBlocks } from '../../../core/import/docx-blocks';
-import { DocxError } from '../../../core/import/docx-comments';
-import { Student, UUID } from '../../../core/models';
+import { UUID } from '../../../core/models';
 import {
   CONTACT_LABEL,
   RosterPlan,
   planRoster,
   readRoster,
 } from '../../../core/roster/roster';
-import { Working } from '../../../shared/ui/working/working';
 
 import { CountPipe, count } from '../../../core/presentation/count';
 import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
@@ -82,7 +79,7 @@ export type StudentSort = 'name' | 'status';
 @Component({
   selector: 'app-course-students',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, DecimalPipe, RouterLink, Working, ProcessFlow, DriveFolder],
+  imports: [CountPipe, DecimalPipe, RouterLink, ProcessFlow, DriveFolder],
   templateUrl: './course-students.html',
   styleUrl: './course-students.scss',
 })
@@ -97,7 +94,6 @@ export class CourseStudents {
   }
 
   protected readonly quick = inject(QuickActions);
-  private readonly router = inject(Router);
   protected readonly generator = inject(AnnotationGenerator);
 
   protected readonly search = signal('');
@@ -198,16 +194,6 @@ export class CourseStudents {
     this.asking.set(false);
   }
 
-  protected question(studentId: UUID): string {
-    const course = this.data.course();
-    return (course && this.data.researchQuestion(studentId, course.id)) ?? '';
-  }
-
-  protected saveQuestion(studentId: UUID, text: string) {
-    const course = this.data.course();
-    if (course) this.data.setResearchQuestion(studentId, course.id, text);
-  }
-
   protected setSeminar(isSeminar: boolean) {
     this.data.updateCourseKind({
       is_seminar: isSeminar,
@@ -223,10 +209,6 @@ export class CourseStudents {
   protected placeHere(id: UUID) {
     const course = this.data.course();
     if (course) this.data.enrollStudent(id, [course.id]);
-  }
-
-  protected contact(id: UUID): Student | undefined {
-    return this.data.students().find((s) => s.id === id);
   }
 
   // -- the student list as a file -------------------------------------------
@@ -276,37 +258,6 @@ export class CourseStudents {
       `${count(added, { one: 'נוספה תלמידה אחת', two: 'נוספו שתי תלמידות', many: 'נוספו # תלמידות' })}, ${count(existing, { one: 'אחת עודכנה', two: 'שתיים עודכנו', many: '# עודכנו' })}. הקובץ עצמו לא נשמר במערכת: נקלטו רק הפרטים, והוא נשאר רק במחשב שלך.`,
     );
   }
-
-  /** Which girl's upload panel is open, and what it is doing. */
-  protected readonly uploadFor = signal<UUID | null>(null);
-  protected readonly uploadError = signal<string | null>(null);
-  protected readonly reading = signal(false);
-  /** The task the file is for, when the course has several. */
-  protected readonly uploadTask = signal<UUID | null>(null);
-
-  /** The tasks she has no paper for yet: a task holds one paper per student. */
-  protected openTasks(studentId: UUID) {
-    const handed = new Set(
-      this.data
-        .submissions()
-        .filter((s) => s.student_id === studentId)
-        .map((s) => s.assignment_id),
-    );
-    return this.data.tasks().filter((t) => !handed.has(t.id));
-  }
-
-  /** Which girl's folder address is being edited. */
-  protected readonly folderFor = signal<UUID | null>(null);
-  protected readonly folderDraft = signal('');
-  protected readonly folderError = signal<string | null>(null);
-
-  /**
-   * The row whose draft is running, rather than "a draft is running" — the
-   * generator's own flag is global, and on a list of twelve girls that would
-   * light up all twelve.
-   */
-  protected readonly draftingId = signal<UUID | null>(null);
-  protected readonly draftError = signal<string | null>(null);
 
   /**
    * Every girl's row, before the search box gets at it.
@@ -395,113 +346,4 @@ export class CourseStudents {
     if (waiting === 1) return `${students} · אצל אחת יש הערות שממתינות לך.`;
     return `${students} · אצל ${waiting} יש הערות שממתינות לך.`;
   });
-
-  // -- her folder -----------------------------------------------------------
-
-  protected startFolder(studentId: UUID, current: string | null) {
-    this.folderDraft.set(current ?? '');
-    this.folderError.set(null);
-    this.folderFor.set(studentId);
-  }
-
-  protected cancelFolder() {
-    this.folderFor.set(null);
-    this.folderError.set(null);
-  }
-
-  /**
-   * A refusal stays on screen with the field still open. Closing the panel on
-   * text that was never stored is the shape of bug this project keeps finding:
-   * it looks exactly like a save.
-   */
-  protected saveFolder(studentId: UUID) {
-    if (!this.data.setStudentFolder(studentId, this.folderDraft())) {
-      this.folderError.set('זה לא נראה כמו קישור לתיקייה בדרייב. אפשר להעתיק את הכתובת מהדפדפן.');
-      return;
-    }
-    this.folderError.set(null);
-    this.folderFor.set(null);
-  }
-
-  protected folderLink(id: string): string {
-    return `https://drive.google.com/drive/folders/${id}`;
-  }
-
-  // -- a file for this girl -------------------------------------------------
-
-  protected openUpload(studentId: UUID) {
-    this.uploadError.set(null);
-    this.uploadFor.set(studentId);
-  }
-
-  protected closeUpload() {
-    this.uploadFor.set(null);
-    this.uploadError.set(null);
-  }
-
-  /**
-   * "עבור כל תלמידה, אפשרות להוספת קובץ בלחצן" — the file lands on her row, so
-   * there is no student to pick and no way to file it under the wrong name.
-   */
-  protected async chooseFile(studentId: UUID, event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-
-    this.reading.set(true);
-    this.uploadError.set(null);
-
-    try {
-      const blocks = await readDocxBlocks(await file.arrayBuffer());
-      const assignment = this.data.ensureAssignment();
-      const created = this.data.addUploadedSubmission({
-        assignmentId:
-          this.uploadTask() ?? this.openTasks(studentId)[0]?.id ?? assignment?.id,
-        studentId,
-        title: null,
-        blocks,
-        text: blocks.map((b) => b.text).join('\n'),
-        fileName: file.name,
-      });
-
-      if (!created) {
-        this.uploadError.set(
-          'לכל המשימות בקורס כבר יש לה עבודה, או שהקובץ ריק. אפשר להוסיף משימה במשימות ומועדים.',
-        );
-        return;
-      }
-
-      this.uploadFor.set(null);
-    } catch (error) {
-      this.uploadError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
-    } finally {
-      this.reading.set(false);
-    }
-  }
-
-  // -- drafting, from here --------------------------------------------------
-
-  /**
-   * Draft the comments for this girl's latest paper, without leaving the list.
-   *
-   * "צריך אפשרות לגשת לכתיבת הטיוטה ממסך העלאת העבודה וגם ממסך הבית, ליד כל
-   * תלמידה." It then opens the review screen, because a draft she cannot see
-   * is a draft she has to go and find. A failed run stays here and says so,
-   * rather than dropping her onto an unchanged review screen.
-   */
-  protected async draft(submissionId: UUID) {
-    this.draftError.set(null);
-    this.draftingId.set(submissionId);
-    try {
-      const result = await this.generator.generate(submissionId);
-      if (!result) {
-        this.draftError.set(this.generator.state().message ?? 'ניסוח ההערות לא הצליח.');
-        return;
-      }
-      await this.router.navigate(['/review', submissionId]);
-    } finally {
-      this.draftingId.set(null);
-    }
-  }
 }

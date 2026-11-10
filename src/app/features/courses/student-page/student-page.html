@@ -1,0 +1,209 @@
+@if (student(); as s) {
+  <div class="student-page">
+    @if (course(); as c) {
+      <a class="back" [routerLink]="['/courses', c.id, 'students']">כל התלמידות בקורס</a>
+    }
+
+    <header class="who">
+      <h2 class="who-name">{{ s.full_name }}</h2>
+      @if (progress(); as p) {
+        <span class="light" [class]="'light is-' + p.light">
+          <span class="light-dot" aria-hidden="true"></span>
+          {{ p.label }}
+        </span>
+        @if (p.total) {
+          <span class="who-meta">הגישה {{ p.handedIn }} מתוך {{ p.total }}</span>
+        }
+      }
+    </header>
+
+    @if (s.email || s.mobile || s.phone) {
+      <p class="contact">
+        @if (s.email) {
+          <a [href]="'mailto:' + s.email" dir="ltr">{{ s.email }}</a>
+        }
+        @if (s.mobile || s.phone) {
+          <a [href]="'tel:' + (s.mobile || s.phone)" dir="ltr">{{ s.mobile || s.phone }}</a>
+        }
+      </p>
+    }
+
+    @if (course()?.asks_research_question) {
+      <label class="field question">
+        <span class="label">שאלת המחקר</span>
+        <input
+          class="control"
+          type="text"
+          [value]="question()"
+          (change)="saveQuestion($any($event.target).value)"
+        />
+      </label>
+    }
+
+    <!-- Her folder first: it is where her work comes from. -->
+    <section class="card block" aria-labelledby="folder-title">
+      <h3 id="folder-title" class="sub-title">התיקייה שלה בדרייב</h3>
+      @if (editingFolder()) {
+        <form class="folder-edit" (submit)="saveFolder(); $event.preventDefault()">
+          <label class="field">
+            <span class="sr-only">קישור לתיקייה בדרייב</span>
+            <input
+              class="control"
+              type="text"
+              dir="ltr"
+              placeholder="https://drive.google.com/drive/folders/…"
+              [value]="folderDraft()"
+              (input)="folderDraft.set($any($event.target).value)"
+            />
+          </label>
+          <div class="actions">
+            <button type="submit" class="btn btn-primary btn-sm">שמירה</button>
+            <button type="button" class="btn btn-plain btn-sm" (click)="editingFolder.set(false)">
+              ביטול
+            </button>
+          </div>
+          @if (folderError(); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
+        </form>
+      } @else if (s.drive_folder_id; as folder) {
+        <div class="actions">
+          <a class="btn btn-ghost btn-sm" [href]="folderLink(folder)" target="_blank" rel="noopener">
+            פתיחת התיקייה
+          </a>
+          <button type="button" class="btn btn-plain btn-sm" (click)="startFolder()">שינוי</button>
+        </div>
+      } @else {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="startFolder()">
+          הוספת תיקייה מהדרייב
+        </button>
+      }
+    </section>
+
+    <section class="card block" aria-labelledby="papers-title">
+      <div class="block-head">
+        <h3 id="papers-title" class="sub-title">העבודות שלה</h3>
+        @if (!uploading()) {
+          <button type="button" class="btn btn-primary btn-sm" (click)="uploading.set(true)">
+            הוספת קובץ
+          </button>
+        }
+      </div>
+
+      @if (uploading()) {
+        <div class="upload">
+          @if (reading()) {
+            <app-working label="קוראת את הקובץ" />
+          } @else {
+            @if (openTasks().length > 1) {
+              <label class="field">
+                <span class="label">לאיזו משימה</span>
+                <select class="control" (change)="uploadTask.set($any($event.target).value)">
+                  @for (task of openTasks(); track task.id; let first = $first) {
+                    <option [value]="task.id" [selected]="uploadTask() ? uploadTask() === task.id : first">
+                      {{ task.title }}
+                    </option>
+                  }
+                </select>
+              </label>
+            }
+            <div class="actions">
+              <label class="btn btn-primary btn-sm pick">
+                בחירת קובץ Word
+                <input class="sr-only" type="file" accept=".docx" (change)="chooseFile($event)" />
+              </label>
+              <button type="button" class="btn btn-plain btn-sm" (click)="uploading.set(false)">
+                ביטול
+              </button>
+            </div>
+          }
+          @if (uploadError(); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
+        </div>
+      }
+
+      @if (processError(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+
+      <h4 class="group-title">ממתינות לך</h4>
+      <ul class="papers">
+        @for (paper of waiting(); track paper.id) {
+          <ng-container *ngTemplateOutlet="row; context: { $implicit: paper }" />
+        } @empty {
+          <li class="none">אין עבודות שממתינות לך.</li>
+        }
+      </ul>
+
+      <h4 class="group-title">נבדקו</h4>
+      <ul class="papers">
+        @for (paper of checked(); track paper.id) {
+          <ng-container *ngTemplateOutlet="row; context: { $implicit: paper }" />
+        } @empty {
+          <li class="none">עוד אין עבודות שנבדקו.</li>
+        }
+      </ul>
+
+      @if (openTasks().length) {
+        <p class="not-yet">
+          עוד לא הוגשו: {{ openTasks().map((t) => t.title).join(', ') }}
+        </p>
+      }
+    </section>
+
+    <ng-template #row let-paper>
+      <li class="paper">
+        <a class="paper-open" [routerLink]="['/review', paper.id]">
+          <span class="paper-task">{{ paper.task }}</span>
+          <span class="paper-meta">
+            {{ paper.file }}
+            @if (paper.when) {
+              · {{ paper.when }}
+            }
+            @if (paper.words !== null) {
+              · {{ paper.words | number }} מילים
+            }
+          </span>
+          <span class="paper-status">
+            {{ paper.status }}
+            @if (paper.comments) {
+              · הערות שהוכרעו: {{ paper.decided }}/{{ paper.comments }}
+            }
+          </span>
+          @if (paper.late) {
+            <span class="paper-late">{{ paper.late }}</span>
+          }
+        </a>
+        @if (!paper.comments) {
+          @if (processingId() === paper.id) {
+            <app-working label="מעבדת" />
+          } @else {
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              [disabled]="processingId() !== null"
+              (click)="process(paper.id)"
+            >
+              עיבוד העבודה
+            </button>
+          }
+        }
+      </li>
+    </ng-template>
+
+    <div class="leave">
+      @if (removing()) {
+        <span>להסיר את {{ s.full_name }} מהקורס, עם העבודות שלה בקורס? אי אפשר לבטל את זה.</span>
+        <button type="button" class="btn btn-primary btn-sm" (click)="remove()">כן, להסיר</button>
+        <button type="button" class="btn btn-plain btn-sm" (click)="removing.set(false)">ביטול</button>
+      } @else {
+        <button type="button" class="btn btn-plain btn-sm" (click)="removing.set(true)">
+          הסרה מהקורס
+        </button>
+      }
+    </div>
+  </div>
+} @else {
+  <p class="none">לא מצאתי את התלמידה הזו בקורס.</p>
+}

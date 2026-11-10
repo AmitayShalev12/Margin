@@ -55,6 +55,10 @@ export function tabKey(url: string): string {
   if (!first || first === 'home') return 'courses';
   if (first === 'review' && second) return `review:${second}`;
   if (first === 'approve' && second) return `approve:${second}`;
+  // Each student opens in a tab of her own.
+  if (first === 'courses' && path.split('/').filter(Boolean)[2] === 'student') {
+    return `student:${path.split('/').filter(Boolean)[3]}`;
+  }
   // One tab per course; it remembers which part of the course she was in.
   if (first === 'courses' && second && second !== 'current') return `course:${second}`;
   return first;
@@ -133,6 +137,9 @@ export class Tabs {
       const submission = this.data.submission(key.slice('review:'.length));
       const name = submission ? this.data.studentName(submission.student_id) : '';
       return { title: name || 'בדיקה', icon: 'docs' };
+    }
+    if (key.startsWith('student:')) {
+      return { title: this.data.studentName(key.slice('student:'.length)) || 'תלמידה', icon: 'user' };
     }
     if (key.startsWith('course:')) {
       const course = this.data.courses().find((c) => c.id === key.slice('course:'.length));

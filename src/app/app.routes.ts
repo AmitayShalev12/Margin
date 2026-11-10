@@ -36,6 +36,9 @@ export const routes: Routes = [
         import('./features/courses/course-students/course-students').then((m) => m.CourseStudents),
       ),
       { path: 'papers', redirectTo: 'students' },
+      section('student/:studentId', () =>
+        import('./features/courses/student-page/student-page').then((m) => m.StudentPage),
+      ),
       section('rules', () =>
         import('./features/courses/course-rules').then((m) => m.CourseRules),
       ),

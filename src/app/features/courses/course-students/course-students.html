@@ -83,7 +83,7 @@
         <button
           type="button"
           class="btn btn-primary btn-sm"
-          [disabled]="queue().running || draftingId() !== null"
+          [disabled]="queue().running"
           (click)="processSelected()"
         >
           עיבוד העבודות של הנבחרות
@@ -153,251 +153,81 @@
     </div>
   }
 
-  @if (draftError(); as message) {
-    <p class="draft-error" role="alert">{{ message }}</p>
-  }
-
   <ul class="roster">
     @for (row of rows(); track row.id; let number = $index) {
+      <!-- The whole row opens her page. The tick box sits outside the link. -->
       <li class="student">
-        <div class="head">
-          <input
-            type="checkbox"
-            [attr.aria-label]="'בחירת ' + row.name"
-            [checked]="selected().has(row.id)"
-            (change)="toggleSelected(row.id)"
-          />
-          <span class="row-number">{{ number + 1 }}</span>
-          <span class="light" [class]="'light is-' + row.light">
-            <span class="light-dot" aria-hidden="true"></span>
-            {{ lightLabel[row.light] }}
-          </span>
-          <span class="name">{{ row.name }}</span>
-          <!--
-            Her folder, as an address she can open. The client asked for the
-            folder to live beside the name — it is how she checks whether a
-            girl uploaded anything at all, and until now it was nowhere on
-            screen.
-          -->
-          @if (folderFor() === row.id) {
-            <form class="folder-edit" (submit)="saveFolder(row.id); $event.preventDefault()">
-              <label class="field">
-                <span class="sr-only">קישור לתיקייה בדרייב</span>
-                <input
-                  class="control"
-                  type="text"
-                  dir="ltr"
-                  placeholder="https://drive.google.com/drive/folders/…"
-                  [value]="folderDraft()"
-                  (input)="folderDraft.set($any($event.target).value)"
-                />
-              </label>
-              <div class="folder-actions">
-                <button type="submit" class="btn btn-primary btn-sm">שמירה</button>
-                <button type="button" class="btn btn-plain btn-sm" (click)="cancelFolder()">
-                  ביטול
-                </button>
-              </div>
-              @if (folderError(); as message) {
-                <p class="folder-errorline" role="alert">{{ message }}</p>
-              }
-            </form>
-          } @else if (row.folder; as folder) {
-            <span class="folder">
-              <a
-                class="folder-link"
-                [href]="folderLink(folder)"
-                target="_blank"
-                rel="noopener"
-                dir="ltr"
-                >{{ folder }}</a
-              >
-              <button
-                type="button"
-                class="btn btn-plain btn-sm"
-                (click)="startFolder(row.id, folder)"
-              >
-                שינוי
-              </button>
+        <input
+          class="student-pick"
+          type="checkbox"
+          [attr.aria-label]="'בחירת ' + row.name"
+          [checked]="selected().has(row.id)"
+          (change)="toggleSelected(row.id)"
+        />
+        <a class="student-link" [routerLink]="['/courses', data.course()?.id, 'student', row.id]">
+          <span class="head">
+            <span class="row-number">{{ number + 1 }}</span>
+            <span class="name">{{ row.name }}</span>
+            <span class="light" [class]="'light is-' + row.light">
+              <span class="light-dot" aria-hidden="true"></span>
+              {{ lightLabel[row.light] }}
             </span>
-          } @else {
-            <button
-              type="button"
-              class="btn btn-ghost btn-sm"
-              (click)="startFolder(row.id, row.folder)"
+          </span>
+
+          @if (row.stages.length) {
+            <span class="stages" [attr.aria-label]="'הגישה ' + row.handedIn + ' מתוך ' + row.stages.length + ' משימות'">
+              @for (done of row.stages; track $index) {
+                <span class="stage-dot" [class.is-done]="done.paperId" [title]="done.title" aria-hidden="true"></span>
+              }
+              <span class="stage-text">{{ row.handedIn }} מתוך {{ row.stages.length }}</span>
+            </span>
+          }
+
+          @for (note of row.lateNotes; track note) {
+            <span class="late-note">{{ note }}</span>
+          }
+
+          <!--
+            Her state in one line. "קבצים שנקלטו" and not "קבצים בתיקייה": the
+            app only knows the papers it holds.
+          -->
+          <span class="rollup">
+            <span class="stat">{{
+              row.files | count: 'קובץ אחד שנקלט' : '# קבצים שנקלטו' : 'שני קבצים שנקלטו'
+            }}</span>
+            <!-- "מתוכם" is "of them", and one file is not a "them". -->
+            @if (row.files === 1) {
+              <span class="stat">{{ row.checked ? 'נבדק' : 'עוד לא נבדק' }}</span>
+            } @else if (row.files) {
+              <span class="stat">{{ row.checked | count: 'אחד מהם נבדק' : '# מתוכם נבדקו' }}</span>
+            }
+            @if (row.words !== null) {
+              <span class="stat">{{ row.words | number }} מילים</span>
+            }
+            @if (row.comments) {
+              <span class="stat">הערות שהוכרעו: {{ row.decided }}/{{ row.comments }}</span>
+              @if (row.toFix) {
+                <span class="stat stat-fix">{{ row.toFix }} לתיקון</span>
+              }
+            } @else if (row.files) {
+              <span class="stat stat-quiet">עוד אין טיוטת הערות</span>
+            }
+          </span>
+
+          @if (row.percent !== null) {
+            <span
+              class="bar"
+              role="progressbar"
+              [attr.aria-valuenow]="row.percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-label]="'הערות שהוכרעו עבור ' + row.name"
             >
-              הוספת תיקייה
-            </button>
+              <span class="bar-fill" [style.inline-size.%]="row.percent"></span>
+            </span>
           }
-        </div>
-
-        <!--
-          Her state in one line. "קבצים שנקלטו" and not "קבצים בתיקייה": the
-          app only knows the papers it holds, and a folder may have more in it
-          that never came through. Saying otherwise would be a number she
-          could check and find wrong.
-        -->
-        @if (row.stages.length) {
-          <p class="stages" [attr.aria-label]="'הגישה ' + row.handedIn + ' מתוך ' + row.stages.length + ' משימות'">
-            @for (done of row.stages; track $index) {
-              @if (done.paperId; as id) {
-                <a
-                  class="stage-dot is-done"
-                  [routerLink]="['/review', id]"
-                  [title]="done.title"
-                  [attr.aria-label]="'לעבודה: ' + done.title"
-                ></a>
-              } @else {
-                <span class="stage-dot" [title]="done.title" aria-hidden="true"></span>
-              }
-            }
-            <span class="stage-text">{{ row.handedIn }} מתוך {{ row.stages.length }}</span>
-          </p>
-        }
-
-        @if (data.course()?.asks_research_question) {
-          <label class="question">
-            <span class="question-label">שאלת המחקר</span>
-            <input
-              class="control"
-              type="text"
-              [value]="question(row.id)"
-              (change)="saveQuestion(row.id, $any($event.target).value)"
-            />
-          </label>
-        }
-
-        @for (note of row.lateNotes; track note) {
-          <p class="late-note">{{ note }}</p>
-        }
-
-        <p class="rollup">
-          <span class="stat">{{
-            row.files | count: 'קובץ אחד שנקלט' : '# קבצים שנקלטו' : 'שני קבצים שנקלטו'
-          }}</span>
-          <!-- "מתוכם" is "of them", and one file is not a "them". -->
-          @if (row.files === 1) {
-            <span class="stat">{{ row.checked ? 'נבדק' : 'עוד לא נבדק' }}</span>
-          } @else if (row.files) {
-            <span class="stat">{{ row.checked | count: 'אחד מהם נבדק' : '# מתוכם נבדקו' }}</span>
-          }
-          <!--
-            How long the paper is. The nearest honest answer to "עד איזה עמוד",
-            given that the app holds paragraphs and never saw a page. Absent
-            rather than zero when the file has not been read yet: a Drive row
-            exists before its document is fetched, and "0 מילים" would read as
-            an empty paper rather than as an unread one.
-          -->
-          @if (row.words !== null) {
-            <span class="stat">{{ row.words | number }} מילים</span>
-          }
-          @if (row.comments) {
-            <span class="stat">הערות שהוכרעו: {{ row.decided }}/{{ row.comments }}</span>
-            @if (row.toFix) {
-              <span class="stat stat-fix">{{ row.toFix }} לתיקון</span>
-            }
-          } @else if (row.files) {
-            <span class="stat stat-quiet">עוד אין טיוטת הערות</span>
-          }
-        </p>
-
-        @if (row.percent !== null) {
-          <!--
-            How far the review got, as the share of comments she has ruled on.
-            Not a page number: the paper is held as paragraphs, and the drafting
-            pass reads all of it at once, so there is no page to point at.
-          -->
-          <div
-            class="bar"
-            role="progressbar"
-            [attr.aria-valuenow]="row.percent"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            [attr.aria-label]="'הערות שהוכרעו עבור ' + row.name"
-          >
-            <span class="bar-fill" [style.inline-size.%]="row.percent"></span>
-          </div>
-        }
-
-        @if (contact(row.id); as student) {
-          @if (student.email || student.mobile || student.phone) {
-            <p class="contact" dir="auto">
-              @if (student.email) {
-                <a [href]="'mailto:' + student.email" dir="ltr">{{ student.email }}</a>
-              }
-              @if (student.mobile || student.phone) {
-                <a [href]="'tel:' + (student.mobile || student.phone)" dir="ltr">{{
-                  student.mobile || student.phone
-                }}</a>
-              }
-            </p>
-          }
-        }
-
-        <div class="row-actions">
-          <!--
-            The two things she does from here: put a file on this girl's row,
-            and draft the comments for it. Both were several screens away.
-          -->
-          <button type="button" class="btn btn-ghost btn-sm" (click)="openUpload(row.id)">
-            הוספת קובץ
-          </button>
-
-          @if (row.latestId; as submissionId) {
-            @if (draftingId() === submissionId) {
-              <app-working label="מנסחת הערות" />
-            } @else {
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm"
-                [disabled]="draftingId() !== null || queue().running"
-                (click)="draft(submissionId)"
-              >
-                עיבוד העבודה
-              </button>
-              <a class="btn btn-plain btn-sm" [routerLink]="['/review', submissionId]">
-                לעבודה האחרונה
-              </a>
-            }
-          }
-
-        </div>
-
-        @if (uploadFor() === row.id) {
-          <div class="upload">
-            @if (reading()) {
-              <app-working label="קוראת את הקובץ" />
-            } @else {
-              @if (openTasks(row.id).length > 1) {
-                <label class="tool">
-                  <span class="sr-only">לאיזו משימה</span>
-                  <select class="control" (change)="uploadTask.set($any($event.target).value)">
-                    @for (task of openTasks(row.id); track task.id; let first = $first) {
-                      <option [value]="task.id" [selected]="uploadTask() ? uploadTask() === task.id : first">
-                        {{ task.title }}
-                      </option>
-                    }
-                  </select>
-                </label>
-              }
-              <label class="btn btn-primary btn-sm upload-pick">
-                בחירת קובץ Word
-                <input
-                  class="sr-only"
-                  type="file"
-                  accept=".docx"
-                  (change)="chooseFile(row.id, $event)"
-                />
-              </label>
-              <button type="button" class="btn btn-plain btn-sm" (click)="closeUpload()">
-                ביטול
-              </button>
-            }
-            @if (uploadError(); as message) {
-              <p class="upload-error" role="alert">{{ message }}</p>
-            }
-          </div>
-        }
+        </a>
+        <span class="student-go" aria-hidden="true">‹</span>
       </li>
     } @empty {
       <li class="empty">

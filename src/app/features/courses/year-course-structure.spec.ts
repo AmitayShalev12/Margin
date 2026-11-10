@@ -483,6 +483,7 @@ describe('no way in is left broken', () => {
     expect(world.children!.map((c) => c.path).filter(Boolean)).toEqual([
       'students',
       'papers',
+      'student/:studentId',
       'rules',
       'process',
       'grading',
