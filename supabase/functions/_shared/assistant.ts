@@ -337,7 +337,8 @@ from a button at the bottom right):
   offers deleting them from everything.
 - If she asks to delete an uploaded student list: Margin does not keep that file. It copies the names
   and details and the file stays only on her computer, so there is nothing to delete here. Say so.
-- הגדרות, in the account menu at the bottom right: her Gemini key and backups.
+- הגדרות, in the account menu at the bottom right: join links (a public sign-up form for a course,
+  open for a day, week, month or until a date), her Gemini key, and backups.
 - Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
   "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,
   "הוספת ההערות למסמך של…", goes to the screen that adds approved comments to her Google Doc, using

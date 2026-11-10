@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
 import { GoogleDriveAuth } from '../../../core/drive/google-auth';
-import { SyncService } from '../../../core/drive/sync';
+import { OwnFileSkip, OwnFolderReport, SyncService } from '../../../core/drive/sync';
 import { DataStore } from '../../../core/data/data-store';
 import { dayOf } from '../../../core/dates/hebrew-date';
 import { readDocxBlocks } from '../../../core/import/docx-blocks';
@@ -55,34 +55,68 @@ export class StudentPage {
 
   protected readonly syncing = signal(false);
   protected readonly syncMessage = signal<string | null>(null);
+  /** What the last sync found in her folder, file by file. */
+  protected readonly folderReport = signal<OwnFolderReport | null>(null);
+
+  protected readonly resultLabel: Record<string, string> = {
+    created: 'נוספה',
+    updated: 'עודכנה',
+    unchanged: 'ללא שינוי',
+    skipped: 'דולגה',
+  };
+
+  protected skipReason(reason: OwnFileSkip | undefined, task: string | undefined): string {
+    switch (reason) {
+      case 'task_taken':
+        return `כבר יש לה עבודה במשימה "${task ?? ''}" מקובץ אחר, ולא החלפתי אותה.`;
+      case 'no_open_task':
+        return 'לכל המשימות בקורס כבר יש לה עבודה. אפשר להוסיף משימה בסיכום משימות ותהליך.';
+      case 'other_student':
+        return 'הקובץ הזה כבר שייך לתלמידה אחרת.';
+      case 'shortcut_unreadable':
+        return 'זה קיצור דרך למסמך שהחשבון המחובר לא רואה.';
+      default:
+        return '';
+    }
+  }
+
+  constructor() {
+    // Opened in a tab of its own, nothing else has asked Google yet, and the
+    // sync button waits on the answer.
+    void this.auth.refreshStatus().catch(() => undefined);
+  }
 
   /** Brings in what is in her folder now. The whole course syncs with it. */
   protected async syncFolder() {
     this.syncing.set(true);
     this.syncMessage.set(null);
+    this.folderReport.set(null);
     try {
       const outcome = await this.sync.syncNow();
       if (outcome.error) {
         this.syncMessage.set(outcome.error);
         return;
       }
-      const name = this.student()?.full_name;
-      const unreadable = outcome.unmatched.some(
-        (u) => u.reason === 'folder_unreadable' && u.name === name,
-      );
-      const loose = outcome.unmatched.filter((u) => u.reason === 'no_task').length;
-      this.syncMessage.set(
-        unreadable
-          ? 'לא הצלחתי לפתוח את התיקייה שלה. כדאי לבדוק שהקישור נכון ושהיא משותפת עם החשבון שמחובר לדרייב.'
-          : `הסנכרון הסתיים: ${outcome.created} חדשות, ${outcome.updated} עודכנו.` +
-              (loose
-                ? ` ${loose} קבצים לא שויכו כי בשם שלהם אין שם של משימה.`
-                : ''),
-      );
+      const report = outcome.ownFolders.find((r) => r.studentId === this.studentId()) ?? null;
+      this.folderReport.set(report);
+      if (!report) {
+        this.syncMessage.set('הסנכרון הסתיים, אבל התיקייה שלה לא נבדקה. כדאי לבדוק שהיא רשומה בקורס.');
+      } else if (!report.readable) {
+        this.syncMessage.set(
+          'לא הצלחתי לפתוח את התיקייה שלה. כדאי לבדוק שהקישור נכון ושהיא משותפת עם החשבון שמחובר לדרייב.',
+        );
+      } else if (!report.files.length) {
+        this.syncMessage.set(
+          'לא מצאתי קבצים בתיקייה. ייתכן שהיא ריקה, או שהחשבון שמחובר לדרייב לא רואה את מה שבתוכה.',
+        );
+      } else {
+        this.syncMessage.set(`נמצאו ${report.files.length} קבצים בתיקייה שלה:`);
+      }
     } finally {
       this.syncing.set(false);
     }
   }
+
 
   readonly studentId = input<string>('');
 

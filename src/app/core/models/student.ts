@@ -31,6 +31,9 @@ export interface Student extends Timestamped, OwnedByTeacher {
   notes: string | null;
   active: boolean;
   phone?: string | null;
+  /** From the sign-up form. Never sent to the AI. */
+  id_number?: string | null;
+  address?: string | null;
   mobile?: string | null;
   roster_details?: StudentRosterDetails | null;
 }

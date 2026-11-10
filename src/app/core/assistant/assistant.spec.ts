@@ -1,3 +1,4 @@
+import { Student } from '../models';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 
@@ -107,6 +108,24 @@ describe('asking the assistant', () => {
     expect(body).toContain('נועה כהן');
     expect(body).not.toContain('noa.private@gmail.com');
     expect(body).not.toContain('@');
+  });
+
+  /** From the join form: kept for her, never sent to the model. */
+  it('never sends an ID number or a home address', async () => {
+    const { store, assistant } = setup();
+    const added = store.addStudent('נועה כהן')!;
+    const students = (store as unknown as { _students: { update(f: (l: Student[]) => Student[]): void } })._students;
+    students.update((list) =>
+      list.map((s) => (s.id === added.id ? { ...s, id_number: '987654321', address: 'רחוב הדקל 7' } : s)),
+    );
+    reply = { status: 200, json: { reply: 'יש לך תלמידה אחת', actions: [] } };
+
+    await assistant.send('מי ברשימה?');
+
+    const body = JSON.stringify(sent[0].body);
+    expect(body).toContain('נועה כהן');
+    expect(body).not.toContain('987654321');
+    expect(body).not.toContain('הדקל');
   });
 
   it('answers a question with no actions', async () => {

@@ -286,19 +286,93 @@ describe('SyncService', () => {
   });
 
   /** Saved on her page and never read before: her own folder is hers. */
-  it('brings in a paper from a student own folder, whatever it is called', async () => {
-    const shira = store.students().find((s) => s.id === seedId('s2'))!;
-    store.setStudentFolder(shira.id, 'shira-folder');
-    store.enrollStudent(shira.id, [store.course()!.id]);
-    const listFolder = api.listFolder;
-    api.listFolder = async (id?: string) =>
-      id === 'shira-folder'
-        ? [shiraFile({ id: 'own-folder-file', name: 'גרסה סופית' })]
-        : listFolder.call(api, id);
+  describe('her own folder', () => {
+    let shiraId: string;
+    const own = (files: DriveFile[]) => {
+      const listFolder = api.listFolder;
+      api.listFolder = async (id?: string) => (id === 'shira-folder' ? files : listFolder.call(api, id));
+    };
+    const report = (outcome: { ownFolders: { studentId: string; files: unknown[] }[] }) =>
+      outcome.ownFolders.find((r) => r.studentId === shiraId)!.files;
 
-    await sync.syncNow();
+    beforeEach(() => {
+      shiraId = seedId('s2');
+      store.setStudentFolder(shiraId, 'shira-folder');
+      store.enrollStudent(shiraId, [store.course()!.id]);
+    });
 
-    expect(store.submissionByDriveFile('own-folder-file')?.student_id).toBe(shira.id);
+    it('puts a file named nothing in particular under the next task she has not handed in', async () => {
+      const proposal = store.createAssignment('הצעת מחקר')!;
+      own([shiraFile({ id: 'own-1', name: 'גרסה סופית' })]);
+
+      const outcome = await sync.syncNow();
+
+      const paper = store.submissionByDriveFile('own-1');
+      expect(paper?.student_id).toBe(shiraId);
+      expect(paper?.assignment_id).toBe(proposal.id);
+      expect(report(outcome)).toEqual([{ name: 'גרסה סופית', result: 'created', task: 'הצעת מחקר' }]);
+    });
+
+    it('fills open tasks oldest file first', async () => {
+      const a = store.createAssignment('פרק א')!;
+      const b = store.createAssignment('פרק ב')!;
+      own([
+        shiraFile({ id: 'newer', name: 'שני', createdTime: '2026-09-02T08:00:00.000Z' }),
+        shiraFile({ id: 'older', name: 'ראשון', createdTime: '2026-09-01T08:00:00.000Z' }),
+      ]);
+
+      await sync.syncNow();
+
+      expect(store.submissionByDriveFile('older')?.assignment_id).toBe(a.id);
+      expect(store.submissionByDriveFile('newer')?.assignment_id).toBe(b.id);
+    });
+
+    it('never replaces a paper she already has with a different file', async () => {
+      const before = store.submissions().find((x) => x.student_id === shiraId)!;
+      own([shiraFile({ id: 'another', name: 'שירה אלמוג — סמינריון' })]);
+
+      const outcome = await sync.syncNow();
+
+      expect(store.submissionByDriveFile('another')).toBeUndefined();
+      expect(store.submissions().find((x) => x.id === before.id)?.drive_file_id).toBe(before.drive_file_id);
+      expect(report(outcome)).toEqual([
+        { name: 'שירה אלמוג — סמינריון', result: 'skipped', reason: 'task_taken', task: 'סמינריון' },
+      ]);
+    });
+
+    it('skips a file when every task is handed in, and says why', async () => {
+      own([shiraFile({ id: 'extra', name: 'עוד משהו' })]);
+
+      const outcome = await sync.syncNow();
+
+      expect(store.submissionByDriveFile('extra')).toBeUndefined();
+      expect(report(outcome)).toEqual([{ name: 'עוד משהו', result: 'skipped', reason: 'no_open_task' }]);
+    });
+
+    it('reports an empty folder as readable with nothing in it', async () => {
+      own([]);
+
+      const outcome = await sync.syncNow();
+
+      expect(outcome.ownFolders.find((r) => r.studentId === shiraId)).toEqual({
+        studentId: shiraId,
+        readable: true,
+        files: [],
+      });
+    });
+
+    it('does not take a file that is already another student s paper', async () => {
+      store.setStudentDriveAccount(seedId('s1'), 'noa@school.org.il');
+      api.files = [docFile()];
+      own([docFile()]);
+
+      const outcome = await sync.syncNow();
+
+      expect(store.submissionByDriveFile('file-noa')?.student_id).toBe(seedId('s1'));
+      expect(report(outcome)).toContainEqual(
+        expect.objectContaining({ result: 'skipped', reason: 'other_student' }),
+      );
+    });
   });
 
   it('says so when her folder cannot be opened', async () => {

@@ -244,8 +244,8 @@ export function writeRoster(students: readonly Student[], at: Date): Uint8Array 
     const details = student.roster_details;
     const values = [
       student.full_name,
-      null, // זהות: never held
-      null, // כתובת: never held
+      student.id_number,
+      student.address,
       student.phone,
       student.mobile,
       null, // סמן דואל: a flag of the system it came from

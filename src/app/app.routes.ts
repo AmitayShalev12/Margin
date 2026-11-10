@@ -8,6 +8,12 @@ export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'courses' },
   // Old addresses, from links and saved tabs. "current" is the course on screen.
   { path: 'home', redirectTo: 'courses' },
+  {
+    // Public: a student joining a course, with no account. Outside the sign-in gate.
+    path: 'join/:token',
+    title: 'הצטרפות לקורס · Margin',
+    loadComponent: () => import('./features/join/join').then((m) => m.Join),
+  },
   { path: 'dashboard', redirectTo: 'students' },
   { path: 'submissions', redirectTo: 'courses/current/students' },
   { path: 'grading-forms', redirectTo: 'courses/current/grading' },

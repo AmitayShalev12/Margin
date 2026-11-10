@@ -1,3 +1,4 @@
+import { JoinLinksPanel } from './join-links-panel';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { ModelKey } from '../../core/ai/model-key';
@@ -11,7 +12,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 @Component({
   selector: 'app-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, PageHeader],
+  imports: [CountPipe, PageHeader, JoinLinksPanel],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
 })

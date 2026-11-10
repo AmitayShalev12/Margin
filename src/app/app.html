@@ -7,7 +7,10 @@
 -->
 <app-save-error />
 
-@if (checkingSession()) {
+@if (isPublic()) {
+  <!-- The join form: no account and no app around it. -->
+  <router-outlet />
+} @else if (checkingSession()) {
   <div class="booting" role="status">רגע…</div>
 } @else if (needsSignIn()) {
   <app-sign-in />

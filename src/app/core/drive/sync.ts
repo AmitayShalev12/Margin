@@ -73,7 +73,28 @@ export interface SyncOutcome {
   shared: number;
   /** Files that produced no submission, and why. */
   unmatched: UnmatchedFile[];
+  /** Each student's own folder: every file found in it, and what became of it. */
+  ownFolders: OwnFolderReport[];
   error: string | null;
+}
+
+export type OwnFileResult = 'created' | 'updated' | 'unchanged' | 'skipped';
+
+export type OwnFileSkip =
+  /** Its name names a task she already has a different paper for. */
+  | 'task_taken'
+  /** She has a paper for every task, and nothing was replaced. */
+  | 'no_open_task'
+  /** The same file is already another student's paper. */
+  | 'other_student'
+  /** A shortcut whose document is not shared with her. */
+  | 'shortcut_unreadable';
+
+export interface OwnFolderReport {
+  studentId: string;
+  /** False when Drive refused to list the folder at all. */
+  readable: boolean;
+  files: { name: string; result: OwnFileResult; reason?: OwnFileSkip; task?: string }[];
 }
 
 /**
@@ -237,6 +258,25 @@ export class SyncService {
     }
   }
 
+  /** When each course last synced on its own, so opening it often does not repeat it. */
+  private readonly lastAuto = new Map<string, number>();
+
+  /**
+   * Syncs a course she has just opened, at most once every few minutes, and only
+   * when Drive is connected. Quiet: the result shows up as papers, not a banner.
+   */
+  async autoSync(courseId: string, everyMs = 5 * 60 * 1000): Promise<void> {
+    const last = this.lastAuto.get(courseId) ?? 0;
+    if (this.running || Date.now() - last < everyMs) return;
+    this.lastAuto.set(courseId, Date.now());
+    try {
+      if (this.auth.connection() !== 'connected') await this.auth.refreshStatus();
+      if (this.auth.connection() === 'connected') await this.syncNow();
+    } catch {
+      // A failed background sync is retried the next time she opens the course.
+    }
+  }
+
   async syncNow(): Promise<SyncOutcome> {
     const empty: SyncOutcome = {
       created: 0,
@@ -244,6 +284,7 @@ export class SyncService {
       unchanged: 0,
       shared: 0,
       unmatched: [],
+      ownFolders: [],
       error: null,
     };
 
@@ -328,9 +369,8 @@ export class SyncService {
       /**
        * Each student's own folder, in the course on screen.
        *
-       * Saved on her page and, until now, never read: a paper in it reached the
-       * app only if its name happened to match. The folder says whose it is, so
-       * no name is needed for that, only for which task.
+       * The folder says whose a file is, so every file in it is hers whatever it
+       * is called. Done before the name-based routes, so her own folder decides.
        */
       const course = this.store.course();
       const ownFolders = course
@@ -342,15 +382,10 @@ export class SyncService {
           listing = await this.api.listFolder(student.drive_folder_id!);
         } catch {
           outcome.unmatched.push({ name: student.full_name, reason: 'folder_unreadable' });
+          outcome.ownFolders.push({ studentId: student.id, readable: false, files: [] });
           continue;
         }
-        await this.ingestListing(listing, 'folder', {
-          claimed,
-          seen,
-          outcome,
-          assignment,
-          studentId: student.id,
-        });
+        await this.ingestOwnFolder(listing, student.id, { claimed, seen, outcome });
       }
 
       if (accounts.length) {
@@ -586,6 +621,93 @@ export class SyncService {
        * for, and a better assertion than a filename.
        */
       outcome.unmatched.push({ name: file.name ?? file.id, reason: result });
+    }
+  }
+
+  /**
+   * One student's own folder.
+   *
+   * Oldest file first. A file that names a task goes to that task; one that
+   * does not goes to the next task she has not handed in. A paper she already
+   * has is only ever updated by its own file, never replaced by another one.
+   */
+  private async ingestOwnFolder(
+    listing: readonly DriveFile[],
+    studentId: string,
+    context: { claimed: Set<string>; seen: Set<string>; outcome: SyncOutcome },
+  ): Promise<void> {
+    const { claimed, seen, outcome } = context;
+    const report: OwnFolderReport = { studentId, readable: true, files: [] };
+    outcome.ownFolders.push(report);
+
+    const files: DriveFile[] = [];
+    const earlier = new Set<string>();
+    for (const listed of listing) {
+      if (listed.mimeType === GOOGLE_FOLDER_MIME) continue;
+      const file = await this.resolveShortcut(listed);
+      if (!file) {
+        report.files.push({
+          name: listed.name ?? listed.id ?? '',
+          result: 'skipped',
+          reason: 'shortcut_unreadable',
+        });
+        continue;
+      }
+      if (files.some((f) => f.id === file.id)) continue;
+      // Also in the course folder or shared: already handled this sync, but still listed here.
+      if (seen.has(file.id)) earlier.add(file.id);
+      seen.add(file.id);
+      files.push(file);
+    }
+    files.sort((a, b) => (a.createdTime ?? '').localeCompare(b.createdTime ?? ''));
+
+    for (const file of files) {
+      const name = file.name ?? file.id;
+      const existing = this.store.submissionByDriveFile(file.id);
+
+      if (existing) {
+        if (existing.student_id !== studentId) {
+          report.files.push({ name, result: 'skipped', reason: 'other_student' });
+          continue;
+        }
+        claimed.add(existing.id);
+        const task = this.store.assignmentById(existing.assignment_id)?.title;
+        if (earlier.has(file.id)) {
+          report.files.push({ name, result: 'unchanged', task });
+          continue;
+        }
+        const unchanged =
+          !!existing.drive_modified_at &&
+          existing.drive_modified_at === file.modifiedTime &&
+          !!this.store.roundFor(existing.id);
+        if (unchanged) {
+          outcome.unchanged++;
+          report.files.push({ name, result: 'unchanged', task });
+        } else {
+          await this.update(file, existing);
+          outcome.updated++;
+          report.files.push({ name, result: 'updated', task });
+        }
+        continue;
+      }
+
+      const tasks = this.store.tasks();
+      const named = taskForFile(file.name, tasks);
+      if (named && this.store.submissionFor(named.id, studentId)) {
+        report.files.push({ name, result: 'skipped', reason: 'task_taken', task: named.title });
+        continue;
+      }
+      const target = named ?? tasks.find((t) => !this.store.submissionFor(t.id, studentId));
+      if (!target) {
+        report.files.push({ name, result: 'skipped', reason: 'no_open_task' });
+        continue;
+      }
+
+      await this.create(file, studentId, target);
+      const created = this.store.submissionByDriveFile(file.id);
+      if (created) claimed.add(created.id);
+      outcome.created++;
+      report.files.push({ name, result: 'created', task: target.title });
     }
   }
 

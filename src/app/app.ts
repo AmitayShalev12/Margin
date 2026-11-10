@@ -57,6 +57,9 @@ export class App {
     () => this.supabase.isConfigured && !this.supabase.loading() && !this.supabase.session(),
   );
 
+  /** A page anyone may open without signing in: the join form. */
+  protected readonly isPublic = signal(isPublicPath(window.location.pathname));
+
   protected readonly checkingSession = computed(
     () => this.supabase.isConfigured && this.supabase.loading(),
   );
@@ -79,7 +82,10 @@ export class App {
 
     router.events
       .pipe(filter((e) => e instanceof NavigationEnd))
-      .subscribe(() => this.moreOpen.set(false));
+      .subscribe((e) => {
+        this.moreOpen.set(false);
+        this.isPublic.set(isPublicPath((e as NavigationEnd).urlAfterRedirects));
+      });
   }
 
   /** Shown beside the sign-out control, so she can see which account this is. */
@@ -103,4 +109,8 @@ export class App {
   protected closeMore() {
     this.moreOpen.set(false);
   }
+}
+
+function isPublicPath(path: string): boolean {
+  return path.startsWith('/join/');
 }

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, un
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { DataStore } from '../../../core/data/data-store';
+import { SyncService } from '../../../core/drive/sync';
 import { FEATURE_FLAGS } from '../../../core/features';
 
 /**
@@ -44,6 +45,7 @@ import { FEATURE_FLAGS } from '../../../core/features';
 export class CourseWorld {
   private readonly data = inject(DataStore);
   private readonly router = inject(Router);
+  private readonly sync = inject(SyncService);
 
   readonly courseId = input<string>();
 
@@ -74,6 +76,7 @@ export class CourseWorld {
           });
         } else if (courses.some((c) => c.id === id)) {
           this.data.selectCourse(id!);
+          void this.sync.autoSync(id!);
         } else if (this.data.hydrated()) {
           void this.router.navigateByUrl('/courses', { replaceUrl: true });
         }

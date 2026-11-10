@@ -26,3 +26,8 @@ verify_jwt = true
 # Only a signed-in teacher may spend model tokens, and the actions it proposes
 # are run by her own session in the app.
 verify_jwt = true
+
+[functions.join]
+# The public sign-up form. No account: the token in the link is the authority,
+# checked by the function along with the link's expiry and cap.
+verify_jwt = false

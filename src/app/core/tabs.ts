@@ -90,6 +90,8 @@ export class Tabs {
 
   /** Where she just arrived: its tab is updated, or opened. */
   visit(url: string) {
+    // The public join form is not a place in her app.
+    if (url.startsWith('/join/')) return;
     const key = tabKey(url);
     const now = Date.now();
 
