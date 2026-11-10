@@ -8,8 +8,8 @@ import { Icon } from '../icon/icon';
  * The open places, as a row of tabs above the page.
  *
  * Modelled on Firefox: the tab on screen is lifted onto the page's own
- * surface, the others sit back; each closes with its own ×, and + opens a new
- * one on the home screen. Links, not ARIA tabs — each one goes somewhere, it
+ * surface, the others sit back; each closes with its own ×. The home button in
+ * the top bar is the way back to the courses. Links, not ARIA tabs — each one goes somewhere, it
  * does not swap a panel in place.
  */
 @Component({
@@ -39,15 +39,6 @@ import { Icon } from '../icon/icon';
           </button>
         </div>
       }
-      <button
-        type="button"
-        class="tab-new"
-        aria-label="כרטיסייה חדשה"
-        title="כרטיסייה חדשה"
-        (click)="tabs.openNew()"
-      >
-        <app-icon name="plus" [size]="16" />
-      </button>
     </nav>
   `,
   styles: `
@@ -120,8 +111,7 @@ import { Icon } from '../icon/icon';
       white-space: nowrap;
     }
 
-    .tab-close,
-    .tab-new {
+    .tab-close {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -144,9 +134,6 @@ import { Icon } from '../icon/icon';
       margin-inline-end: var(--s-1);
     }
 
-    .tab-new {
-      margin-block-end: var(--s-1);
-    }
   `,
 })
 export class TabStrip {

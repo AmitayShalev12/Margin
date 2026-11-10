@@ -128,11 +128,6 @@ export class Tabs {
     void this.router.navigateByUrl(neighbour ? neighbour.url : '/courses');
   }
 
-  /** The "+" — a new tab, on her courses. */
-  openNew() {
-    void this.router.navigateByUrl('/courses');
-  }
-
   private describe(key: string): { title: string; icon: IconName } {
     if (key.startsWith('review:')) {
       const submission = this.data.submission(key.slice('review:'.length));

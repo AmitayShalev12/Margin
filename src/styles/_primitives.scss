@@ -284,6 +284,58 @@ select.control {
   background-position: right 0.75rem center;
 }
 
+// The open list too, where the browser allows it (Chrome and Edge). Elsewhere
+// the list stays the system's own, and the closed control is still styled.
+@supports (appearance: base-select) {
+  select.control,
+  select.control::picker(select) {
+    appearance: base-select;
+  }
+
+  // The new kind of select lays out like a button: centre its text again.
+  select.control {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  // The chevron above is drawn as a background, so the built-in one goes.
+  select.control::picker-icon {
+    display: none;
+  }
+
+  select.control::picker(select) {
+    margin-block-start: var(--s-1);
+    padding: var(--s-1);
+    border: 1px solid var(--c-line-strong);
+    border-radius: var(--r-md);
+    background: var(--c-surface);
+    box-shadow: var(--sh-3);
+  }
+
+  select.control option {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+    color: var(--c-ink);
+    cursor: pointer;
+
+    &::checkmark {
+      display: none;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: var(--c-surface-sunk);
+      outline: none;
+    }
+
+    &:checked {
+      background: var(--c-accent-soft);
+      color: var(--c-accent-strong);
+      font-weight: 600;
+    }
+  }
+}
+
 // -- chips / status ---------------------------------------------------------
 
 .chip {

@@ -148,16 +148,22 @@ import { Icon } from '../icon/icon';
       gap: var(--s-2);
       margin-inline-start: auto;
     }
+    /* Drawn like the icon buttons beside it, so it reads as one of them. */
     .place {
       display: inline-flex;
       align-items: center;
       gap: var(--s-1);
-      min-block-size: 2.25rem;
-      padding-inline: var(--s-2);
+      block-size: 2.25rem;
+      padding-inline: var(--s-3);
+      border: 1px solid var(--c-line-strong);
       border-radius: var(--r-md);
+      background: var(--c-surface);
       color: var(--c-ink-2);
       font-weight: 600;
       text-decoration: none;
+    }
+    .place.is-active {
+      border-color: var(--c-accent);
     }
     .place:hover,
     .place.is-active {
