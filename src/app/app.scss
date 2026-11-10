@@ -77,12 +77,35 @@
 }
 
 // The tab strip needs room to be useful; on a phone the bottom bar switches
-// places instead.
+// places instead. From tablet up the bar becomes the tabs' row: the tabs take
+// the space and sit on its bottom edge, the year and search stay centred.
 .tab-strip {
   display: none;
+}
 
-  @media (min-width: $bp-md) {
-    display: block;
+@media (min-width: $bp-md) {
+  .topbar {
+    align-items: stretch;
+    height: auto;
+    min-block-size: 3rem;
+    padding-inline: 0 var(--s-3);
+    background: var(--c-surface-sunk);
+    backdrop-filter: none;
+    border-block-end: 0;
+    // Under the tabs, so the tab on screen can paint over it.
+    box-shadow: inset 0 -1px 0 var(--c-line);
+
+    app-course-switcher,
+    app-top-tools {
+      align-self: center;
+    }
+  }
+
+  .tab-strip {
+    display: flex;
+    align-items: flex-end;
+    flex: 1 1 auto;
+    min-inline-size: 0;
   }
 }
 

@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
 import { DataStore } from '../../../core/data/data-store';
@@ -12,9 +21,20 @@ import { Icon } from '../icon/icon';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, RouterLink],
   template: `
-    <div class="search">
+    <div class="search" [class.is-open]="searchOpen()">
+      <button
+        type="button"
+        class="bell search-toggle"
+        aria-label="חיפוש (Ctrl+K)"
+        title="חיפוש (Ctrl+K)"
+        [attr.aria-expanded]="searchOpen()"
+        (click)="openSearch()"
+      >
+        <app-icon name="search" [size]="18" />
+      </button>
       <label class="sr-only" for="top-search">חיפוש תלמידה או קורס</label>
       <input
+        #searchBox
         id="top-search"
         class="control"
         type="search"
@@ -22,7 +42,8 @@ import { Icon } from '../icon/icon';
         autocomplete="off"
         [value]="query()"
         (input)="query.set($any($event.target).value)"
-        (keydown.escape)="query.set('')"
+        (keydown.escape)="closeSearch()"
+        (blur)="collapseIfEmpty()"
       />
       @if (query().trim()) {
         <div class="backdrop" (click)="query.set('')"></div>
@@ -84,6 +105,46 @@ import { Icon } from '../icon/icon';
       position: relative;
       flex: 0 1 22rem;
       min-width: 0;
+    }
+    .search-toggle {
+      display: none;
+    }
+    /* From tablet up the box folds into an icon until it is wanted. */
+    @media (min-width: 48rem) {
+      :host {
+        flex: 0 0 auto;
+      }
+      .search {
+        display: flex;
+        align-items: center;
+        flex: 0 0 auto;
+      }
+      .search-toggle {
+        display: inline-flex;
+      }
+      .search .control {
+        inline-size: 0;
+        padding-inline: 0;
+        border-width: 0;
+        opacity: 0;
+        transition:
+          inline-size var(--dur) var(--ease),
+          opacity var(--dur) var(--ease);
+      }
+      .search.is-open .search-toggle {
+        display: none;
+      }
+      .search.is-open .control {
+        inline-size: 16rem;
+        padding-inline: var(--s-3);
+        border-width: 1px;
+        opacity: 1;
+      }
+      /* The box is at the far left, so its results open towards the page. */
+      .search .menu {
+        inset-inline-start: auto;
+        inset-inline-end: 0;
+      }
     }
     .search .control {
       min-height: 2.25rem;
@@ -171,6 +232,37 @@ export class TopTools {
   private readonly router = inject(Router);
 
   protected readonly query = signal('');
+  protected readonly searchOpen = signal(false);
+  private readonly searchBox = viewChild<ElementRef<HTMLInputElement>>('searchBox');
+
+  protected openSearch() {
+    this.searchOpen.set(true);
+    queueMicrotask(() => this.searchBox()?.nativeElement.focus());
+  }
+
+  protected closeSearch() {
+    this.query.set('');
+    this.searchOpen.set(false);
+    this.searchBox()?.nativeElement.blur();
+  }
+
+  /** Leaving an empty box folds it away; one with a query stays open. */
+  protected collapseIfEmpty() {
+    if (!this.query().trim()) this.searchOpen.set(false);
+  }
+
+  /** Ctrl+K anywhere, or "/" when she is not already typing in a field. */
+  @HostListener('document:keydown', ['$event'])
+  protected shortcut(event: KeyboardEvent) {
+    const target = event.target as HTMLElement | null;
+    const typing =
+      !!target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable);
+    const ctrlK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k';
+    if (ctrlK || (event.key === '/' && !typing)) {
+      event.preventDefault();
+      this.openSearch();
+    }
+  }
   protected readonly open = signal(false);
 
   protected readonly results = computed(() =>
@@ -196,6 +288,7 @@ export class TopTools {
 
   protected go(result: SearchResult) {
     this.query.set('');
+    this.searchOpen.set(false);
     void this.router.navigate([result.link], { queryParams: result.queryParams });
   }
 }

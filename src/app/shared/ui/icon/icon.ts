@@ -11,6 +11,7 @@ export type IconName =
   | 'chevron'
   | 'users'
   | 'user'
+  | 'search'
   | 'sparkle'
   | 'plus'
   | 'close'
@@ -76,6 +77,10 @@ export type IconName =
         }
         @case ('chevron') {
           <path d="m9 6 6 6-6 6" />
+        }
+        @case ('search') {
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m20 20-4.2-4.2" />
         }
         @case ('user') {
           <circle cx="12" cy="8" r="3.6" />

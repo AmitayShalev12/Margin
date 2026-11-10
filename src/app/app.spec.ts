@@ -149,6 +149,25 @@ describe('the navigation', () => {
     expect(panel.querySelector('a[href="/students"]')).not.toBeNull();
   });
 
+  /** One row: the tabs, then the year and search at its far end. */
+  it('puts the year and search in the same row as the tabs', async () => {
+    const { host } = await render();
+    const bar = host.querySelector('.topbar') as HTMLElement;
+
+    expect(bar.querySelector('app-tab-strip')).not.toBeNull();
+    expect(bar.querySelector('.pick-year')).not.toBeNull();
+    expect(bar.querySelector('#top-search')).not.toBeNull();
+  });
+
+  it('opens search with Ctrl+K', async () => {
+    const { host, fixture } = await render();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+    fixture.detectChanges();
+
+    expect(host.querySelector('.search')?.classList).toContain('is-open');
+  });
+
   it('keeps her account in the corner', async () => {
     const { host } = await render();
     // Outside the top bar: its blur would otherwise pin the button to the bar.

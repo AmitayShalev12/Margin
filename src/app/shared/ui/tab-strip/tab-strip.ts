@@ -44,7 +44,6 @@ import { Icon } from '../icon/icon';
   styles: `
     :host {
       display: block;
-      background: var(--c-surface-sunk);
     }
 
     /* The baseline is an inset shadow on the strip rather than a border on
@@ -56,6 +55,7 @@ import { Icon } from '../icon/icon';
       display: flex;
       align-items: flex-end;
       gap: 2px;
+      inline-size: 100%;
       padding: var(--s-2) var(--s-4) 0;
       overflow-x: auto;
       overflow-y: hidden;
