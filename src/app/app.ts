@@ -6,7 +6,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 
 import { Assistant } from './core/assistant/assistant';
-import { MOBILE_NAV, RAIL_NAV } from './core/navigation';
+import { MOBILE_NAV } from './core/navigation';
 import { SupabaseService } from './core/supabase/supabase';
 import { Tabs } from './core/tabs';
 import { SignIn } from './features/sign-in/sign-in';
@@ -17,8 +17,6 @@ import { CourseSwitcher } from './shared/ui/course-switcher/course-switcher';
 import { Icon } from './shared/ui/icon/icon';
 import { SaveError } from './shared/ui/save-error/save-error';
 import { TabStrip } from './shared/ui/tab-strip/tab-strip';
-
-const RAIL_KEY = 'margin.rail-collapsed';
 
 @Component({
   selector: 'app-root',
@@ -42,7 +40,6 @@ export class App {
   private readonly supabase = inject(SupabaseService);
   protected readonly assistant = inject(Assistant);
 
-  protected readonly railNav = RAIL_NAV;
   protected readonly primaryNav = MOBILE_NAV;
 
   /**
@@ -64,12 +61,6 @@ export class App {
 
   /** The "עוד" sheet on mobile — four tabs is all that fits comfortably. */
   protected readonly moreOpen = signal(false);
-
-  /**
-   * The sidebar folded to icons. Remembered in this browser: a preference of
-   * hers about the screen, not a record.
-   */
-  protected readonly railCollapsed = signal(readFlag(RAIL_KEY));
 
   constructor(router: Router) {
     // Created here so it is listening from the first navigation, not from
@@ -98,11 +89,6 @@ export class App {
     // screen on its own.
   }
 
-  protected toggleRail() {
-    this.railCollapsed.update((v) => !v);
-    writeValue(RAIL_KEY, this.railCollapsed() ? '1' : '');
-  }
-
   protected openAssistant() {
     this.moreOpen.set(false);
     this.assistant.open();
@@ -114,26 +100,5 @@ export class App {
 
   protected closeMore() {
     this.moreOpen.set(false);
-  }
-}
-
-// Browser storage can be missing or refuse (private windows, blocked site
-// data). Every read falls back to the default and every write is best-effort.
-
-function readFlag(key: string): boolean {
-  try {
-    return localStorage.getItem(key) === '1';
-  } catch {
-    return false;
-  }
-}
-
-
-function writeValue(key: string, value: string) {
-  try {
-    if (value) localStorage.setItem(key, value);
-    else localStorage.removeItem(key);
-  } catch {
-    // Remembered for this session only.
   }
 }

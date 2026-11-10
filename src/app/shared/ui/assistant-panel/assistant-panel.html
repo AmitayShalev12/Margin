@@ -1,11 +1,35 @@
 @if (assistant.isOpen()) {
-  <aside class="panel" aria-labelledby="assistant-title" (keydown.escape)="close()"
+  <aside
+    class="panel"
+    aria-labelledby="assistant-title"
+    [style.--panel-w.px]="size().w"
+    [style.--panel-h.px]="size().h"
+    (keydown.escape)="close()"
     [class.is-dragging]="dragging()"
     (dragover)="dragOver($event)"
     (dragleave)="dragging.set(false)"
     (drop)="drop($event)"
   >
+    <!-- Dragged to resize. The window sits in the bottom-left corner and grows up and right. -->
+    <span
+      class="resize-grip"
+      role="separator"
+      aria-label="שינוי גודל החלון"
+      title="גרירה לשינוי גודל"
+      (pointerdown)="startResize($event)"
+    ></span>
+
     <header class="panel-head">
+      <button
+        type="button"
+        class="panel-close"
+        [attr.aria-label]="historyOpen() ? 'סגירת השיחות השמורות' : 'שיחות שמורות'"
+        [attr.aria-expanded]="historyOpen()"
+        title="שיחות שמורות"
+        (click)="historyOpen.set(!historyOpen())"
+      >
+        <app-icon name="panel" [size]="18" />
+      </button>
       <span class="panel-mark" aria-hidden="true"><app-icon name="sparkle" [size]="18" /></span>
       <h2 id="assistant-title" class="panel-title">העוזר</h2>
       @if (assistant.messages().length) {
@@ -23,6 +47,34 @@
       </button>
     </header>
 
+    <div class="panel-body">
+    @if (historyOpen()) {
+      <nav class="history" aria-label="שיחות שמורות">
+        <button type="button" class="btn btn-ghost btn-sm history-new" (click)="newChat()">
+          שיחה חדשה
+        </button>
+        <ul class="history-list">
+          @for (chat of assistant.conversations(); track chat.id) {
+            <li class="history-row" [class.is-current]="chat.id === assistant.conversationId()">
+              <button type="button" class="history-open" (click)="openChat(chat.id)">
+                <span class="history-title">{{ chat.title }}</span>
+                <span class="history-date">{{ when(chat.updated_at) }}</span>
+              </button>
+              <button
+                type="button"
+                class="history-delete"
+                [attr.aria-label]="'מחיקת השיחה ' + chat.title"
+                (click)="assistant.deleteConversation(chat.id)"
+              >
+                <app-icon name="close" [size]="12" />
+              </button>
+            </li>
+          } @empty {
+            <li class="history-empty">עוד אין שיחות שמורות.</li>
+          }
+        </ul>
+      </nav>
+    }
     <div class="log" #log aria-live="polite">
       @if (!assistant.available) {
         <p class="note">
@@ -118,6 +170,7 @@
       @if (assistant.busy()) {
         <app-working label="חושבת" />
       }
+    </div>
     </div>
 
     @if (files().length) {

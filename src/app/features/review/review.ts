@@ -177,6 +177,15 @@ export class Review {
    * acting on the parameter the moment it appears would scroll to a paragraph
    * that has not been rendered yet.
    */
+  /** Each paper opens at the top, not wherever the last one was scrolled to. */
+  private readonly toTop = effect(() => {
+    this.submissionId();
+    queueMicrotask(() => {
+      window.scrollTo({ top: 0 });
+      document.getElementById('main')?.scrollTo({ top: 0 });
+    });
+  });
+
   private readonly jump = effect(() => {
     const id = this.comment();
     if (!id || this.found() === id) return;

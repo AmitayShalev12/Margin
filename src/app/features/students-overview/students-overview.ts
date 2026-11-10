@@ -121,10 +121,14 @@ interface Cell {
                   />
                 </th>
                 <th scope="col" class="name">שם</th>
+                <th scope="col">סלולרי</th>
+                <th scope="col">דוא"ל</th>
+                <th scope="col">סטטוס</th>
+                <th scope="col">שנה פדגוגית</th>
+                <th scope="col">מסלול</th>
                 @for (course of courses(); track course.id) {
                   <th scope="col">{{ course.name }}</th>
                 }
-                <th scope="col">סטטוס לימודים</th>
                 <th scope="col">נוכחות</th>
               </tr>
             </thead>
@@ -140,6 +144,11 @@ interface Cell {
                     />
                   </td>
                   <th scope="row" class="name">{{ row.name }}</th>
+                  <td dir="ltr" class="ltr">{{ row.mobile ?? '—' }}</td>
+                  <td dir="ltr" class="ltr">{{ row.email ?? '—' }}</td>
+                  <td>{{ row.status ?? '—' }}</td>
+                  <td>{{ row.year ?? '—' }}</td>
+                  <td>{{ row.track ?? '—' }}</td>
                   @for (cell of row.cells; track $index) {
                     <td>
                       @if (cell; as c) {
@@ -156,12 +165,11 @@ interface Cell {
                       }
                     </td>
                   }
-                  <td>{{ row.status ?? '—' }}</td>
                   <td><span class="none" aria-label="אין נתון">—</span></td>
                 </tr>
               } @empty {
                 <tr>
-                  <td class="none" [attr.colspan]="courses().length + 4">
+                  <td class="none" [attr.colspan]="courses().length + 8">
                     אין תלמידות בשנת {{ data.year() }}. מוסיפים אותן בתוך קורס.
                   </td>
                 </tr>
@@ -221,6 +229,9 @@ interface Cell {
     thead th {
       background: var(--c-surface-sunk);
       font-weight: 600;
+    }
+    .ltr {
+      text-align: end;
     }
     .name {
       position: sticky;
@@ -313,6 +324,10 @@ export class StudentsOverview {
       id: student.id,
       name: student.full_name,
       status: student.roster_details?.status ?? null,
+      year: student.roster_details?.pedagogic_year ?? null,
+      track: student.roster_details?.track ?? null,
+      mobile: student.mobile ?? student.phone ?? null,
+      email: student.email,
       cells: courses.map((course) => cellFor(course, student.id)),
     }));
   });

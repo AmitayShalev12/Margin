@@ -298,23 +298,13 @@ export class CommentPoster {
        * highest number this round has used, so numbers stay unique per round
        * even across several sends.
        */
-      let number = annotation.marker_number;
-      if (number === null && range) {
-        const next = nextNumber();
-        // Past fifty a marker would need more than one character, which the
-        // write guard refuses on purpose. The comment still goes, unnumbered.
-        if (next !== null) number = next;
-      }
-
-      const content = numberedCommentText(
-        number,
-        KIND_LABEL[annotation.kind],
-        // Her final wording. `ai_body` is kept for the learning loop and is
-        // never what a student reads.
-        annotation.body,
-        annotation.anchor.quote,
-        sectionTitle.get(where.block_index) ?? null,
-      );
+      // No numbered marker any more: a ① in her text and a category name on the
+      // comment read as machine-made. An anchored comment is just her words; one
+      // that cannot be anchored quotes the sentence so the student can find it.
+      const number: number | null = null;
+      const content = range
+        ? annotation.body
+        : commentText(annotation.body, annotation.anchor.quote, null);
 
       plan.push({ annotation, content, range, number });
     }
@@ -342,36 +332,6 @@ export class CommentPoster {
      * into the document points at nothing, whereas a glyph with no comment yet
      * is merely a number she is about to explain.
      */
-    const marking = plan.flatMap((item) =>
-      item.range && item.number !== null && item.annotation.marker_number === null
-        ? [{ annotation: item.annotation, range: item.range, number: item.number }]
-        : [],
-    );
-
-    if (marking.length) {
-      try {
-        await this.api.insertMarkers(
-          fileId,
-          marking.map((item) => ({
-            index: item.range.startIndex,
-            glyph: markerChar(item.number)!,
-          })),
-        );
-        for (const item of marking) {
-          this.store.markAnnotationNumbered(item.annotation.id, item.number);
-          markers += 1;
-        }
-      } catch (error) {
-        if (error instanceof DriveError && error.kind === 'insufficient_scope') {
-          scopeRefused = true;
-          failed = true;
-        } else {
-          // The comments can still go; they simply carry no number in the text.
-          markerFailure = error instanceof DriveError ? error.hebrew : String(error);
-        }
-      }
-    }
-
     if (anchorable.length) {
       try {
         await this.api.insertAnchoredComments(fileId, anchorable);
@@ -444,7 +404,7 @@ export class CommentPoster {
       failed,
       anchored: anchoring,
       markers,
-      unmarked: plan.filter((item) => item.number === null).length,
+      unmarked: 0,
     };
     this._report.set(report);
     this._phase.set(failed ? 'error' : 'done');

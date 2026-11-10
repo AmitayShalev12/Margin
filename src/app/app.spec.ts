@@ -1,3 +1,4 @@
+import { Assistant } from './core/assistant/assistant';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
@@ -58,6 +59,10 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
 
+    // In the account menu at the top, and in the phone's "עוד" sheet.
+    compiled.querySelector<HTMLButtonElement>('[aria-label="החשבון"]')!.click();
+    fixture.detectChanges();
+
     expect(compiled.textContent).toContain('ronit@school.org.il');
     expect(compiled.textContent).toContain('התנתקות');
   });
@@ -110,11 +115,7 @@ describe('App', () => {
   });
 });
 
-/**
- * The sidebar, reorganised after a usability review: grouped by what she is
- * doing, each group folding on its own, the whole rail folding to icons, and
- * the quick actions beside the places they belong to.
- */
+/** No sidebar: home, her students and the assistant are reached from the edges. */
 describe('the navigation', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => localStorage.clear());
@@ -124,45 +125,33 @@ describe('the navigation', () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     fixture.detectChanges();
-    const rail = (fixture.nativeElement as HTMLElement).querySelector('.rail') as HTMLElement;
-    const press = (selector: string, text?: string) => {
-      const target = [...rail.querySelectorAll<HTMLElement>(selector)].find(
-        (el) => !text || el.textContent?.includes(text),
-      );
-      if (!target) throw new Error(`nothing matching ${selector} ${text ?? ''}`);
-      target.click();
-      fixture.detectChanges();
-    };
-    return { fixture, rail, press };
+    return { fixture, host: fixture.nativeElement as HTMLElement };
   }
 
-  /** Everything else moved inside a course. */
-  it('holds only the overview and the assistant', async () => {
-    const { rail } = await render();
-
-    expect([...rail.querySelectorAll('a.rail-link')].map((a) => a.textContent?.trim())).toEqual([
-      'התלמידות שלי',
-    ]);
-    expect(rail.textContent).toContain('העוזר');
-    for (const moved of ['עבודות שהוגשו', 'קורסים וחומרי רקע', 'טפסי הערכה', 'הסגנון שלי', 'בית']) {
-      expect(rail.textContent).not.toContain(moved);
-    }
+  it('has no sidebar', async () => {
+    const { host } = await render();
+    expect(host.querySelector('.rail')).toBeNull();
   });
 
-  it('folds the whole rail to icons, every place still reachable', async () => {
-    const { rail, press } = await render();
-    const before = rail.querySelectorAll('a.rail-link').length;
+  it('puts her students and a home button in the top bar, before the bell', async () => {
+    const { host } = await render();
+    const bar = host.querySelector('.topbar') as HTMLElement;
 
-    press('.rail-toggle');
-
-    expect(rail.querySelectorAll('.group-head')).toHaveLength(0);
-    expect(rail.querySelectorAll('a.rail-link')).toHaveLength(before);
-    expect(rail.querySelector('a.rail-link')?.getAttribute('aria-label')).toBeTruthy();
+    expect(bar.textContent).toContain('התלמידות שלי');
+    const home = bar.querySelector('[aria-label="בית"]')!;
+    const bell = bar.querySelector('.bell-wrap')!;
+    expect(home.getAttribute('href')).toBe('/courses');
+    // Home comes right before the bell in the bar's order.
+    expect(home.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('remembers the folded rail in a new session', async () => {
-    (await render()).press('.rail-toggle');
-    const again = await render();
-    expect(again.rail.querySelectorAll('.group-head')).toHaveLength(0);
+  it('opens the assistant from the corner button', async () => {
+    const { host, fixture } = await render();
+
+    host.querySelector<HTMLButtonElement>('.assistant-launcher')!.click();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(Assistant).isOpen()).toBe(true);
+    expect(host.querySelector('.assistant-launcher')).toBeNull();
   });
 });

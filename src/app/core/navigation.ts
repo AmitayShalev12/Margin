@@ -16,11 +16,8 @@ const STUDENTS: NavItem = {
   icon: 'users',
 };
 
-/**
- * The sidebar: only what stands above every course. Everything else lives inside
- * a course. "העוזר" sits beneath this list. Add an entry here to add a place.
- */
-export const RAIL_NAV: readonly NavItem[] = [STUDENTS];
+/** The top bar's places, beside the home button. Add an entry here to add one. */
+export const TOP_NAV: readonly NavItem[] = [STUDENTS];
 
 /** A phone has no tab strip, so its bottom bar also has to reach the courses. */
 export const MOBILE_NAV: readonly NavItem[] = [

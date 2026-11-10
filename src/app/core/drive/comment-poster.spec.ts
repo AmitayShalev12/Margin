@@ -629,84 +629,23 @@ describe('numbered markers', () => {
 
   const markerBatches = () => calls.filter((c) => isMarkerEditBatch(c.url, c.body));
 
-  it('places one plain glyph per comment, with no colour or bold', async () => {
-    const expected = poster.waiting(NOA).length;
+  /** Numbered markers looked machine-made to students, so none are added now. */
+  it('adds nothing to her text, and the comment is just her words', async () => {
+    const waiting = poster.waiting(NOA);
     const report = await poster.post(NOA);
 
-    expect(report!.markers).toBe(expected);
+    expect(report!.markers).toBe(0);
+    expect(markerBatches()).toEqual([]);
+    expect(store.annotations().every((a) => a.marker_number === null)).toBe(true);
 
-    const requests = markerBatches().flatMap(
-      (c) => (c.body as { requests: Record<string, { text?: string }>[] }).requests,
+    const anchored = calls.filter((c) => isAnchoredCommentInsert(c.url, c.body));
+    const contents = anchored.flatMap(
+      (c) =>
+        (c.body as { requests: { insertComment: { content: string } }[] }).requests.map(
+          (r) => r.insertComment.content,
+        ),
     );
-    const inserts = requests.filter((r) => 'insertText' in r);
-    const styles = requests.filter((r) => 'updateTextStyle' in r);
-
-    expect(inserts.length).toBe(expected);
-    expect(styles.length).toBe(0);
-    for (const insert of inserts) {
-      expect(isMarker(insert['insertText'].text!)).toBe(true);
-    }
-  });
-
-  /** Requirement 4: a later insertion must not shift an earlier position. */
-  it('inserts back to front, so no position drifts', async () => {
-    await poster.post(NOA);
-
-    const inserts = markerBatches()
-      .flatMap(
-        (c) =>
-          (c.body as { requests: Record<string, { location?: { index: number } }>[] }).requests,
-      )
-      .filter((r) => 'insertText' in r)
-      .map((r) => r['insertText'].location!.index);
-
-    expect(inserts.length).toBeGreaterThan(1);
-    // Strictly descending: each insertion is earlier in the document than the
-    // one before it, so the indices measured beforehand stay valid.
-    for (let i = 1; i < inserts.length; i++) {
-      expect(inserts[i]).toBeLessThan(inserts[i - 1]);
-    }
-  });
-
-  it('records the number, and the comment carries the same one', async () => {
-    await poster.post(NOA);
-
-    const marked = store.annotations().filter((a) => a.marker_number !== null);
-    expect(marked.length).toBeGreaterThan(0);
-
-    for (const annotation of marked) {
-      const glyph = markerChar(annotation.marker_number!)!;
-      const comment = calls.find(
-        (c) =>
-          isAnchoredCommentInsert(c.url, c.body) &&
-          JSON.stringify(c.body).includes(annotation.body.slice(0, 20)),
-      );
-      // The glyph in the text and the number on the note are the anchor.
-      expect(JSON.stringify(comment?.body)).toContain(glyph);
-    }
-  });
-
-  /** Requirement 3: a re-send must not duplicate or renumber. */
-  it('leaves an existing marker exactly as it is on a re-send', async () => {
-    await poster.post(NOA);
-    const before = store
-      .annotations()
-      .filter((a) => a.marker_number !== null)
-      .map((a) => [a.id, a.marker_number] as const);
-    calls = [];
-
-    // She approves one more and sends again.
-    const next = store.annotations().find((a) => a.status === 'pending')!;
-    store.setAnnotationStatus(next.id, 'accepted');
-    const report = await poster.post(NOA);
-
-    // Only the new one got a glyph.
-    expect(report!.markers).toBe(1);
-    for (const [id, number] of before) {
-      expect(store.annotation(id)!.marker_number).toBe(number);
-    }
-    // And its number continues rather than repeating.
-    expect(store.annotation(next.id)!.marker_number).toBe(before.length + 1);
+    expect(contents.sort()).toEqual(waiting.map((a) => a.body).sort());
   });
 
   /** Requirement 6: no marker at a guessed position. */
@@ -720,8 +659,10 @@ describe('numbered markers', () => {
     expect(report!.unplaced.map((u) => u.id)).toContain(victim.id);
   });
 
-  it('takes its own markers back out, and only those', async () => {
+  /** Markers from before the change still come out. */
+  it('takes its own older markers back out, and only those', async () => {
     await poster.post(NOA);
+    for (const [i, a] of store.annotations().filter((x) => x.posted_comment_id).entries()) store.markAnnotationNumbered(a.id, i + 1);
     const placed = store.annotations().filter((a) => a.marker_number !== null);
     expect(placed.length).toBeGreaterThan(0);
 
@@ -750,14 +691,4 @@ describe('numbered markers', () => {
     expect(store.annotation(placed[0].id)!.marker_number).toBeNull();
   });
 
-  it('surfaces a failed marker insert without losing the comments', async () => {
-    batchStatus = 500;
-
-    const report = await poster.post(NOA);
-
-    expect(report!.markers).toBe(0);
-    // The comments still went, by the unanchored route.
-    expect(report!.posted).toBeGreaterThan(0);
-    expect(store.annotations().every((a) => a.marker_number === null)).toBe(true);
-  });
 });

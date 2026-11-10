@@ -255,8 +255,33 @@ textarea.control {
 // Room for the native arrow, which sits on the inline-end side — the left, in
 // RTL — so the padding has to be logical too.
 select.control {
+  appearance: none;
   padding-inline-end: var(--s-8);
+  // A chevron at the inline end (the left, in RTL), in the muted ink colour.
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6b70' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: left 0.75rem center;
+  background-size: 0.75rem 0.75rem;
+  background-repeat: no-repeat;
+  color: var(--c-ink);
+  font-weight: 500;
   cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+
+  &:hover:not(:disabled) {
+    border-color: var(--c-accent-line);
+    background-color: var(--c-accent-soft);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+[dir='ltr'] select.control {
+  background-position: right 0.75rem center;
 }
 
 // -- chips / status ---------------------------------------------------------

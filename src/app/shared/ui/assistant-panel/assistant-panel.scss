@@ -11,16 +11,118 @@
   flex-direction: column;
   background: var(--c-surface);
   animation: panel-in var(--dur) var(--ease);
+  // Overridden inline by the size she drags it to.
+  --panel-w: 26rem;
+  --panel-h: 36rem;
 
+  // A window in the bottom-left corner (the inline end, in RTL), sized by her.
   @media (min-width: $bp-md) {
-    inset-inline-start: auto;
-    inset-block: var(--s-3);
-    inset-inline-end: var(--s-3);
-    inline-size: 25rem;
+    inset: auto;
+    inset-block-end: var(--s-4);
+    inset-inline-end: var(--s-4);
+    inline-size: var(--panel-w, 26rem);
+    block-size: var(--panel-h, 36rem);
     border: 1px solid var(--c-line);
     border-radius: var(--r-lg);
     box-shadow: var(--sh-3);
   }
+}
+
+.resize-grip {
+  display: none;
+
+  @media (min-width: $bp-md) {
+    display: block;
+    position: absolute;
+    inset-block-start: -4px;
+    inset-inline-start: -4px;
+    z-index: 2;
+    inline-size: 18px;
+    block-size: 18px;
+    border-block-start: 3px solid var(--c-line-strong);
+    border-inline-start: 3px solid var(--c-line-strong);
+    border-start-start-radius: var(--r-lg);
+    cursor: nesw-resize;
+    touch-action: none;
+
+    &:hover {
+      border-color: var(--c-accent);
+    }
+  }
+}
+
+.panel-body {
+  flex: 1;
+  min-block-size: 0;
+  display: flex;
+}
+
+.panel-body .log {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.history {
+  flex: 0 0 11rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-inline-end: 1px solid var(--c-line);
+  background: var(--c-surface-sunk);
+  overflow-y: auto;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.history-row {
+  display: flex;
+  align-items: flex-start;
+  border-radius: var(--r-sm);
+
+  &.is-current {
+    background: var(--c-accent-soft);
+  }
+}
+
+.history-open {
+  flex: 1;
+  min-inline-size: 0;
+  padding: var(--s-1) var(--s-2);
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.history-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+}
+
+.history-date,
+.history-empty {
+  color: var(--c-ink-3);
+  font-size: var(--fs-xs);
+}
+
+.history-delete {
+  padding: var(--s-1);
+  border: 0;
+  background: none;
+  color: var(--c-ink-3);
+  cursor: pointer;
 }
 
 @keyframes panel-in {

@@ -1,3 +1,4 @@
+import { AssistantConversation } from '../assistant/conversation';
 import { MessageTemplate } from '../messages/student-message';
 import {
   Annotation,
@@ -69,6 +70,8 @@ export interface PersistedSnapshot {
   styleExamples: TeacherStyleExample[];
   /** The message templates she writes herself. */
   messageTemplates: MessageTemplate[];
+  /** Saved conversations with the assistant. */
+  assistantConversations: AssistantConversation[];
 }
 
 /**
@@ -101,6 +104,7 @@ export const EMPTY_SNAPSHOT: PersistedSnapshot = {
   feedbackLogs: [],
   styleExamples: [],
   messageTemplates: [],
+  assistantConversations: [],
 };
 
 /**
@@ -132,6 +136,8 @@ export abstract class Repository {
   abstract saveCourseMaterial(material: CourseMaterial): Promise<void>;
   abstract saveStyleExample(example: TeacherStyleExample): Promise<void>;
   abstract saveMessageTemplate(template: MessageTemplate): Promise<void>;
+  abstract saveConversation(conversation: AssistantConversation): Promise<void>;
+  abstract deleteConversations(ids: readonly UUID[]): Promise<void>;
 
   abstract saveGradingCategory(category: GradingFormCategory): Promise<void>;
   abstract saveCriterionScore(score: GradingCriterionScore): Promise<void>;

@@ -1,3 +1,4 @@
+import { AssistantConversation } from '../assistant/conversation';
 import { MAX_TASKS } from '../tasks/task-import';
 import { MessageTemplate } from '../messages/student-message';
 import { currentYearLabel, yearChoices, yearKey } from '../dates/hebrew-date';
@@ -277,6 +278,34 @@ export class DataStore {
     const here = this._course()?.id;
     return this._feedbackLogs().filter((l) => l.course_id === here);
   });
+
+  private readonly _conversations = signal<AssistantConversation[]>([]);
+  /** Her saved chats with the assistant, newest first. */
+  readonly conversations = computed(() =>
+    [...this._conversations()].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+  );
+
+  saveConversation(id: UUID, title: string, messages: unknown[]) {
+    const teacherId = this.supabase.teacherId;
+    if (!teacherId) return;
+    const now = new Date().toISOString();
+    const existing = this._conversations().find((c) => c.id === id);
+    const conversation: AssistantConversation = {
+      id,
+      teacher_id: teacherId,
+      title: title.slice(0, 80),
+      messages,
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+    };
+    this._conversations.update((list) => [...list.filter((c) => c.id !== id), conversation]);
+    this.persist(() => this.repository.saveConversation(conversation));
+  }
+
+  deleteConversation(id: UUID) {
+    this._conversations.update((list) => list.filter((c) => c.id !== id));
+    this.persist(() => this.repository.deleteConversations([id]));
+  }
 
   private readonly _messageTemplates = signal<MessageTemplate[]>([]);
   readonly messageTemplates = this._messageTemplates.asReadonly();
@@ -899,6 +928,7 @@ export class DataStore {
     this._feedbackLogs.update((list) => mergeById(list, snapshot.feedbackLogs));
     this._styleExamples.update((list) => mergeById(list, snapshot.styleExamples));
     this._messageTemplates.update((list) => mergeById(list, snapshot.messageTemplates ?? []));
+    this._conversations.update((list) => mergeById(list, snapshot.assistantConversations ?? []));
 
     // The grading form's headings come from her own past years when there are
     // any; `buildCategories` falls back to the starting set only for a course
@@ -1792,6 +1822,7 @@ export class DataStore {
     this._annotations.set([]);
     this._feedbackLogs.set([]);
     this._messageTemplates.set([]);
+    this._conversations.set([]);
     this._styleExamples.set([]);
     this.folders.set({});
     this._sync.set(IDLE);

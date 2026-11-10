@@ -198,15 +198,9 @@
 
 // -- desktop rail -----------------------------------------------------------
 
-.rail {
-  display: none;
-}
+
 
 @media (min-width: $bp-lg) {
-  .shell {
-    flex-direction: row;
-  }
-
   .tabbar,
   .sheet,
   .sheet-backdrop {
@@ -214,238 +208,11 @@
   }
 
   // The bar stays on desktop: it carries the course selector and the
-  // assistant. The wordmark drops out — the rail is carrying it there.
+  // assistant.
   .topbar .mobile-only {
     display: none;
   }
 
-  .rail {
-    position: sticky;
-    inset-block-start: 0;
-    align-self: flex-start;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-4);
-    width: var(--nav-rail-w);
-    flex: 0 0 var(--nav-rail-w);
-    height: 100dvh;
-    overflow-y: auto;
-    padding: var(--s-5) var(--s-3);
-    border-inline-end: 1px solid var(--c-line);
-    background: var(--c-surface);
-    transition:
-      width var(--dur) var(--ease),
-      flex-basis var(--dur) var(--ease);
-  }
-
-  // Folded to icons: wide enough for a 20px icon and its padding, no more.
-  .rail-collapsed .rail {
-    width: 4.25rem;
-    flex-basis: 4.25rem;
-    padding-inline: var(--s-2);
-    align-items: center;
-  }
-
-  .rail-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--s-2);
-    padding-inline: var(--s-2);
-  }
-
-  .rail-collapsed .rail-top {
-    padding-inline: 0;
-  }
-
-  .rail-brand {
-    display: flex;
-    flex-direction: column;
-    gap: 0.1rem;
-  }
-
-  .rail-tag {
-    font-size: var(--fs-sm);
-    color: var(--c-ink-3);
-  }
-
-  .rail-toggle,
-  .rail-quick {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    border: 0;
-    border-radius: var(--r-sm);
-    background: none;
-    color: var(--c-ink-3);
-    cursor: pointer;
-
-    &:hover {
-      background: var(--c-surface-sunk);
-      color: var(--c-ink);
-    }
-  }
-
-  .rail-toggle {
-    width: 2.25rem;
-    height: 2.25rem;
-  }
-
-  .rail-groups {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-3);
-    width: 100%;
-  }
-
-  .rail-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
-  }
-
-  .group-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 2rem;
-    padding-inline: var(--s-3) var(--s-2);
-    border: 0;
-    border-radius: var(--r-sm);
-    background: none;
-    font-size: var(--fs-xs);
-    font-weight: 600;
-    color: var(--c-ink-3);
-    cursor: pointer;
-
-    &:hover {
-      color: var(--c-ink);
-    }
-  }
-
-  // Folded points along the reading direction (left, in RTL); open points down.
-  .group-chevron {
-    display: inline-flex;
-    transform: rotate(180deg);
-    transition: transform var(--dur-fast) var(--ease);
-
-    &.is-open {
-      transform: rotate(90deg);
-    }
-  }
-
-  .rail-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
-  }
-
-  .rail-row {
-    display: flex;
-    align-items: center;
-    gap: var(--s-1);
-  }
-
-  .rail-link {
-    display: flex;
-    align-items: center;
-    flex: 1;
-    gap: var(--s-3);
-    min-height: 2.5rem;
-    padding-inline: var(--s-3);
-    border: 0;
-    border-radius: var(--r-md);
-    background: none;
-    color: var(--c-ink-2);
-    font: inherit;
-    font-weight: 600;
-    text-align: start;
-    text-decoration: none;
-    cursor: pointer;
-    transition:
-      background var(--dur-fast) var(--ease),
-      color var(--dur-fast) var(--ease);
-
-    &:hover {
-      background: var(--c-surface-sunk);
-      color: var(--c-ink);
-    }
-
-    &.is-active {
-      background: var(--c-accent-soft);
-      color: var(--c-accent-strong);
-    }
-  }
-
-  .rail-collapsed .rail-link {
-    justify-content: center;
-    padding-inline: 0;
-    width: 2.75rem;
-    flex: 0 0 auto;
-  }
-
-  .rail-quick {
-    width: 2rem;
-    height: 2rem;
-  }
-
-  // Pushed to the foot of the rail: the assistant, then which account this is.
-  .rail-foot {
-    margin-block-start: auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-2);
-    width: 100%;
-  }
-
-  .rail-collapsed .rail-foot {
-    align-items: center;
-  }
-
-  .rail-assistant {
-    flex: 0 0 auto;
-    color: var(--c-accent);
-  }
-
-  .rail-account {
-    padding: var(--s-3) var(--s-3) 0;
-    border-block-start: 1px solid var(--c-line);
-    display: flex;
-    flex-direction: column;
-    gap: var(--s-1);
-    align-items: flex-start;
-  }
-
-  .rail-email {
-    unicode-bidi: isolate;
-    font-size: var(--fs-xs);
-    color: var(--c-ink-3);
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .rail-signout {
-    border: 0;
-    background: none;
-    padding: 0;
-    font: inherit;
-    font-size: var(--fs-sm);
-    color: var(--c-ink-3);
-    cursor: pointer;
-
-    &:hover {
-      color: var(--c-ink);
-      text-decoration: underline;
-    }
-  }
-
-  // On desktop the rail has the assistant; the top bar need not repeat it.
   .topbar-assistant {
     display: none;
   }
@@ -505,5 +272,33 @@
 
   .topbar-spacer {
     display: none;
+  }
+}
+
+// -- assistant launcher -------------------------------------------------------
+// Desktop only: below this width the bottom bar holds the assistant.
+.assistant-launcher {
+  display: none;
+
+  @media (min-width: $bp-lg) {
+    position: fixed;
+    inset-block-end: var(--s-4);
+    inset-inline-end: var(--s-4);
+    z-index: 55;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 3.25rem;
+    block-size: 3.25rem;
+    border: 0;
+    border-radius: 50%;
+    background: var(--c-accent);
+    color: var(--c-on-accent);
+    box-shadow: var(--sh-3);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--c-accent-strong);
+    }
   }
 }

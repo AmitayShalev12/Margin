@@ -1,3 +1,4 @@
+import { AssistantConversation } from '../assistant/conversation';
 import { MessageTemplate } from '../messages/student-message';
 import { Injectable } from '@angular/core';
 
@@ -78,6 +79,21 @@ export class LocalRepository extends Repository {
     const gone = new Set(ids);
     this.mutate((snapshot) => {
       snapshot.courseStudents = (snapshot.courseStudents ?? []).filter((l) => !gone.has(l.id));
+    });
+  }
+
+  async saveConversation(conversation: AssistantConversation): Promise<void> {
+    this.mutate((snapshot) => {
+      snapshot.assistantConversations = replaceById(snapshot.assistantConversations ?? [], conversation);
+    });
+  }
+
+  async deleteConversations(ids: readonly UUID[]): Promise<void> {
+    const gone = new Set(ids);
+    this.mutate((snapshot) => {
+      snapshot.assistantConversations = (snapshot.assistantConversations ?? []).filter(
+        (c) => !gone.has(c.id),
+      );
     });
   }
 
@@ -298,6 +314,7 @@ function read(): PersistedSnapshot {
       feedbackLogs: parsed.feedbackLogs ?? [],
       styleExamples: parsed.styleExamples ?? [],
       messageTemplates: parsed.messageTemplates ?? [],
+      assistantConversations: parsed.assistantConversations ?? [],
     };
   } catch {
     // Corrupt or unavailable storage shouldn't stop the app booting.
@@ -326,6 +343,7 @@ function clone(snapshot: PersistedSnapshot): PersistedSnapshot {
     feedbackLogs: [...snapshot.feedbackLogs],
     styleExamples: [...snapshot.styleExamples],
     messageTemplates: [...(snapshot.messageTemplates ?? [])],
+    assistantConversations: [...(snapshot.assistantConversations ?? [])],
   };
 }
 

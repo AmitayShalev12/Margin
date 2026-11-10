@@ -54,6 +54,7 @@ export const RESTORE_ORDER = [
   'feedbackLogs',
   'styleExamples',
   'messageTemplates',
+  'assistantConversations',
 ] as const satisfies readonly TableKey[];
 
 type Row = { id: string; teacher_id?: string };
@@ -104,7 +105,7 @@ export function parseBackup(text: string): MarginBackup {
 
   for (const table of RESTORE_ORDER) {
     // Backups made before templates existed are still good.
-    if (table === 'messageTemplates') continue;
+    if (table === 'messageTemplates' || table === 'assistantConversations') continue;
     if (!Array.isArray(parsed.data[table])) throw new BackupError('קובץ הגיבוי פגום או חסר.');
   }
 

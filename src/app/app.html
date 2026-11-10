@@ -12,82 +12,7 @@
 } @else if (needsSignIn()) {
   <app-sign-in />
 } @else {
-  <div class="shell" [class.rail-collapsed]="railCollapsed()">
-    <!--
-      Desktop: a rail on the inline-start edge, which in RTL is the right.
-      Grouped by what she is doing, each group folding on its own, and the
-      whole rail folding down to icons.
-    -->
-    <nav class="rail" aria-label="ניווט ראשי">
-      <div class="rail-top">
-        @if (!railCollapsed()) {
-          <div class="rail-brand">
-            <span class="wordmark" dir="ltr">Margin</span>
-            <span class="rail-tag">הערות בשוליים</span>
-          </div>
-        }
-        <button
-          type="button"
-          class="rail-toggle"
-          [attr.aria-label]="railCollapsed() ? 'הרחבת התפריט' : 'כיווץ התפריט'"
-          [attr.aria-expanded]="!railCollapsed()"
-          [title]="railCollapsed() ? 'הרחבת התפריט' : 'כיווץ התפריט'"
-          (click)="toggleRail()"
-        >
-          <app-icon name="panel" [size]="20" />
-        </button>
-      </div>
-
-      <div class="rail-groups">
-        <ul class="rail-list">
-          @for (item of railNav; track item.path) {
-            <li class="rail-row">
-              <a
-                class="rail-link"
-                [routerLink]="item.path"
-                routerLinkActive="is-active"
-                #rla="routerLinkActive"
-                [attr.aria-current]="rla.isActive ? 'page' : null"
-                [title]="railCollapsed() ? item.longLabel : ''"
-                [attr.aria-label]="railCollapsed() ? item.longLabel : null"
-              >
-                <app-icon [name]="item.icon" [size]="20" />
-                @if (!railCollapsed()) {
-                  <span>{{ item.longLabel }}</span>
-                }
-              </a>
-            </li>
-          }
-        </ul>
-      </div>
-
-      <div class="rail-foot">
-        <button
-          type="button"
-          class="rail-link rail-assistant"
-          [class.is-active]="assistant.isOpen()"
-          [title]="railCollapsed() ? 'העוזר' : ''"
-          [attr.aria-label]="railCollapsed() ? 'העוזר' : null"
-          (click)="openAssistant()"
-        >
-          <app-icon name="sparkle" [size]="20" />
-          @if (!railCollapsed()) {
-            <span>העוזר</span>
-          }
-        </button>
-
-        @if (signedInAs(); as email) {
-          @if (!railCollapsed()) {
-            <div class="rail-account">
-              <span class="rail-email" dir="ltr" [title]="email">{{ email }}</span>
-              <a class="rail-signout" routerLink="/settings">הגדרות</a>
-              <button type="button" class="rail-signout" (click)="signOut()">התנתקות</button>
-            </div>
-          }
-        }
-      </div>
-    </nav>
-
+  <div class="shell">
     <div class="column">
       <!-- The year decides everything below it. -->
       <header class="topbar">
@@ -157,6 +82,19 @@
           }
         </ul>
       </div>
+    }
+
+    <!-- The assistant, in the bottom-left corner. On a phone the bottom bar opens it. -->
+    @if (!assistant.isOpen()) {
+      <button
+        type="button"
+        class="assistant-launcher"
+        aria-label="העוזר"
+        title="העוזר"
+        (click)="openAssistant()"
+      >
+        <app-icon name="sparkle" [size]="24" />
+      </button>
     }
 
     <!-- Quick actions and the assistant: one copy each, opened from anywhere. -->

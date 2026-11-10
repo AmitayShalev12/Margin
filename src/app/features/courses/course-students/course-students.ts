@@ -113,6 +113,60 @@ export class CourseStudents {
 
   // -- leaving the course ---------------------------------------------------
 
+  /**
+   * Several papers, processed one after another.
+   *
+   * One at a time on purpose: each run is a minute or two against a rate-limited
+   * model, and running them together would fail them together.
+   */
+  protected readonly queue = signal<{
+    running: boolean;
+    total: number;
+    done: number;
+    skipped: number;
+    current: string;
+    failed: string[];
+  }>({ running: false, total: 0, done: 0, skipped: 0, current: '', failed: [] });
+  private stopRequested = false;
+
+  protected async processSelected() {
+    const picked = this.rows().filter((r) => this.selected().has(r.id));
+    const work = picked.filter((r) => r.latestId);
+    this.stopRequested = false;
+    this.queue.set({
+      running: true,
+      total: work.length,
+      done: 0,
+      skipped: picked.length - work.length,
+      current: '',
+      failed: [],
+    });
+
+    for (const row of work) {
+      if (this.stopRequested) break;
+      this.queue.update((q) => ({ ...q, current: row.name }));
+      const result = await this.generator.generate(row.latestId!);
+      this.queue.update((q) => ({
+        ...q,
+        done: q.done + 1,
+        failed: result
+          ? q.failed
+          : [...q.failed, `${row.name}: ${this.generator.state().message ?? 'העיבוד לא הצליח.'}`],
+      }));
+    }
+
+    this.queue.update((q) => ({ ...q, running: false, total: this.stopRequested ? q.done : q.total }));
+    this.selected.set(new Set());
+  }
+
+  protected stopQueue() {
+    this.stopRequested = true;
+  }
+
+  protected clearQueue() {
+    this.queue.set({ running: false, total: 0, done: 0, skipped: 0, current: '', failed: [] });
+  }
+
   protected readonly selected = signal<ReadonlySet<UUID>>(new Set());
   protected readonly asking = signal(false);
 

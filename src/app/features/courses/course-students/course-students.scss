@@ -381,3 +381,22 @@
     font-weight: 600;
   }
 }
+
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  margin-block: var(--s-2);
+}
+
+.queue-line {
+  margin: 0;
+  font-weight: 600;
+}
+
+.queue-fail {
+  margin: 0;
+  color: var(--c-danger);
+  font-size: var(--fs-sm);
+}

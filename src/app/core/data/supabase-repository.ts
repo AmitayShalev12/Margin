@@ -1,3 +1,4 @@
+import { AssistantConversation } from '../assistant/conversation';
 import { MessageTemplate } from '../messages/student-message';
 import { Injectable, inject } from '@angular/core';
 
@@ -121,6 +122,7 @@ export class SupabaseRepository extends Repository {
       courseMaterials,
       courseStudents,
       messageTemplates,
+      assistantConversations,
     ] = await Promise.all([
       client.from(TABLES.submissions).select('*'),
       client.from(TABLES.submissionRounds).select('*'),
@@ -140,6 +142,7 @@ export class SupabaseRepository extends Repository {
       client.from(TABLES.courseMaterials).select('*'),
       client.from(TABLES.courseStudents).select('*'),
       client.from(TABLES.messageTemplates).select('*'),
+      client.from(TABLES.assistantConversations).select('*'),
     ]);
 
     // Paired with their tables, so a failed load names the query that failed.
@@ -164,6 +167,7 @@ export class SupabaseRepository extends Repository {
       [TABLES.courseMaterials, courseMaterials],
       [TABLES.courseStudents, courseStudents],
       [TABLES.messageTemplates, messageTemplates],
+      [TABLES.assistantConversations, assistantConversations],
     ];
 
     const failed = results.find(([, result]) => result.error);
@@ -196,6 +200,7 @@ export class SupabaseRepository extends Repository {
       feedbackLogs: (feedbackLogs.data ?? []) as LearningFeedbackLog[],
       styleExamples: (styleExamples.data ?? []) as TeacherStyleExample[],
       messageTemplates: (messageTemplates.data ?? []) as MessageTemplate[],
+      assistantConversations: (assistantConversations.data ?? []) as AssistantConversation[],
     };
   }
 
@@ -205,6 +210,14 @@ export class SupabaseRepository extends Repository {
 
   async saveAssignment(assignment: Assignment): Promise<void> {
     await this.upsert(TABLES.assignments, assignment, 'id');
+  }
+
+  async saveConversation(conversation: AssistantConversation): Promise<void> {
+    await this.upsert(TABLES.assistantConversations, conversation, 'id');
+  }
+
+  async deleteConversations(ids: readonly UUID[]): Promise<void> {
+    await this.deleteRows(TABLES.assistantConversations, ids);
   }
 
   async saveMessageTemplate(template: MessageTemplate): Promise<void> {

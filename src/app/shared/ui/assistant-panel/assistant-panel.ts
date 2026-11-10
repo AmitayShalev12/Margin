@@ -1,3 +1,4 @@
+import { dualDateText } from '../../../core/dates/hebrew-date';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -14,7 +15,7 @@ import { Icon } from '../icon/icon';
 import { Working } from '../working/working';
 
 /**
- * The assistant, as a panel beside the page.
+ * The assistant, as a window in the bottom-left corner.
  *
  * Not modal on a wide screen: when it opens a screen or adds a student, she
  * should see that happen behind it. On a phone it takes the screen.
@@ -30,6 +31,45 @@ export class AssistantPanel {
   protected readonly assistant = inject(Assistant);
 
   protected readonly draft = signal('');
+
+  protected readonly historyOpen = signal(false);
+
+  /** The window's size, kept in this browser. Only used from tablet width up. */
+  protected readonly size = signal(readSize());
+
+  protected startResize(event: PointerEvent) {
+    event.preventDefault();
+    const start = { x: event.clientX, y: event.clientY, ...this.size() };
+    const move = (e: PointerEvent) => {
+      // Anchored bottom-left, so it widens to the right and grows upwards.
+      this.size.set(clampSize(start.w + (e.clientX - start.x), start.h - (e.clientY - start.y)));
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      try {
+        localStorage.setItem(SIZE_KEY, JSON.stringify(this.size()));
+      } catch {
+        // Blocked storage: the size lasts for this visit.
+      }
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop);
+  }
+
+  protected newChat() {
+    this.assistant.clear();
+    this.historyOpen.set(false);
+  }
+
+  protected openChat(id: string) {
+    this.assistant.openConversation(id);
+    this.historyOpen.set(false);
+  }
+
+  protected when(iso: string): string {
+    return dualDateText(iso) ?? '';
+  }
 
   /** Files waiting to go with the next message. */
   protected readonly files = signal<File[]>([]);
@@ -114,4 +154,27 @@ export class AssistantPanel {
   protected close() {
     this.assistant.close();
   }
+}
+
+const SIZE_KEY = 'margin.assistant-size';
+
+function clampSize(w: number, h: number): { w: number; h: number } {
+  const maxW = Math.max(320, window.innerWidth - 32);
+  const maxH = Math.max(360, window.innerHeight - 32);
+  return {
+    w: Math.round(Math.min(Math.max(w, 320), maxW)),
+    h: Math.round(Math.min(Math.max(h, 360), maxH)),
+  };
+}
+
+function readSize(): { w: number; h: number } {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SIZE_KEY) ?? 'null') as { w?: number; h?: number } | null;
+    if (saved && typeof saved.w === 'number' && typeof saved.h === 'number') {
+      return clampSize(saved.w, saved.h);
+    }
+  } catch {
+    // Fall through to the default.
+  }
+  return clampSize(420, 600);
 }

@@ -308,15 +308,16 @@ How you write:
 Actions:
 ${ASSISTANT_ACTIONS.map((a) => `- ${a.name}(${a.args.join(', ')}): ${a.description}`).join('\n')}
 
-Guide to the app:
+Guide to the app (there is no sidebar; the assistant opens from a button at the bottom left):
 - Top bar, on every screen: the year select, which decides everything shown below it; a search box
   that finds a student or a course; and a bell, "מה מחכה לי?", listing what waits for her.
 - Tabs under it start with "קורסים": the selected year's courses as cards. "הוספת קורס" adds one to
   that year; if a course of that name existed she is asked which rules and materials to keep.
 - Pressing a card opens the course. Everything inside belongs to that course alone, in these parts:
   - תלמידות: its students. "הוספת תלמידה" adds one and "ייבוא רשימה" reads the college's Excel list.
-    On each: a mark of how she stands against the deadlines, "הוספת קובץ" for a task, "כתיבת טיוטה"
-    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה". Each stage mark opens that paper. Ticking students offers removing them from the course.
+    On each: a mark of how she stands against the deadlines, "הוספת קובץ" for a task, "עיבוד העבודה"
+    drafts comments on her latest paper, "לעבודה האחרונה", "הוספת תיקייה". Each stage mark opens that paper. Ticking students offers "עיבוד העבודות של הנבחרות", which processes their latest papers one after
+    another, and removing them from the course.
     At the bottom: "הגדרות הקורס" and "חיבור לדרייב", which connects Google and syncs new papers.
   - כללים וחומרים: rules in three groups (כללי העבודה, כללי משרד החינוך, הכללים שלי), background
     material, and "לקחת כללים מקורס אחר".
@@ -325,12 +326,12 @@ Guide to the app:
   - טופס הערכה: "טעינת טופס הציון" loads her form from a Word file; scores by criterion for a student.
   - הסגנון בקורס: tone, and "הוספת דוגמאות מהכתיבה שלי". Style belongs to this course.
   - הודעות: who is ready to hear back, and the templates she writes herself.
-- התלמידות שלי, in the sidebar: a table of every student across the year's courses. "ייצוא לאקסל"
+- התלמידות שלי, in the top bar beside the home button: a table of every student across the year's courses. "ייצוא לאקסל"
   exports the list, "השוואה בין שנים" lists students of more than one year, and ticking students
   offers deleting them from everything.
 - If she asks to delete an uploaded student list: Margin does not keep that file. It copies the names
   and details and the file stays only on her computer, so there is nothing to delete here. Say so.
-- הגדרות, beside the account: her Gemini key and backups.
+- הגדרות, in the account menu at the top left: her Gemini key and backups.
 - Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
   "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,
   "הוספת ההערות למסמך של…", goes to the screen that adds approved comments to her Google Doc, using

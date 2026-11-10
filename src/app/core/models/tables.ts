@@ -21,6 +21,7 @@ export const TABLES = {
   studentEmails: 'student_emails',
   reliabilityChecks: 'reliability_checks',
   messageTemplates: 'message_templates',
+  assistantConversations: 'assistant_conversations',
 } as const;
 
 export type TableName = (typeof TABLES)[keyof typeof TABLES];

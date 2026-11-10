@@ -266,4 +266,59 @@ describe('when there is no answer', () => {
       expect(JSON.stringify(sent[0].body)).not.toContain('משפט מתוך העבודה');
     });
   });
+
+  describe('saved conversations', () => {
+    it('saves a conversation after an answer, titled by her first message', async () => {
+      const { store, assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+
+      await assistant.send('מה מחכה לי היום?');
+
+      expect(store.conversations()).toHaveLength(1);
+      expect(store.conversations()[0].title).toBe('מה מחכה לי היום?');
+      expect(store.conversations()[0].messages).toHaveLength(2);
+    });
+
+    it('keeps adding to the same conversation, and a new one starts after clearing', async () => {
+      const { store, assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+      await assistant.send('ראשונה');
+      await assistant.send('שנייה');
+      expect(store.conversations()).toHaveLength(1);
+
+      assistant.clear();
+      await assistant.send('חדשה');
+
+      expect(store.conversations()).toHaveLength(2);
+    });
+
+    it('reopens one, and an action that was waiting is no longer offered', async () => {
+      const { store, assistant } = setup();
+      const noa = store.addStudent('נועה כהן')!;
+      reply = {
+        status: 200,
+        json: { reply: 'מוחקת', actions: [{ name: 'delete_student', args: { student_id: noa.id } }] },
+      };
+      await assistant.send('תמחקי את נועה');
+      const id = assistant.conversationId()!;
+      assistant.clear();
+
+      assistant.openConversation(id);
+
+      const step = assistant.messages().at(-1)!.steps[0];
+      expect(step.outcome.status).toBe('cancelled');
+      expect(store.students()).toHaveLength(1);
+    });
+
+    it('deletes a saved conversation', async () => {
+      const { store, assistant } = setup();
+      reply = { status: 200, json: { reply: 'בסדר', actions: [] } };
+      await assistant.send('שלום');
+
+      assistant.deleteConversation(assistant.conversationId()!);
+
+      expect(store.conversations()).toEqual([]);
+      expect(assistant.messages()).toEqual([]);
+    });
+  });
 });

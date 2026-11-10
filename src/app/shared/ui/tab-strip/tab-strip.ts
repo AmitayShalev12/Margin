@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Tabs } from '../../../core/tabs';
@@ -18,17 +18,6 @@ import { Icon } from '../icon/icon';
   imports: [RouterLink, Icon],
   template: `
     <nav class="strip" aria-label="כרטיסיות פתוחות">
-      <!-- Where "בית" was: always there, and it does not close. -->
-      <div class="tab tab-home" [class.is-active]="onCourses()">
-        <a
-          class="tab-link"
-          routerLink="/courses"
-          [attr.aria-current]="onCourses() ? 'page' : null"
-        >
-          <app-icon name="book" [size]="16" />
-          <span class="tab-title">קורסים</span>
-        </a>
-      </div>
       @for (tab of open(); track tab.key) {
         <div class="tab" [class.is-active]="tab.active">
           <a
@@ -111,15 +100,6 @@ import { Icon } from '../icon/icon';
       color: var(--c-ink);
     }
 
-    .tab-home {
-      flex: 0 0 auto;
-      min-width: 0;
-    }
-
-    .tab-home .tab-link {
-      padding-inline-end: var(--s-3);
-    }
-
     .tab-link {
       display: flex;
       align-items: center;
@@ -172,8 +152,5 @@ import { Icon } from '../icon/icon';
 export class TabStrip {
   protected readonly tabs = inject(Tabs);
 
-  protected readonly open = computed(() => this.tabs.tabs().filter((t) => t.key !== 'courses'));
-  protected readonly onCourses = computed(() =>
-    this.tabs.tabs().some((t) => t.key === 'courses' && t.active),
-  );
+  protected readonly open = this.tabs.tabs;
 }

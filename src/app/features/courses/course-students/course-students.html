@@ -80,7 +80,40 @@
         <button type="button" class="btn btn-plain btn-sm" (click)="asking.set(false)">ביטול</button>
       } @else {
         <span>נבחרו {{ selected().size }}</span>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          [disabled]="queue().running || draftingId() !== null"
+          (click)="processSelected()"
+        >
+          עיבוד העבודות של הנבחרות
+        </button>
         <button type="button" class="btn btn-ghost btn-sm" (click)="asking.set(true)">הסרת הנבחרות</button>
+      }
+    </div>
+  }
+
+  @if (queue().total) {
+    <div class="card queue" role="status" aria-live="polite">
+      @if (queue().running) {
+        <p class="queue-line">
+          מעבדת {{ queue().done + 1 }} מתוך {{ queue().total }}: {{ queue().current }}
+        </p>
+        <div class="bar" role="progressbar" [attr.aria-valuenow]="queue().done" aria-valuemin="0" [attr.aria-valuemax]="queue().total">
+          <span class="bar-fill" [style.inline-size.%]="(queue().done / queue().total) * 100"></span>
+        </div>
+        <button type="button" class="btn btn-plain btn-sm" (click)="stopQueue()">עצירה אחרי העבודה הזו</button>
+      } @else {
+        <p class="queue-line">
+          עובדו {{ queue().done - queue().failed.length }} מתוך {{ queue().total }}.
+          @if (queue().skipped) {
+            {{ queue().skipped }} בלי עבודה לעבד.
+          }
+        </p>
+        @for (failure of queue().failed; track failure) {
+          <p class="queue-fail">{{ failure }}</p>
+        }
+        <button type="button" class="btn btn-plain btn-sm" (click)="clearQueue()">סגירה</button>
       }
     </div>
   }
@@ -190,7 +223,7 @@
           } @else {
             <button
               type="button"
-              class="btn btn-plain btn-sm"
+              class="btn btn-ghost btn-sm"
               (click)="startFolder(row.id, row.folder)"
             >
               הוספת תיקייה
@@ -317,10 +350,10 @@
               <button
                 type="button"
                 class="btn btn-ghost btn-sm"
-                [disabled]="draftingId() !== null"
+                [disabled]="draftingId() !== null || queue().running"
                 (click)="draft(submissionId)"
               >
-                כתיבת טיוטה
+                עיבוד העבודה
               </button>
               <a class="btn btn-plain btn-sm" [routerLink]="['/review', submissionId]">
                 לעבודה האחרונה

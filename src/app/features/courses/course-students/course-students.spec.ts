@@ -272,7 +272,7 @@ describe('what the row actually renders', () => {
 
     expect(component.rows().length).toBeGreaterThan(1);
     expect(labels.filter((t) => t === 'הוספת קובץ').length).toBe(component.rows().length);
-    expect(labels.filter((t) => t === 'כתיבת טיוטה').length).toBe(component.rows().length);
+    expect(labels.filter((t) => t === 'עיבוד העבודה').length).toBe(component.rows().length);
     // Nothing is picking a file until she asks for one.
     expect(host.querySelectorAll('.student input[type="file"]').length).toBe(0);
   });

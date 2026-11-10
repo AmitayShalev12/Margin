@@ -641,3 +641,52 @@ describe('the process summary', () => {
     expect(table.rows().map((r) => r.name)).toEqual(['נועה']);
   });
 });
+
+describe('processing several papers', () => {
+  it('runs them one after another, and reports the one that failed', async () => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+    const order: string[] = [];
+    const generator = {
+      generate: async (id: string) => {
+        order.push(id);
+        return order.length === 2 ? null : { created: 1, discarded: 0 };
+      },
+      state: () => ({ message: 'נגמרו הקרדיטים.' }),
+      isGenerating: () => false,
+      canGenerate: true,
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: SupabaseService, useValue: new FakeSupabase() },
+        { provide: Repository, useClass: LocalRepository },
+        { provide: AnnotationGenerator, useValue: generator },
+      ],
+    });
+    const store = TestBed.inject(DataStore);
+    const course = store.createCourse('ראשון', 'תשפ״ז')!;
+    const task = store.createAssignment('משימה')!;
+    const names = ['אביגיל', 'מאיה', 'שירה'];
+    for (const name of names) {
+      const s = store.addStudent(name, undefined, [course.id])!;
+      paper(store, s.id, task.id);
+    }
+    store.addStudent('בלי עבודה', undefined, [course.id]);
+
+    const { instance } = render(CourseStudents);
+    const list = instance as unknown as {
+      toggleAll(): void;
+      processSelected(): Promise<void>;
+      queue(): { running: boolean; total: number; done: number; skipped: number; failed: string[] };
+    };
+    list.toggleAll();
+    await list.processSelected();
+
+    expect(order).toHaveLength(3);
+    expect(list.queue()).toEqual(
+      expect.objectContaining({ running: false, total: 3, done: 3, skipped: 1 }),
+    );
+    expect(list.queue().failed).toEqual(['מאיה: נגמרו הקרדיטים.']);
+  });
+});

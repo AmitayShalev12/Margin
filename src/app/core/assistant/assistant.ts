@@ -32,8 +32,7 @@ export interface ChatMessage {
 /** The conversation sent with each request. Older turns stay on screen only. */
 const HISTORY = 12;
 
-let sequence = 0;
-const nextId = () => `m${++sequence}`;
+const nextId = () => crypto.randomUUID();
 
 /**
  * The in-app assistant.
@@ -59,6 +58,9 @@ export class Assistant {
   readonly isOpen = signal(false);
   readonly busy = signal(false);
   readonly messages = signal<ChatMessage[]>([]);
+  /** Which saved conversation this is. Null until its first message. */
+  readonly conversationId = signal<string | null>(null);
+  readonly conversations = this.data.conversations;
 
   /**
    * Files attached in this conversation. Kept for its length, so "and add that
@@ -87,6 +89,42 @@ export class Assistant {
     if (this.busy()) return;
     this.messages.set([]);
     this.attached.set([]);
+    this.conversationId.set(null);
+  }
+
+  /**
+   * Back to an earlier conversation. An action that was still waiting for her
+   * is shown as not done: its moment has passed, and confirming it now would act
+   * on whatever is on screen today.
+   */
+  openConversation(id: string) {
+    const saved = this.data.conversations().find((c) => c.id === id);
+    if (!saved || this.busy()) return;
+    const messages = (saved.messages as ChatMessage[]).map((m) => ({
+      ...m,
+      steps: (m.steps ?? []).map((step) =>
+        step.outcome.status === 'confirm' || step.outcome.status === 'running'
+          ? { ...step, outcome: { ...step.outcome, status: 'cancelled' as const } }
+          : step,
+      ),
+    }));
+    this.messages.set(messages);
+    this.attached.set([]);
+    this.conversationId.set(id);
+  }
+
+  deleteConversation(id: string) {
+    this.data.deleteConversation(id);
+    if (this.conversationId() === id) this.clear();
+  }
+
+  private remember() {
+    const messages = this.messages();
+    const first = messages.find((m) => m.role === 'user');
+    if (!first) return;
+    const id = this.conversationId() ?? nextId();
+    this.conversationId.set(id);
+    this.data.saveConversation(id, first.text, messages);
   }
 
   async send(text: string, files: readonly File[] = []): Promise<void> {
@@ -144,6 +182,7 @@ export class Assistant {
       ]);
     } finally {
       this.busy.set(false);
+      this.remember();
     }
   }
 
@@ -153,6 +192,7 @@ export class Assistant {
     if (!step || step.outcome.status !== 'confirm') return;
     this.setOutcome(messageId, stepId, { ...step.outcome, status: 'running' });
     this.setOutcome(messageId, stepId, await this.actions.run(step.action, true, this.attached()));
+    this.remember();
   }
 
   /** She declined it. Nothing is done. */
@@ -164,6 +204,7 @@ export class Assistant {
       title: step.outcome.title,
       detail: 'ביטלת. לא נעשה שינוי.',
     });
+    this.remember();
   }
 
   /**

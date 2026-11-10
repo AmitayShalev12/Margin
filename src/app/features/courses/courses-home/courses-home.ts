@@ -1,3 +1,4 @@
+import { waitingFor } from '../../../core/notifications/waiting';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -24,6 +25,20 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
         </button>
       </app-page-header>
 
+      @if (waiting().length) {
+        <section class="card waiting" aria-labelledby="waiting-title">
+          <h2 id="waiting-title" class="sub-title">מחכה לך</h2>
+          <ul class="waiting-list">
+            @for (item of waiting().slice(0, 5); track item.id) {
+              <li><a [routerLink]="item.link">{{ item.text }}</a></li>
+            }
+          </ul>
+          @if (waiting().length > 5) {
+            <p class="hint">ועוד {{ waiting().length - 5 }} בפעמון למעלה.</p>
+          }
+        </section>
+      }
+
       <ul class="cards">
         @for (card of cards(); track card.id) {
           <li>
@@ -48,6 +63,19 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
     </div>
   `,
   styles: `
+    .waiting {
+      margin-block-end: var(--s-4);
+      padding: var(--s-3) var(--s-4);
+      border-color: var(--c-accent-line);
+      background: var(--c-accent-soft);
+    }
+    .waiting-list {
+      margin: var(--s-2) 0 0;
+      padding-inline-start: var(--s-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-1);
+    }
     .cards {
       list-style: none;
       margin: 0;
@@ -107,6 +135,18 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
 export class CoursesHome {
   protected readonly data = inject(DataStore);
   protected readonly quick = inject(QuickActions);
+
+  /** The same list as the bell, at the top of the home screen. */
+  protected readonly waiting = computed(() => {
+    const tasks = new Set(
+      this.data.coursesInYear().flatMap((c) => this.data.assignmentsOf(c.id).map((a) => a.id)),
+    );
+    return waitingFor(
+      this.data.submissions().filter((p) => tasks.has(p.assignment_id)),
+      this.data.annotations(),
+      (id) => this.data.studentName(id),
+    );
+  });
 
   protected readonly cards = computed(() => {
     const today = new Date().toISOString().slice(0, 10);
