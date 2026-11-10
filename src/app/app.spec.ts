@@ -151,7 +151,9 @@ describe('the navigation', () => {
 
   it('keeps her account in the corner', async () => {
     const { host } = await render();
-    expect(host.querySelector('.account-wrap [aria-label="החשבון"]')).not.toBeNull();
+    // Outside the top bar: its blur would otherwise pin the button to the bar.
+    expect(host.querySelector('app-account-corner [aria-label="החשבון"]')).not.toBeNull();
+    expect(host.querySelector('.topbar [aria-label="החשבון"]')).toBeNull();
   });
 
   it('opens the assistant from the corner button', async () => {

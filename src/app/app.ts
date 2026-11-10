@@ -1,3 +1,4 @@
+import { AccountCorner } from './shared/ui/account-corner/account-corner';
 import { SideDock } from './shared/ui/side-dock/side-dock';
 import { TopTools } from './shared/ui/top-tools/top-tools';
 import { BackupService } from './core/backup/backup-service';
@@ -33,7 +34,7 @@ import { TabStrip } from './shared/ui/tab-strip/tab-strip';
     TabStrip,
     AddStudent,
     AddCourse,
-    AssistantPanel, TopTools, SideDock],
+    AssistantPanel, TopTools, SideDock, AccountCorner],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

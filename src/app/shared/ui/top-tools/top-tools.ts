@@ -1,4 +1,3 @@
-import { SupabaseService } from '../../../core/supabase/supabase';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
@@ -7,7 +6,7 @@ import { waitingFor } from '../../../core/notifications/waiting';
 import { SearchResult, search } from '../../../core/search/search';
 import { Icon } from '../icon/icon';
 
-/** Search beside the year, the bell on a phone, and her account in the corner. */
+/** Search beside the year, and on a phone the bell. */
 @Component({
   selector: 'app-top-tools',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,29 +71,6 @@ import { Icon } from '../icon/icon';
         </div>
       }
     </div>
-
-    @if (email()) {
-      <div class="account-wrap">
-        <button
-          type="button"
-          class="bell"
-          [attr.aria-expanded]="accountOpen()"
-          aria-label="החשבון"
-          title="החשבון"
-          (click)="accountOpen.set(!accountOpen())"
-        >
-          <app-icon name="user" [size]="22" />
-        </button>
-        @if (accountOpen()) {
-          <div class="backdrop" (click)="accountOpen.set(false)"></div>
-          <div class="menu menu-bell">
-            <p class="menu-head" dir="ltr">{{ email() }}</p>
-            <a class="menu-item" routerLink="/settings" (click)="accountOpen.set(false)">הגדרות</a>
-            <button type="button" class="menu-item" (click)="signOut()">התנתקות</button>
-          </div>
-        }
-      </div>
-    }
   `,
   styles: `
     :host {
@@ -119,60 +95,11 @@ import { Icon } from '../icon/icon';
       flex: 0 0 auto;
       margin-inline-start: auto;
     }
-    /* Her account sits in the bottom-right corner on desktop. On a phone the
-       "עוד" sheet holds it, and the bell stays here because there is no sidebar. */
-    .account-wrap {
-      display: none;
-    }
+    /* On desktop the sidebar shows what is waiting, so the bell is for phones. */
     @media (min-width: 64rem) {
       .bell-wrap {
         display: none;
       }
-      .account-wrap {
-        position: fixed;
-        inset-block-end: var(--s-4);
-        right: var(--s-4);
-        z-index: 55;
-        display: block;
-      }
-      .account-wrap .bell {
-        inline-size: 3.25rem;
-        block-size: 3.25rem;
-        border-radius: 50%;
-        box-shadow: var(--sh-3);
-      }
-      .account-wrap .menu {
-        inset-block-start: auto;
-        inset-block-end: calc(100% + var(--s-2));
-        inset-inline: auto;
-        right: 0;
-      }
-    }
-    .bell {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      inline-size: 2.25rem;
-      block-size: 2.25rem;
-      border: 1px solid var(--c-line-strong);
-      border-radius: var(--r-md);
-      background: var(--c-surface);
-      color: var(--c-ink-2);
-      cursor: pointer;
-    }
-    .badge {
-      position: absolute;
-      inset-block-start: -0.35rem;
-      inset-inline-end: -0.35rem;
-      min-inline-size: 1.1rem;
-      padding-inline: 0.2rem;
-      border-radius: var(--r-full);
-      background: var(--c-accent);
-      color: var(--c-on-accent);
-      font-size: var(--fs-xs);
-      line-height: 1.1rem;
-      text-align: center;
     }
     .backdrop {
       position: fixed;
@@ -242,17 +169,9 @@ import { Icon } from '../icon/icon';
 export class TopTools {
   private readonly data = inject(DataStore);
   private readonly router = inject(Router);
-  private readonly supabase = inject(SupabaseService);
 
   protected readonly query = signal('');
   protected readonly open = signal(false);
-  protected readonly accountOpen = signal(false);
-  protected readonly email = computed(() => this.supabase.user()?.email ?? null);
-
-  protected async signOut() {
-    this.accountOpen.set(false);
-    await this.supabase.signOut();
-  }
 
   protected readonly results = computed(() =>
     search(this.query(), {
