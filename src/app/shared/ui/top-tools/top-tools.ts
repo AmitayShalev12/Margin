@@ -151,6 +151,47 @@ import { Icon } from '../icon/icon';
       block-size: 2.25rem;
       padding-block: 0;
     }
+    /* The round-cornered icon buttons: search and, on a phone, the bell. */
+    .bell {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      inline-size: 2.25rem;
+      block-size: 2.25rem;
+      padding: 0;
+      border: 1px solid var(--c-line-strong);
+      border-radius: var(--r-md);
+      background: var(--c-surface);
+      color: var(--c-ink-2);
+      cursor: pointer;
+      transition:
+        background var(--dur-fast) var(--ease),
+        border-color var(--dur-fast) var(--ease),
+        color var(--dur-fast) var(--ease);
+    }
+    .bell:hover {
+      border-color: var(--c-accent-line);
+      background: var(--c-accent-soft);
+      color: var(--c-accent-strong);
+    }
+    .bell:focus-visible {
+      outline: 2px solid var(--c-accent);
+      outline-offset: 2px;
+    }
+    .badge {
+      position: absolute;
+      inset-block-start: -0.35rem;
+      inset-inline-end: -0.35rem;
+      min-inline-size: 1.1rem;
+      padding-inline: 0.2rem;
+      border-radius: var(--r-full);
+      background: var(--c-accent);
+      color: var(--c-on-accent);
+      font-size: var(--fs-xs);
+      line-height: 1.1rem;
+      text-align: center;
+    }
     .bell-wrap {
       position: relative;
       flex: 0 0 auto;
