@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
+import { GoogleDriveAuth } from '../../../core/drive/google-auth';
+import { SyncService } from '../../../core/drive/sync';
 import { DataStore } from '../../../core/data/data-store';
 import { dayOf } from '../../../core/dates/hebrew-date';
 import { readDocxBlocks } from '../../../core/import/docx-blocks';
@@ -48,6 +50,39 @@ export class StudentPage {
   protected readonly data = inject(DataStore);
   private readonly router = inject(Router);
   private readonly generator = inject(AnnotationGenerator);
+  private readonly sync = inject(SyncService);
+  protected readonly auth = inject(GoogleDriveAuth);
+
+  protected readonly syncing = signal(false);
+  protected readonly syncMessage = signal<string | null>(null);
+
+  /** Brings in what is in her folder now. The whole course syncs with it. */
+  protected async syncFolder() {
+    this.syncing.set(true);
+    this.syncMessage.set(null);
+    try {
+      const outcome = await this.sync.syncNow();
+      if (outcome.error) {
+        this.syncMessage.set(outcome.error);
+        return;
+      }
+      const name = this.student()?.full_name;
+      const unreadable = outcome.unmatched.some(
+        (u) => u.reason === 'folder_unreadable' && u.name === name,
+      );
+      const loose = outcome.unmatched.filter((u) => u.reason === 'no_task').length;
+      this.syncMessage.set(
+        unreadable
+          ? 'לא הצלחתי לפתוח את התיקייה שלה. כדאי לבדוק שהקישור נכון ושהיא משותפת עם החשבון שמחובר לדרייב.'
+          : `הסנכרון הסתיים: ${outcome.created} חדשות, ${outcome.updated} עודכנו.` +
+              (loose
+                ? ` ${loose} קבצים לא שויכו כי בשם שלהם אין שם של משימה.`
+                : ''),
+      );
+    } finally {
+      this.syncing.set(false);
+    }
+  }
 
   readonly studentId = input<string>('');
 
@@ -152,6 +187,8 @@ export class StudentPage {
     }
     this.folderError.set(null);
     this.editingFolder.set(false);
+    // A new folder is a reason to look in it straight away.
+    if (this.auth.isConnected() && this.student()?.drive_folder_id) void this.syncFolder();
   }
 
   // -- a file by hand -------------------------------------------------------

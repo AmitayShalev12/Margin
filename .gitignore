@@ -60,3 +60,6 @@ Thumbs.db
 margin-backup-*.json
 margin-students-*.xlsx
 *.xlsx
+
+# Synthetic papers for trying the app by hand. Not part of the code.
+test-papers/

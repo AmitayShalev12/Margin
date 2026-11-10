@@ -72,7 +72,28 @@
             פתיחת התיקייה
           </a>
           <button type="button" class="btn btn-plain btn-sm" (click)="startFolder()">שינוי</button>
+          @if (auth.isConnected()) {
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="syncing()"
+              (click)="syncFolder()"
+            >
+              {{ syncing() ? 'מסנכרנת…' : 'סנכרון מהתיקייה' }}
+            </button>
+          }
         </div>
+        @if (!auth.isConnected()) {
+          <p class="hint-line">
+            כדי שהעבודות מהתיקייה ייכנסו, צריך לחבר את הדרייב בהגדרות הקורס (בתחתית רשימת התלמידות).
+          </p>
+        }
+        @if (syncMessage(); as message) {
+          <p class="hint-line" role="status">{{ message }}</p>
+        }
+        <p class="hint-line">
+          כל קובץ בתיקייה שלה משויך אליה. כדי שישויך למשימה הנכונה, שם הקובץ צריך לכלול את שם המשימה.
+        </p>
       } @else {
         <button type="button" class="btn btn-ghost btn-sm" (click)="startFolder()">
           הוספת תיקייה מהדרייב

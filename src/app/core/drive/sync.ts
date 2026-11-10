@@ -38,7 +38,9 @@ export type UnmatchedReason =
   /** A second file naming a student who already has one this round. */
   | 'duplicate_student'
   /** The course has several tasks, and the file's name does not say which. */
-  | 'no_task';
+  | 'no_task'
+  /** A student's own folder that Drive would not list. */
+  | 'folder_unreadable';
 
 export interface UnmatchedFile {
   name: string;
@@ -323,6 +325,34 @@ export class SyncService {
         });
       }
 
+      /**
+       * Each student's own folder, in the course on screen.
+       *
+       * Saved on her page and, until now, never read: a paper in it reached the
+       * app only if its name happened to match. The folder says whose it is, so
+       * no name is needed for that, only for which task.
+       */
+      const course = this.store.course();
+      const ownFolders = course
+        ? this.store.studentsIn(course.id).filter((s) => s.drive_folder_id)
+        : [];
+      for (const student of ownFolders) {
+        let listing: DriveFile[];
+        try {
+          listing = await this.api.listFolder(student.drive_folder_id!);
+        } catch {
+          outcome.unmatched.push({ name: student.full_name, reason: 'folder_unreadable' });
+          continue;
+        }
+        await this.ingestListing(listing, 'folder', {
+          claimed,
+          seen,
+          outcome,
+          assignment,
+          studentId: student.id,
+        });
+      }
+
       if (accounts.length) {
         /**
          * Asked account by account, never "everything shared with me".
@@ -484,9 +514,11 @@ export class SyncService {
       seen: Set<string>;
       outcome: SyncOutcome;
       assignment: Assignment;
+      /** A student's own folder: everything in it is hers, whatever it is called. */
+      studentId?: string;
     },
   ): Promise<void> {
-    const { claimed, seen, outcome, assignment } = context;
+    const { claimed, seen, outcome, assignment, studentId } = context;
 
     for (const listed of listing) {
       // Folders nested inside the watched folder are not submissions.
@@ -519,7 +551,7 @@ export class SyncService {
       if (seen.has(file.id)) continue;
       seen.add(file.id);
 
-      const result = await this.ingest(file, claimed, source, assignment);
+      const result = await this.ingest(file, claimed, source, assignment, studentId);
 
       if (result === 'created' || result === 'updated') {
         if (result === 'created') outcome.created++;

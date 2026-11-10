@@ -107,7 +107,7 @@ class FakeDriveApi {
   /** False when the shortcut's target is shared with nobody but its owner. */
   targetReadable = true;
 
-  listFolder = async () => this.files;
+  listFolder = async (_folderId?: string) => this.files;
 
   listSharedByOwners = async (emails: readonly string[]) => {
     this.sharedQueries.push([...emails]);
@@ -283,6 +283,37 @@ describe('SyncService', () => {
     expect(submission?.student_id).toBe(seedId('s2'));
     // And what she called it, taken from the name she gave the file.
     expect(submission?.title).toBe('עבודת גמר');
+  });
+
+  /** Saved on her page and never read before: her own folder is hers. */
+  it('brings in a paper from a student own folder, whatever it is called', async () => {
+    const shira = store.students().find((s) => s.id === seedId('s2'))!;
+    store.setStudentFolder(shira.id, 'shira-folder');
+    store.enrollStudent(shira.id, [store.course()!.id]);
+    const listFolder = api.listFolder;
+    api.listFolder = async (id?: string) =>
+      id === 'shira-folder'
+        ? [shiraFile({ id: 'own-folder-file', name: 'גרסה סופית' })]
+        : listFolder.call(api, id);
+
+    await sync.syncNow();
+
+    expect(store.submissionByDriveFile('own-folder-file')?.student_id).toBe(shira.id);
+  });
+
+  it('says so when her folder cannot be opened', async () => {
+    const shira = store.students().find((s) => s.id === seedId('s2'))!;
+    store.setStudentFolder(shira.id, 'locked-folder');
+    store.enrollStudent(shira.id, [store.course()!.id]);
+    const listFolder = api.listFolder;
+    api.listFolder = async (id?: string) => {
+      if (id === 'locked-folder') throw new Error('403');
+      return listFolder.call(api, id);
+    };
+
+    const outcome = await sync.syncNow();
+
+    expect(outcome.unmatched).toContainEqual({ name: shira.full_name, reason: 'folder_unreadable' });
   });
 
   /** Papers stay shared, not moved into her Drive, so the name says which task. */
