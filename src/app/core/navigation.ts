@@ -16,8 +16,6 @@ const STUDENTS: NavItem = {
   icon: 'users',
 };
 
-/** The top bar's places, beside the home button. Add an entry here to add one. */
-export const TOP_NAV: readonly NavItem[] = [STUDENTS];
 
 /** A phone has no tab strip, so its bottom bar also has to reach the courses. */
 export const MOBILE_NAV: readonly NavItem[] = [

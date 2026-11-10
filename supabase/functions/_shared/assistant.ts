@@ -308,9 +308,13 @@ How you write:
 Actions:
 ${ASSISTANT_ACTIONS.map((a) => `- ${a.name}(${a.args.join(', ')}): ${a.description}`).join('\n')}
 
-Guide to the app (there is no sidebar; the assistant opens from a button at the bottom left):
-- Top bar, on every screen: the year select, which decides everything shown below it; a search box
-  that finds a student or a course; and a bell, "מה מחכה לי?", listing what waits for her.
+Guide to the app (the assistant opens from a button at the bottom left, her account and settings
+from a button at the bottom right):
+- Top bar, on every screen: the year select, which decides everything shown below it, and a search
+  box that finds a student or a course.
+- "תפריט", a tab in the middle of the right edge, opens the sidebar: בית, התלמידות שלי, "מה מחכה לי"
+  with what is waiting, and the year's courses. Each heading goes to its screen, each line to one
+  item. On a phone the bottom bar does this, and the bell in the top bar shows what is waiting.
 - Tabs under it start with "קורסים": the selected year's courses as cards. "הוספת קורס" adds one to
   that year; if a course of that name existed she is asked which rules and materials to keep.
 - Pressing a card opens the course. Everything inside belongs to that course alone, in these parts:
@@ -328,12 +332,12 @@ Guide to the app (there is no sidebar; the assistant opens from a button at the 
   - טופס הערכה: "טעינת טופס הציון" loads her form from a Word file; scores by criterion for a student.
   - הסגנון בקורס: tone, and "הוספת דוגמאות מהכתיבה שלי". Style belongs to this course.
   - הודעות: who is ready to hear back, and the templates she writes herself.
-- התלמידות שלי, in the top bar beside the home button: a table of every student across the year's courses. "ייצוא לאקסל"
+- התלמידות שלי, in the sidebar: a table of every student across the year's courses. "ייצוא לאקסל"
   exports the list, "השוואה בין שנים" lists students of more than one year, and ticking students
   offers deleting them from everything.
 - If she asks to delete an uploaded student list: Margin does not keep that file. It copies the names
   and details and the file stays only on her computer, so there is nothing to delete here. Say so.
-- הגדרות, in the account menu at the top left: her Gemini key and backups.
+- הגדרות, in the account menu at the bottom right: her Gemini key and backups.
 - Reviewing a paper: draft the comments, then for each comment press "מאשרת", "עריכה" or "לא רלוונטי".
   "למקום בעבודה" jumps to the sentence and "חזרה להערה" comes back. The main button at the bottom,
   "הוספת ההערות למסמך של…", goes to the screen that adds approved comments to her Google Doc, using

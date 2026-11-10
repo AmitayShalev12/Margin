@@ -133,16 +133,25 @@ describe('the navigation', () => {
     expect(host.querySelector('.rail')).toBeNull();
   });
 
-  it('puts her students and a home button in the top bar, before the bell', async () => {
-    const { host } = await render();
-    const bar = host.querySelector('.topbar') as HTMLElement;
+  it('opens the dynamic sidebar with home, her students, what waits and the courses', async () => {
+    const { host, fixture } = await render();
+    expect(host.querySelector('app-side-dock .panel')).toBeNull();
 
-    expect(bar.textContent).toContain('התלמידות שלי');
-    const home = bar.querySelector('[aria-label="בית"]')!;
-    const bell = bar.querySelector('.bell-wrap')!;
-    expect(home.getAttribute('href')).toBe('/courses');
-    // Home comes right before the bell in the bar's order.
-    expect(home.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    host.querySelector<HTMLButtonElement>('app-side-dock .handle')!.click();
+    fixture.detectChanges();
+
+    const panel = host.querySelector('app-side-dock .panel') as HTMLElement;
+    const heads = [...panel.querySelectorAll('.head')].map((h) => h.textContent?.trim());
+    expect(heads[0]).toBe('בית');
+    expect(heads[1]).toBe('התלמידות שלי');
+    expect(heads[2]).toContain('מה מחכה לי');
+    expect(heads[3]).toContain('הקורסים');
+    expect(panel.querySelector('a[href="/students"]')).not.toBeNull();
+  });
+
+  it('keeps her account in the corner', async () => {
+    const { host } = await render();
+    expect(host.querySelector('.account-wrap [aria-label="החשבון"]')).not.toBeNull();
   });
 
   it('opens the assistant from the corner button', async () => {

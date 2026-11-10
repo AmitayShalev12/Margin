@@ -84,6 +84,9 @@
       </div>
     }
 
+    <!-- The dynamic sidebar, on the middle of the right edge. Desktop only. -->
+    <app-side-dock />
+
     <!-- The assistant, in the bottom-left corner. On a phone the bottom bar opens it. -->
     @if (!assistant.isOpen()) {
       <button

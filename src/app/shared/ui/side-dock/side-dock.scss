@@ -1,0 +1,171 @@
+@use '../../../../styles/tokens' as *;
+
+// Desktop only: on a phone the bottom bar does this job.
+:host {
+  display: none;
+
+  @media (min-width: $bp-lg) {
+    display: block;
+  }
+}
+
+.dock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+}
+
+// Fixed to the middle of the right edge. The handle stays on the panel's left,
+// so it travels outward as the panel opens.
+.dock {
+  position: fixed;
+  inset-block-start: 50%;
+  right: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  direction: ltr;
+  transform: translateY(-50%);
+}
+
+.handle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-1);
+  border: 1px solid var(--c-line-strong);
+  border-inline-end: 0;
+  border-start-start-radius: var(--r-md);
+  border-end-start-radius: var(--r-md);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  box-shadow: var(--sh-2);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+
+  &:hover {
+    background: var(--c-accent-soft);
+    color: var(--c-accent-strong);
+  }
+
+  app-icon {
+    rotate: 90deg;
+    transition: rotate var(--dur) var(--ease);
+  }
+}
+
+.is-open .handle app-icon {
+  rotate: -90deg;
+}
+
+.handle-label {
+  writing-mode: vertical-rl;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.handle-badge {
+  min-inline-size: 1.25rem;
+  padding-inline: 0.2rem;
+  border-radius: var(--r-full);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font-size: var(--fs-xs);
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+// Fits its contents, up to most of the screen's height.
+.panel {
+  direction: rtl;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  inline-size: 17rem;
+  max-block-size: 80dvh;
+  overflow-y: auto;
+  padding: var(--s-3);
+  border: 1px solid var(--c-line-strong);
+  border-inline-end: 0;
+  border-start-end-radius: 0;
+  background: var(--c-surface);
+  box-shadow: var(--sh-3);
+  animation: dock-open 260ms var(--ease) both;
+}
+
+@keyframes dock-open {
+  from {
+    inline-size: 0;
+    padding-inline: 0;
+    opacity: 0;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  color: var(--c-ink);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover,
+  &.is-active {
+    background: var(--c-accent-soft);
+    color: var(--c-accent-strong);
+  }
+}
+
+.count {
+  margin-inline-start: auto;
+  min-inline-size: 1.25rem;
+  padding-inline: 0.3rem;
+  border-radius: var(--r-full);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font-size: var(--fs-xs);
+  line-height: 1.25rem;
+  text-align: center;
+}
+
+.group {
+  margin-block-start: var(--s-1);
+  padding-block-start: var(--s-1);
+  border-block-start: 1px solid var(--c-line);
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0 var(--s-4) 0 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: block;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+
+  &:hover,
+  &.is-active {
+    background: var(--c-surface-sunk);
+    color: var(--c-ink);
+  }
+}
+
+.none {
+  padding: var(--s-1) var(--s-2);
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+}

@@ -1,3 +1,4 @@
+import { SideDock } from './shared/ui/side-dock/side-dock';
 import { TopTools } from './shared/ui/top-tools/top-tools';
 import { BackupService } from './core/backup/backup-service';
 import { DataStore } from './core/data/data-store';
@@ -32,7 +33,7 @@ import { TabStrip } from './shared/ui/tab-strip/tab-strip';
     TabStrip,
     AddStudent,
     AddCourse,
-    AssistantPanel, TopTools],
+    AssistantPanel, TopTools, SideDock],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })

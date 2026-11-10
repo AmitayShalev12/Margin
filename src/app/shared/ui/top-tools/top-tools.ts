@@ -1,18 +1,17 @@
-import { TOP_NAV } from '../../../core/navigation';
 import { SupabaseService } from '../../../core/supabase/supabase';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { DataStore } from '../../../core/data/data-store';
 import { waitingFor } from '../../../core/notifications/waiting';
 import { SearchResult, search } from '../../../core/search/search';
 import { Icon } from '../icon/icon';
 
-/** Search, her places, home, "מה מחכה לי?" and her account, beside the year. */
+/** Search beside the year, the bell on a phone, and her account in the corner. */
 @Component({
   selector: 'app-top-tools',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, RouterLink, RouterLinkActive],
+  imports: [Icon, RouterLink],
   template: `
     <div class="search">
       <label class="sr-only" for="top-search">חיפוש תלמידה או קורס</label>
@@ -42,31 +41,6 @@ import { Icon } from '../icon/icon';
         </ul>
       }
     </div>
-
-    <nav class="places" aria-label="ניווט ראשי">
-      @for (item of nav; track item.path) {
-        <a
-          class="place"
-          [routerLink]="item.path"
-          routerLinkActive="is-active"
-          #rla="routerLinkActive"
-          [attr.aria-current]="rla.isActive ? 'page' : null"
-        >
-          <app-icon [name]="item.icon" [size]="18" />
-          <span>{{ item.longLabel }}</span>
-        </a>
-      }
-      <a
-        class="bell home"
-        routerLink="/courses"
-        routerLinkActive="is-active"
-        [routerLinkActiveOptions]="{ exact: true }"
-        aria-label="בית"
-        title="בית"
-      >
-        <app-icon name="home" [size]="20" />
-      </a>
-    </nav>
 
     <div class="bell-wrap">
       <button
@@ -109,7 +83,7 @@ import { Icon } from '../icon/icon';
           title="החשבון"
           (click)="accountOpen.set(!accountOpen())"
         >
-          <app-icon name="user" [size]="18" />
+          <app-icon name="user" [size]="22" />
         </button>
         @if (accountOpen()) {
           <div class="backdrop" (click)="accountOpen.set(false)"></div>
@@ -140,59 +114,38 @@ import { Icon } from '../icon/icon';
       block-size: 2.25rem;
       padding-block: 0;
     }
-    /* Students and home sit at the inline end, just before the bell. On a
-       phone the bottom bar does their job, so they stay out of the way there. */
-    .places {
-      display: none;
-      align-items: center;
-      gap: var(--s-2);
-      margin-inline-start: auto;
-    }
-    /* Drawn like the icon buttons beside it, so it reads as one of them. */
-    .place {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--s-1);
-      block-size: 2.25rem;
-      padding-inline: var(--s-3);
-      border: 1px solid var(--c-line-strong);
-      border-radius: var(--r-md);
-      background: var(--c-surface);
-      color: var(--c-ink-2);
-      font-weight: 600;
-      text-decoration: none;
-    }
-    .place.is-active {
-      border-color: var(--c-accent);
-    }
-    .place:hover,
-    .place.is-active {
-      background: var(--c-accent-soft);
-      color: var(--c-accent-strong);
-    }
-    .home.is-active {
-      border-color: var(--c-accent);
-      color: var(--c-accent);
-    }
     .bell-wrap {
       position: relative;
       flex: 0 0 auto;
       margin-inline-start: auto;
     }
+    /* Her account sits in the bottom-right corner on desktop. On a phone the
+       "עוד" sheet holds it, and the bell stays here because there is no sidebar. */
     .account-wrap {
-      position: relative;
-      flex: 0 0 auto;
       display: none;
     }
     @media (min-width: 64rem) {
-      .places {
-        display: flex;
-      }
       .bell-wrap {
-        margin-inline-start: 0;
+        display: none;
       }
       .account-wrap {
+        position: fixed;
+        inset-block-end: var(--s-4);
+        right: var(--s-4);
+        z-index: 55;
         display: block;
+      }
+      .account-wrap .bell {
+        inline-size: 3.25rem;
+        block-size: 3.25rem;
+        border-radius: 50%;
+        box-shadow: var(--sh-3);
+      }
+      .account-wrap .menu {
+        inset-block-start: auto;
+        inset-block-end: calc(100% + var(--s-2));
+        inset-inline: auto;
+        right: 0;
       }
     }
     .bell {
@@ -294,7 +247,6 @@ export class TopTools {
   protected readonly query = signal('');
   protected readonly open = signal(false);
   protected readonly accountOpen = signal(false);
-  protected readonly nav = TOP_NAV;
   protected readonly email = computed(() => this.supabase.user()?.email ?? null);
 
   protected async signOut() {
