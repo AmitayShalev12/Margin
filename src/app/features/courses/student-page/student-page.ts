@@ -242,9 +242,24 @@ export class StudentPage {
     this.uploadError.set(null);
     try {
       const blocks = await readDocxBlocks(await file.arrayBuffer());
-      const assignment = this.data.ensureAssignment();
+      if (!blocks.length) {
+        this.uploadError.set('הקובץ ריק, אז אין מה להוסיף.');
+        return;
+      }
+      // A task holds one paper per student. When she has handed in all of them,
+      // the file still comes in: it gets a task of its own, named after the file.
+      const open = this.openTasks();
+      const picked = open.find((t) => t.id === this.uploadTask()) ?? open[0];
+      const target =
+        picked ??
+        this.data.createAssignment(
+          extraTaskTitle(
+            file.name,
+            this.data.tasks().map((t) => t.title),
+          ),
+        );
       const created = this.data.addUploadedSubmission({
-        assignmentId: this.uploadTask() ?? this.openTasks()[0]?.id ?? assignment?.id,
+        assignmentId: target?.id,
         studentId: this.studentId(),
         title: null,
         blocks,
@@ -252,12 +267,11 @@ export class StudentPage {
         fileName: file.name,
       });
       if (!created) {
-        this.uploadError.set(
-          'לכל המשימות בקורס כבר יש לה עבודה, או שהקובץ ריק. אפשר להוסיף משימה בסיכום משימות ותהליך.',
-        );
+        this.uploadError.set('לא הצלחתי להוסיף את הקובץ. אפשר לנסות שוב.');
         return;
       }
       this.uploading.set(false);
+      this.uploadTask.set(null);
     } catch (error) {
       this.uploadError.set(error instanceof DocxError ? error.hebrew : 'לא הצלחתי לקרוא את הקובץ.');
     } finally {
@@ -306,4 +320,12 @@ export class StudentPage {
     this.data.removeFromCourse(this.studentId(), course.id);
     await this.router.navigate(['/courses', course.id, 'students']);
   }
+}
+
+/** A name for the task a paper beyond the course's tasks gets: the file's own, kept unique. */
+export function extraTaskTitle(fileName: string, taken: readonly string[]): string {
+  const base = fileName.replace(/[.][A-Za-z0-9]{1,5}$/, '').trim().slice(0, 60) || 'עבודה נוספת';
+  let title = base;
+  for (let n = 2; taken.includes(title); n++) title = `${base} (${n})`;
+  return title;
 }

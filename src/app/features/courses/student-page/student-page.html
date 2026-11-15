@@ -147,6 +147,11 @@
                 </select>
               </label>
             }
+            @if (!openTasks().length) {
+              <p class="hint">
+                כל המשימות בקורס כבר הוגשו, אז הקובץ ייכנס כעבודה נוספת, על שם הקובץ.
+              </p>
+            }
             <div class="actions">
               <label class="btn btn-primary btn-sm pick">
                 בחירת קובץ Word

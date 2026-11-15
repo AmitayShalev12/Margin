@@ -8,10 +8,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 
 import { DataStore } from '../../../core/data/data-store';
-import { waitingFor } from '../../../core/notifications/waiting';
+import { WaitingList } from '../../../core/notifications/waiting-list';
+import { WaitingListView } from '../waiting-list/waiting-list';
 import { SearchResult, search } from '../../../core/search/search';
 import { Icon } from '../icon/icon';
 
@@ -19,7 +20,7 @@ import { Icon } from '../icon/icon';
 @Component({
   selector: 'app-top-tools',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, RouterLink],
+  imports: [Icon, WaitingListView],
   template: `
     <div class="search" [class.is-open]="searchOpen()">
       <button
@@ -67,28 +68,20 @@ import { Icon } from '../icon/icon';
         type="button"
         class="bell"
         [attr.aria-expanded]="open()"
-        [attr.aria-label]="'מה מחכה לי? ' + waiting().length"
+        [attr.aria-label]="'מה מחכה לי? ' + waiting.total()"
         title="מה מחכה לי?"
         (click)="open.set(!open())"
       >
         <app-icon name="bell" [size]="20" />
-        @if (waiting().length) {
-          <span class="badge">{{ waiting().length }}</span>
+        @if (waiting.total()) {
+          <span class="badge">{{ waiting.total() }}</span>
         }
       </button>
       @if (open()) {
         <div class="backdrop" (click)="open.set(false)"></div>
         <div class="menu menu-bell">
           <p class="menu-head">מה מחכה לי?</p>
-          <ul>
-            @for (item of waiting(); track item.id) {
-              <li>
-                <a class="menu-item" [routerLink]="item.link" (click)="open.set(false)">{{ item.text }}</a>
-              </li>
-            } @empty {
-              <li class="menu-none">שום דבר כרגע.</li>
-            }
-          </ul>
+          <app-waiting-list [compact]="true" (picked)="open.set(false)" />
         </div>
       }
     </div>
@@ -316,16 +309,7 @@ export class TopTools {
   );
 
   /** Across the selected year's courses, not only the one on screen. */
-  protected readonly waiting = computed(() => {
-    const tasks = new Set(
-      this.data.coursesInYear().flatMap((c) => this.data.assignmentsOf(c.id).map((a) => a.id)),
-    );
-    return waitingFor(
-      this.data.submissions().filter((p) => tasks.has(p.assignment_id)),
-      this.data.annotations(),
-      (id) => this.data.studentName(id),
-    );
-  });
+  protected readonly waiting = inject(WaitingList);
 
   protected go(result: SearchResult) {
     this.query.set('');

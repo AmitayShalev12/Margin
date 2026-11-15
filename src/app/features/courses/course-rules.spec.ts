@@ -1,7 +1,7 @@
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 
-import { CourseRules } from './course-rules';
+import { CourseRules, flowText } from './course-rules';
 import { DataStore } from '../../core/data/data-store';
 import { LocalRepository } from '../../core/data/local-repository';
 import { Repository } from '../../core/data/repository';
@@ -416,5 +416,20 @@ describe('adding a rule', () => {
     component.save(section);
 
     expect(store.courseRules()).toHaveLength(1);
+  });
+});
+
+describe('flowText', () => {
+  it('joins lines a paste broke mid-sentence, and keeps real breaks', () => {
+    expect(flowText('כתיבה בגוף שלישי,\nללא סלנג.\r\nכל טענה נשענת על מקור.')).toBe(
+      'כתיבה בגוף שלישי, ללא סלנג. כל טענה נשענת על מקור.',
+    );
+    expect(flowText('פסקה ראשונה\nממשיכה\n\n\nפסקה שנייה')).toBe(
+      'פסקה ראשונה ממשיכה\n\nפסקה שנייה',
+    );
+    expect(flowText('בעבודה:\n- מבוא\n- שיטה\n1. דיון\nא. סיכום')).toBe(
+      'בעבודה:\n- מבוא\n- שיטה\n1. דיון\nא. סיכום',
+    );
+    expect(flowText('כלל אחד')).toBe('כלל אחד');
   });
 });

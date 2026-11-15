@@ -15,14 +15,13 @@
 
   <div class="kb">
     @for (s of sections(); track s.id) {
-      <div class="kb-section" [class]="s.hue">
+      <div class="kb-section">
         <button
           type="button"
           class="kb-head"
           [attr.aria-expanded]="isOpen(s.id)"
           (click)="toggle(s.id)"
         >
-          <span class="hue-dot" aria-hidden="true"></span>
           <span class="kb-label">
             <span class="kb-title">{{ s.title }}</span>
             <span class="kb-meta">{{ s.meta }}</span>
@@ -58,7 +57,7 @@
                     -->
                     <textarea
                       class="control kb-edit"
-                      rows="2"
+                      rows="4"
                       [value]="editDraft()"
                       (input)="editDraft.set($any($event.target).value)"
                       aria-label="עריכה"
@@ -98,7 +97,7 @@
                     </span>
                   } @else {
                     <span class="kb-text">
-                      <span class="kb-main">{{ item.text }}</span>
+                      <span class="kb-main">{{ flow(item.text) }}</span>
                       @if (item.note) {
                         <span class="kb-note">{{ item.note }}</span>
                       }
@@ -111,23 +110,34 @@
                     <span class="kb-row-actions">
                       <button
                         type="button"
-                        class="btn btn-plain btn-sm"
+                        class="kb-icon"
+                        aria-label="עריכה"
+                        title="עריכה"
                         (click)="startEditItem(item.id, item.text)"
                       >
-                        עריכה
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
                       </button>
                       <button
                         type="button"
-                        class="btn btn-plain btn-sm"
+                        class="kb-icon danger"
+                        aria-label="מחיקה"
+                        title="מחיקה"
                         (click)="askDelete(item.id)"
                       >
-                        מחיקה
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                        </svg>
                       </button>
                     </span>
                   }
                 </li>
               } @empty {
-                <li class="kb-item kb-none">עדיין אין כאן חומרים.</li>
+                <li class="kb-item kb-none">עדיין ריק כאן.</li>
               }
             </ul>
             <!--
@@ -223,6 +233,7 @@
               </div>
             } @else {
               <button type="button" class="kb-add" (click)="startAdding(s.id)">
+                <span aria-hidden="true">+</span>
                 {{ s.addLabel }}
               </button>
             }

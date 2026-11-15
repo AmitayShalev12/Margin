@@ -169,3 +169,8 @@
   color: var(--c-ink-3);
   font-size: var(--fs-sm);
 }
+
+// The grouped list sits under its heading, indented like the course lines.
+.dock-waiting {
+  padding-inline-start: var(--s-2);
+}

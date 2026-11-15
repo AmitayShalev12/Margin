@@ -7,7 +7,8 @@ import { LocalRepository } from '../../../core/data/local-repository';
 import { Repository } from '../../../core/data/repository';
 import { tabKey } from '../../../core/tabs';
 import { SupabaseService } from '../../../core/supabase/supabase';
-import { StudentPage } from './student-page';
+import { writeZip } from '../../../core/export/zip-writer';
+import { StudentPage, extraTaskTitle } from './student-page';
 
 /** One student in one course, opened from the list. All names are invented. */
 
@@ -162,5 +163,48 @@ describe('a student page', () => {
   it('opens in a tab of its own', () => {
     expect(tabKey('/courses/c1/student/s1')).toBe('student:s1');
     expect(tabKey('/courses/c1/students')).toBe('course:c1');
+  });
+});
+
+/** A Word file with one paragraph, picked through the page's own file input. */
+function pick(name: string): Event {
+  const xml =
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+    `<w:body><w:p><w:r><w:t>פסקה אחת</w:t></w:r></w:p></w:body></w:document>`;
+  const bytes = writeZip([{ name: 'word/document.xml', data: xml }], new Date('2026-09-02T09:00:00Z'));
+  const file = { name, arrayBuffer: async () => bytes.buffer as ArrayBuffer };
+  return { target: { files: [file], value: name } } as unknown as Event;
+}
+
+describe('a paper beyond the course tasks', () => {
+  it('goes to the next open task while there is one', async () => {
+    const { store, topic, proposal, noa } = setup();
+    paper(store, noa.id, topic.id);
+    const { page } = render(noa.id);
+
+    await page['chooseFile'](pick('הצעה שלי.docx'));
+
+    expect(store.submissions().map((p) => p.assignment_id)).toEqual([topic.id, proposal.id]);
+    expect(store.tasks().length).toBe(3);
+  });
+
+  it('is taken in under a task of its own when every task is handed in', async () => {
+    const { store, noa } = setup();
+    for (const task of store.tasks()) paper(store, noa.id, task.id);
+    const { page } = render(noa.id);
+
+    await page['chooseFile'](pick('תיקון אחרון.docx'));
+    await page['chooseFile'](pick('תיקון אחרון.docx'));
+
+    expect(page['uploadError']()).toBeNull();
+    expect(store.submissions().filter((p) => p.student_id === noa.id).length).toBe(5);
+    expect(store.tasks().map((t) => t.title).slice(3)).toEqual(['תיקון אחרון', 'תיקון אחרון (2)']);
+  });
+
+  it('names the extra task after the file, and never twice the same', () => {
+    expect(extraTaskTitle('פרק דיון.docx', ['נושא'])).toBe('פרק דיון');
+    expect(extraTaskTitle('נושא.docx', ['נושא', 'נושא (2)'])).toBe('נושא (3)');
+    expect(extraTaskTitle('.docx', [])).toBe('עבודה נוספת');
   });
 });

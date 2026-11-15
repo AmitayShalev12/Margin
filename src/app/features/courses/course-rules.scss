@@ -1,14 +1,18 @@
 @use '../../../styles/tokens' as *;
 
+// One calm card per group: plain rows with a hairline between them, no tinted
+// boxes. The row is the rule; everything else on it stays quiet.
 .kb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.kb-section {
   background: var(--c-surface);
   border: 1px solid var(--c-line);
   border-radius: var(--r-lg);
   overflow: hidden;
-}
-
-.kb-section + .kb-section {
-  border-block-start: 1px solid var(--c-line-soft);
 }
 
 .kb-head {
@@ -17,20 +21,21 @@
   gap: var(--s-3);
   width: 100%;
   text-align: start;
-  min-height: 3.5rem;
-  padding: var(--s-4);
+  min-height: 3.25rem;
+  padding: var(--s-3) var(--s-4);
   background: none;
   border: 0;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 
   &:hover {
-    background: var(--k-soft);
+    background: var(--c-paper);
   }
 
   svg {
     flex: 0 0 auto;
-    color: var(--c-line-strong);
-    // Collapsed, the chevron points at the content — rightwards in RTL.
+    color: var(--c-ink-3);
+    // Collapsed, the chevron points at the content: rightwards in RTL.
     transform: rotate(90deg);
     transition: transform var(--dur) var(--ease);
   }
@@ -40,114 +45,108 @@
   }
 }
 
-.hue-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: var(--r-full);
-  background: var(--k-ink);
-  flex: 0 0 auto;
-}
-
 .kb-label {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-3);
 }
 
 .kb-title {
-  display: block;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
 .kb-meta {
-  display: block;
-  margin-block-start: 2px;
   font-size: var(--fs-sm);
   color: var(--c-ink-3);
 }
 
 .kb-body {
-  padding: 0 var(--s-4) var(--s-4);
+  padding: 0 var(--s-4) var(--s-3);
 }
 
 .kb-items {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
 }
 
 .kb-item {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
-  background: var(--k-soft);
-  border: 1px solid var(--k-soft);
-  border-radius: var(--r-md);
-  padding: 12px 14px;
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  padding-block: var(--s-3);
+  border-block-start: 1px solid var(--c-line-soft);
 
-  &.muted {
-    background: transparent;
-    border-color: var(--c-line-soft);
+  &.muted .kb-main {
+    color: var(--c-ink-3);
   }
 }
 
 .kb-text {
-  flex: 1;
+  // On a phone the rule takes the whole width; its tag and actions sit below.
+  flex: 1 1 100%;
   min-width: 0;
+
+  @media (min-width: $bp-md) {
+    flex: 1 1 0;
+  }
 }
 
 .kb-main {
   display: block;
-  font-size: 14px;
-  // A rule she pasted across several lines keeps them.
+  font-size: var(--fs-base);
+  line-height: 1.7;
+  // Only a blank line she left on purpose starts a new paragraph.
   white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .kb-note {
   display: block;
-  margin-block-start: 3px;
-  font-size: 12px;
+  margin-block-start: 2px;
+  font-size: var(--fs-sm);
   color: var(--c-ink-3);
 }
 
 .kb-tag {
-  font-size: 12px;
-  color: var(--k-ink);
-  background: var(--c-surface);
+  font-size: var(--fs-xs);
+  color: var(--c-ink-3);
+  background: var(--c-paper);
   border-radius: var(--r-full);
-  padding: 1px 10px;
+  padding: 2px var(--s-2);
   white-space: nowrap;
   flex: 0 0 auto;
 }
 
-.muted .kb-tag {
-  color: var(--c-ink-3);
-  background: var(--c-surface-sunk);
-}
-
 .kb-none {
   color: var(--c-ink-3);
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
-// Adding material is a secondary action — dashed, not a filled button.
+// Adding is the quiet action at the foot of the list.
 .kb-add {
-  margin-block-start: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-1);
+  margin-inline-start: calc(-1 * var(--s-2));
   min-height: 2.5rem;
-  padding-inline: 14px;
-  border: 1px dashed var(--c-line-strong);
+  padding-inline: var(--s-2);
+  border: 0;
   border-radius: var(--r-md);
   background: transparent;
   color: var(--c-accent);
   font-weight: 600;
   cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
 
   &:hover {
     background: var(--c-accent-soft);
-    border-color: var(--c-accent-line);
   }
 }
 
@@ -235,25 +234,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  padding-block-start: var(--s-3);
+  margin-block-start: var(--s-2);
+  padding: var(--s-4);
+  background: var(--c-paper);
+  border-radius: var(--r-md);
 }
 
 .kb-form .field {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
+  // The setup rule above gives fields a 12rem basis, which in this column
+  // became 12rem of height and left a blank gap under the box.
+  flex: none;
 }
 
-.kb-form .control {
-  font: inherit;
-  font-size: var(--fs-sm);
-  padding: var(--s-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-sm);
-  background: var(--c-surface);
-  color: var(--c-ink);
+.kb-form .control,
+.kb-edit {
   inline-size: 100%;
-  line-height: 1.6;
+  line-height: 1.7;
+  resize: vertical;
 }
 
 .kb-form .file-label {
@@ -290,36 +290,43 @@
   color: var(--c-ink-3);
 }
 
-// -- editing a row -----------------------------------------------------------
-//
-// Every list here was write-once: a rule with a typo could be switched off but
-// never corrected, and a paper uploaded twice stayed twice.
+// -- a row's own actions -----------------------------------------------------
 
 .kb-row-actions {
   display: inline-flex;
   gap: var(--s-1);
-  // On a phone the rule takes the width and its actions drop to a line of their
-  // own; beside it they left the rule a column a few words wide.
-  flex: 1 0 100%;
-  justify-content: flex-end;
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
 
-  @media (min-width: $bp-md) {
-    flex: 0 0 auto;
+// Small and grey until she reaches for one.
+.kb-icon {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--c-ink-3);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+
+  &:hover {
+    background: var(--c-paper);
+    color: var(--c-ink);
+  }
+
+  &.danger:hover {
+    background: var(--c-danger-soft);
+    color: var(--c-danger);
   }
 }
 
 .kb-edit {
   flex: 1 1 100%;
-  inline-size: 100%;
-  padding: var(--s-2);
-  border: 1px solid var(--c-line);
-  border-radius: var(--r-sm);
-  background: var(--c-surface);
-  color: inherit;
-  font: inherit;
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-  resize: vertical;
 }
 
 // -- which course, and which year of it --------------------------------------

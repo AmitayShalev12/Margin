@@ -1,4 +1,5 @@
-import { waitingFor } from '../../../core/notifications/waiting';
+import { WaitingList } from '../../../core/notifications/waiting-list';
+import { WaitingListView } from '../../../shared/ui/waiting-list/waiting-list';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -15,7 +16,7 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
 @Component({
   selector: 'app-courses-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DualDate, Icon, PageHeader, RouterLink],
+  imports: [DualDate, Icon, PageHeader, RouterLink, WaitingListView],
   template: `
     <div class="page">
       <app-page-header title="הקורסים שלי" [subtitle]="'שנת ' + data.year()">
@@ -25,17 +26,10 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
         </button>
       </app-page-header>
 
-      @if (waiting().length) {
+      @if (waiting.total()) {
         <section class="card waiting" aria-labelledby="waiting-title">
           <h2 id="waiting-title" class="sub-title">מחכה לך</h2>
-          <ul class="waiting-list">
-            @for (item of waiting().slice(0, 5); track item.id) {
-              <li><a [routerLink]="item.link">{{ item.text }}</a></li>
-            }
-          </ul>
-          @if (waiting().length > 5) {
-            <p class="hint">ועוד {{ waiting().length - 5 }} בפעמון למעלה.</p>
-          }
+          <app-waiting-list />
         </section>
       }
 
@@ -65,16 +59,11 @@ import { QuickActions } from '../../../shared/ui/quick-actions/quick-actions';
   styles: `
     .waiting {
       margin-block-end: var(--s-4);
-      padding: var(--s-3) var(--s-4);
-      border-color: var(--c-accent-line);
-      background: var(--c-accent-soft);
+      padding: var(--s-3);
     }
-    .waiting-list {
-      margin: var(--s-2) 0 0;
-      padding-inline-start: var(--s-4);
-      display: flex;
-      flex-direction: column;
-      gap: var(--s-1);
+    .waiting .sub-title {
+      margin: 0 0 var(--s-1);
+      padding-inline: var(--s-2);
     }
     .cards {
       list-style: none;
@@ -136,17 +125,8 @@ export class CoursesHome {
   protected readonly data = inject(DataStore);
   protected readonly quick = inject(QuickActions);
 
-  /** The same list as the bell, at the top of the home screen. */
-  protected readonly waiting = computed(() => {
-    const tasks = new Set(
-      this.data.coursesInYear().flatMap((c) => this.data.assignmentsOf(c.id).map((a) => a.id)),
-    );
-    return waitingFor(
-      this.data.submissions().filter((p) => tasks.has(p.assignment_id)),
-      this.data.annotations(),
-      (id) => this.data.studentName(id),
-    );
-  });
+  /** The same list as the sidebar and the bell, at the top of the home screen. */
+  protected readonly waiting = inject(WaitingList);
 
   protected readonly cards = computed(() => {
     const today = new Date().toISOString().slice(0, 10);

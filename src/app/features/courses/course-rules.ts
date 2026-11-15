@@ -62,6 +62,16 @@ export class CourseRules {
 
   protected readonly course = this.data.course;
   protected readonly assignment = this.data.assignment;
+  /**
+   * A rule as it reads on the row. Text pasted from Word or a PDF arrives with a
+   * line break wherever the page happened to wrap, which showed as ragged, broken
+   * lines. Those are joined; a blank line or a list item still starts a new line.
+   * Only how it is shown: the saved rule is untouched.
+   */
+  protected flow(text: string): string {
+    return flowText(text);
+  }
+
   /** "Take rules from another course": open only when she asks. */
   protected readonly takingRules = signal(false);
 
@@ -439,4 +449,24 @@ function sectionRuleKind(sectionId: string): 'language' | 'other' {
 
 function monthName(iso: string): string {
   return dualDateText(iso) ?? '';
+}
+
+const LIST_ITEM = /^(?:[-–—•*·]|\d{1,2}[.)]|[א-ת][.)])\s/;
+
+export function flowText(text: string): string {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const out: string[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    const last = out[out.length - 1];
+    if (!line) {
+      if (last !== undefined && last !== '') out.push('');
+    } else if (last === undefined || last === '' || LIST_ITEM.test(line)) {
+      out.push(line);
+    } else {
+      out[out.length - 1] = `${last} ${line}`;
+    }
+  }
+  while (out[out.length - 1] === '') out.pop();
+  return out.join('\n');
 }

@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
 
 import { DataStore } from '../../../core/data/data-store';
-import { waitingFor } from '../../../core/notifications/waiting';
+import { WaitingList } from '../../../core/notifications/waiting-list';
 import { Icon } from '../icon/icon';
+import { WaitingListView } from '../waiting-list/waiting-list';
 
 /**
  * The dynamic sidebar: a handle in the middle of the right edge that opens a
@@ -14,7 +15,7 @@ import { Icon } from '../icon/icon';
 @Component({
   selector: 'app-side-dock',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, RouterLink, RouterLinkActive],
+  imports: [Icon, RouterLink, RouterLinkActive, WaitingListView],
   template: `
     @if (open()) {
       <div class="dock-backdrop" (click)="open.set(false)"></div>
@@ -30,8 +31,8 @@ import { Icon } from '../icon/icon';
       >
         <app-icon name="chevron" [size]="16" />
         <span class="handle-label">תפריט</span>
-        @if (waiting().length) {
-          <span class="handle-badge">{{ waiting().length }}</span>
+        @if (waiting.total()) {
+          <span class="handle-badge">{{ waiting.total() }}</span>
         }
       </button>
 
@@ -51,17 +52,11 @@ import { Icon } from '../icon/icon';
             <a class="head" routerLink="/courses">
               <app-icon name="bell" [size]="18" />
               <span>מה מחכה לי</span>
-              @if (waiting().length) {
-                <span class="count">{{ waiting().length }}</span>
+              @if (waiting.total()) {
+                <span class="count">{{ waiting.total() }}</span>
               }
             </a>
-            <ul class="items">
-              @for (item of waiting().slice(0, 6); track item.id) {
-                <li><a class="item" [routerLink]="item.link">{{ item.text }}</a></li>
-              } @empty {
-                <li class="none">שום דבר כרגע.</li>
-              }
-            </ul>
+            <app-waiting-list class="dock-waiting" [compact]="true" />
           </section>
 
           <section class="group">
@@ -92,16 +87,7 @@ export class SideDock {
   protected readonly open = signal(false);
 
   /** Across the selected year's courses: the same list as the home screen's. */
-  protected readonly waiting = computed(() => {
-    const tasks = new Set(
-      this.data.coursesInYear().flatMap((c) => this.data.assignmentsOf(c.id).map((a) => a.id)),
-    );
-    return waitingFor(
-      this.data.submissions().filter((p) => tasks.has(p.assignment_id)),
-      this.data.annotations(),
-      (id) => this.data.studentName(id),
-    );
-  });
+  protected readonly waiting = inject(WaitingList);
 
   constructor() {
     // Wherever she went, she got there: the panel gets out of the way.

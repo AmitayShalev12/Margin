@@ -8,7 +8,7 @@
   display: block;
   margin-block-start: 3px;
   font-family: var(--font-ui);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--c-ink-3);
   unicode-bidi: isolate;
 }
@@ -48,7 +48,7 @@
 }
 
 .mini {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--c-ink-3);
   margin-block-end: var(--s-2);
 }
@@ -75,7 +75,7 @@
 .note {
   display: inline-block;
   margin-block-start: 10px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--c-ok);
   background: var(--c-ok-soft);
   border-radius: var(--r-full);

@@ -54,7 +54,7 @@
 .context,
 .submitted,
 .counter {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--c-ink-3);
 }
 
@@ -87,7 +87,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   border-radius: var(--r-full);
   padding-block: 2px;
   padding-inline: 10px 7px;
@@ -231,7 +231,7 @@
 }
 
 .group-count {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--c-ink-3);
 }
 
@@ -268,7 +268,7 @@
 // The category tag keeps its hue even once the comment is resolved — it is
 // the label, not the state.
 .tag {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--k-fg);
   background: var(--k-wash);
@@ -277,7 +277,7 @@
 }
 
 .state {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--c-ink-3);
 }
 
@@ -297,7 +297,7 @@
 }
 
 .body {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--c-ink-2);
   line-height: 1.6;
 }
@@ -308,7 +308,7 @@
   border-radius: var(--r-sm);
   padding: var(--s-2);
   font-family: var(--font-ui);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
   resize: vertical;
 }
@@ -385,7 +385,7 @@
   gap: 10px;
 
   .group-title {
-    font-size: 14px;
+    font-size: var(--fs-sm);
   }
 }
 
@@ -423,14 +423,14 @@
 .m-short {
   display: block;
   margin-block-start: 4px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--c-ink-2);
 }
 
 .m-state {
   display: block;
   margin-block-start: 4px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--k-fg);
 }
 
@@ -791,7 +791,7 @@
 .posted-note {
   margin: 0;
   color: var(--c-attention);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   line-height: 1.4;
 }
 

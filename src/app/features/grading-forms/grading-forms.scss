@@ -280,7 +280,7 @@
 .section-score.is-empty,
 .criterion-score.is-empty {
   color: var(--c-ink-3);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
 }
 
@@ -288,7 +288,7 @@
 // the app and a teacher waiting for it would wait forever.
 .criterion-score.is-mine {
   color: var(--c-accent);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .sections {
@@ -322,7 +322,7 @@
 .chev {
   display: inline-block;
   color: var(--c-ink-3);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   line-height: 1;
   transition: transform var(--dur) var(--ease);
 }
@@ -361,7 +361,7 @@
 }
 
 .criterion-name {
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .criterion-meta {
@@ -370,7 +370,7 @@
   gap: 0.5rem;
   margin-top: 0.3rem;
   color: var(--c-ink-3);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
 }
 
 // A provisional score, said in a word as well as a colour — a colour alone is
@@ -388,7 +388,7 @@
 
 .change-note {
   margin: 0.4rem 0 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   line-height: 1.5;
 }
 
@@ -420,7 +420,7 @@
 
 .part-weight {
   color: var(--c-ink-3);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   unicode-bidi: isolate;
 }
 
@@ -460,7 +460,7 @@
   gap: 0.4rem;
   margin: 0.9rem 0 0;
   color: var(--c-ink-3);
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
 }
 
 .missing {
@@ -491,7 +491,7 @@
   min-width: 15rem;
   margin: 0;
   color: var(--c-ink-3);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -514,7 +514,7 @@
   flex-basis: 100%;
   margin: 0;
   color: var(--c-danger);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -523,7 +523,7 @@
   margin-top: 0.2rem;
   color: var(--c-ink-3);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   word-break: break-word;
 }
 
@@ -556,7 +556,7 @@
 
 .out-of {
   color: var(--c-ink-3);
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
 }
 
 // What is standing between her and a paper score, named.
@@ -565,7 +565,7 @@
   padding: 0.7rem 1.25rem;
   border-bottom: 1px solid var(--c-line);
   color: var(--c-ink-3);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
 }
 
@@ -587,13 +587,13 @@
   display: block;
   margin-bottom: 0.2rem;
   color: var(--c-ink-3);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.02em;
 }
 
 .rationale-body {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 
@@ -601,7 +601,7 @@
 .rationale-stale {
   margin: 0.35rem 0 0;
   color: var(--c-attention);
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
 }
 
 // -- her reply ---------------------------------------------------------------
@@ -622,13 +622,13 @@
   display: block;
   margin-bottom: 0.2rem;
   color: var(--c-accent);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
 .reply-body {
   margin: 0 0 0.3rem;
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 
@@ -644,7 +644,7 @@
   background: var(--c-surface);
   color: inherit;
   font: inherit;
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   line-height: 1.6;
   resize: vertical;
 }
@@ -669,7 +669,7 @@
 .reply-error {
   margin: 0.4rem 0 0;
   color: var(--c-danger);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   line-height: 1.5;
 }
 
@@ -703,7 +703,7 @@
   display: block;
   margin-bottom: 0.15rem;
   color: var(--c-ink-3);
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -713,7 +713,7 @@
 
 .turn-text {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
   line-height: 1.6;
 }
 
@@ -723,7 +723,7 @@
   display: inline-block;
   margin-top: 0.2rem;
   color: var(--c-ink-3);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   unicode-bidi: isolate;
 }
 
@@ -736,5 +736,5 @@
 
 .thread-score-label {
   color: var(--c-ink-3);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }

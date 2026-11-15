@@ -47,12 +47,12 @@ import { DualDate } from '../../../shared/ui/dual-date/dual-date';
       gap: var(--s-1);
       padding: var(--s-3);
       border: 1px solid var(--c-line);
-      border-block-start: 3px solid var(--c-line-strong);
       border-radius: var(--r-md);
-      background: var(--c-surface);
+      background: var(--c-paper);
     }
     .stage.is-past {
-      border-block-start-color: var(--c-accent);
+      border-color: var(--c-accent-line);
+      background: var(--c-accent-soft);
     }
     .stage-number {
       color: var(--c-ink-3);
