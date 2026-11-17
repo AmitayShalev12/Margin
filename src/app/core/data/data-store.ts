@@ -1534,6 +1534,9 @@ export class DataStore {
 
     this._annotations.update((list) => [...list, annotation]);
     this.persist(() => this.repository.saveAnnotation(annotation));
+    // Her own note counts toward the grade from the moment she writes it, not
+    // from the next time she happens to decide on another one.
+    this.rebuildGradingForm(input.submissionId);
     return annotation;
   }
 
