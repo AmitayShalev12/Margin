@@ -137,6 +137,8 @@ interface Call {
 }
 
 const KINDS = ['language', 'content', 'structure'] as const;
+/** How many parts the forty-page paper is read in. */
+const DANA_PARTS = 6;
 
 function scriptedAnswer(fn: string, body: Record<string, unknown>): unknown {
   if (fn === 'annotate') {
@@ -190,7 +192,7 @@ describe('a semester with three students', () => {
   const realFetch = globalThis.fetch;
   const calls: Call[] = [];
   /** Set to make the next AI call fail the way the server does. */
-  let failNext: { status: number; body: unknown } | null = null;
+  let failNext: { status: number; body: unknown; times?: number } | null = null;
 
   let drive: MemoryDrive;
   let store: DataStore;
@@ -230,7 +232,8 @@ describe('a semester with three students', () => {
       const body = JSON.parse(text) as Record<string, unknown>;
       calls.push({ fn, body, text });
       const failure = failNext;
-      failNext = null;
+      if (failNext && (failNext.times ?? 1) > 1) failNext = { ...failNext, times: (failNext.times ?? 1) - 1 };
+      else failNext = null;
       return new Response(JSON.stringify(failure ? failure.body : scriptedAnswer(fn, body)), {
         status: failure?.status ?? 200,
         headers: { 'content-type': 'application/json' },
@@ -366,26 +369,46 @@ describe('a semester with three students', () => {
     await waiting.checkAll(groups[0]);
 
     expect(waiting.run()).toEqual(expect.objectContaining({ running: false, done: 3, failed: [] }));
-    expect(annotateCalls().length).toBe(3);
     for (const student of [noa, shira, dana]) {
       const paper = paperOf(student, STAGE_1);
       expect(paper.status).toBe('in_review');
-      expect(notesOn(paper).length).toBe(3);
       expect(notesOn(paper).every((a) => a.status === 'pending')).toBe(true);
     }
+    // A short paper is one request and three notes.
+    expect(notesOn(paperOf(noa, STAGE_1)).length).toBe(3);
+    expect(notesOn(paperOf(shira, STAGE_1)).length).toBe(3);
     // Nothing is left that nobody has looked at.
     expect(waiting.groups()[0].unchecked.length).toBe(0);
   });
 
-  it('6. sends the whole forty-page paper to be checked, not a cut of it', () => {
-    const request = annotateCalls().find((c) => c.body['student_name'] === DANA.name)!.body as unknown as AnnotateRequest;
-    expect(request.blocks.length).toBeGreaterThan(400);
-    expect(request.blocks.at(-1)!.text).toContain('פסקה 400');
-    // And it is told her rules, her source and the gentle tone she chose.
-    expect(request.rules.map((r) => r.body)).toContain('כל טענה נשענת על מקור אקדמי.');
-    expect(request.sources.map((s) => s.title)).toEqual(['האקדמיה ללשון העברית']);
-    expect(request.tone).toBe('gentle');
-    expect(request.assignment_title).toBe(STAGE_1);
+  it('6. reads the forty-page paper in parts, and every paragraph of it is read', () => {
+    const dana_calls = annotateCalls()
+      .filter((c) => c.body['student_name'] === DANA.name)
+      .map((c) => c.body as unknown as AnnotateRequest);
+    const parts = dana_calls.filter((r) => r.part);
+    const whole = store.roundFor(paperOf(dana, STAGE_1).id)!.document_blocks!;
+
+    // No single request carries the whole paper's comments.
+    expect(parts.length).toBe(DANA_PARTS);
+    expect(parts.map((r) => r.part!.index)).toEqual(parts.map((_, i) => i + 1));
+    expect(parts.every((r) => r.part!.total === DANA_PARTS && r.scoring === 'comments_only')).toBe(true);
+    // Together the parts are the paper, start to end, nothing twice.
+    expect(parts.flatMap((r) => r.blocks.map((b) => b.id))).toEqual(whole.map((b) => b.id));
+    expect(parts.at(-1)!.blocks.at(-1)!.text).toContain('פסקה 400');
+    // Notes come back from every part, each tied to its place.
+    expect(notesOn(paperOf(dana, STAGE_1)).length).toBe(DANA_PARTS * 3);
+    // The score is asked for once, with the whole paper in view and no comments.
+    const scoring = dana_calls.filter((r) => r.comments === false);
+    expect(scoring.length).toBe(1);
+    expect(scoring[0].blocks.length).toBe(whole.length);
+    expect(scoring[0].scoring).toBe('scored');
+    // Every part is told her rules, her source and the gentle tone she chose.
+    for (const request of parts) {
+      expect(request.rules.map((r) => r.body)).toContain('כל טענה נשענת על מקור אקדמי.');
+      expect(request.sources.map((s) => s.title)).toEqual(['האקדמיה ללשון העברית']);
+      expect(request.tone).toBe('gentle');
+      expect(request.assignment_title).toBe(STAGE_1);
+    }
   });
 
   // -- 3. she works through the notes -------------------------------------------
@@ -601,19 +624,52 @@ describe('a semester with three students', () => {
 
   // -- 7. when things go wrong ----------------------------------------------------
 
+  it('17b. files a paper by what it says at its top, and lets her move it', async () => {
+    const proposal = SEMINAR_STAGES[3];
+    drive.folders[SHIRA_FOLDER] = [
+      ...drive.folders[SHIRA_FOLDER],
+      driveFile('shira-draft', 'טיוטה חדשה.docx', SHIRA.email, 24),
+    ];
+    drive.bodies['shira-draft'] = ['הצעת מחקר', ...paragraphs(3, 'שירה הצעה')];
+
+    const outcome = await sync.syncNow();
+    const report = outcome.ownFolders.find((r) => r.studentId === shira.id)!.files;
+
+    // The name says nothing, the paper does: it skips the open stages before it.
+    expect(report.find((f) => f.name === 'טיוטה חדשה.docx')).toEqual(
+      expect.objectContaining({ result: 'created', task: proposal, by: 'content' }),
+    );
+    const paper = paperOf(shira, proposal);
+    expect(paper.drive_file_id).toBe('shira-draft');
+
+    // She disagrees and moves it. Not onto a stage that already has a paper.
+    expect(store.moveSubmission(paper.id, paperOf(shira, STAGE_2).assignment_id)).toBe(false);
+    const other = store.tasks().find((t) => t.title === SEMINAR_STAGES[4])!;
+    expect(store.moveSubmission(paper.id, other.id)).toBe(true);
+    expect(paperOf(shira, SEMINAR_STAGES[4]).id).toBe(paper.id);
+    // A paper that was already checked stays where its notes were written.
+    expect(store.moveSubmission(paperOf(noa, STAGE_1).id, other.id)).toBe(false);
+  });
+
   it('18. says so when the AI fails, and loses none of the notes that were there', async () => {
     const paper = paperOf(dana, STAGE_1);
     const before = notesOn(paper).map((a) => a.id);
 
-    failNext = { status: 502, body: { error: 'generation_failed', reason: 'MAX_TOKENS' } };
+    // A part that fails is tried once more, so it takes two failures to stop.
+    failNext = { status: 502, body: { error: 'generation_failed', reason: 'MAX_TOKENS' }, times: 2 };
     expect(await generator.generate(paper.id)).toBeNull();
+    expect(generator.state().message).toContain(`חלק 1 מתוך ${DANA_PARTS}`);
 
     expect(generator.state().phase).toBe('error');
     expect(generator.state().message).toBeTruthy();
     expect(generator.state().detail).toContain('MAX_TOKENS');
     expect(notesOn(paper).map((a) => a.id)).toEqual(before);
     // Trying again works.
-    expect(await generator.generate(paper.id)).toEqual({ created: 3, discarded: 0 });
+    expect(await generator.generate(paper.id)).toEqual({ created: DANA_PARTS * 3, discarded: 0 });
+
+    // One failure alone is got past without her seeing it.
+    failNext = { status: 502, body: { error: 'generation_failed', reason: 'MAX_TOKENS' } };
+    expect(await generator.generate(paper.id)).toEqual({ created: DANA_PARTS * 3, discarded: 0 });
   });
 
   it('19. keeps a decided note when a paper is checked again', async () => {
@@ -624,7 +680,7 @@ describe('a semester with three students', () => {
     await generator.generate(paper.id);
 
     expect(store.annotation(kept.id)?.status).toBe('accepted');
-    expect(notesOn(paper).filter((a) => a.status === 'pending').length).toBe(3);
+    expect(notesOn(paper).filter((a) => a.status === 'pending').length).toBe(DANA_PARTS * 3);
   });
 
   it('20. never tells the AI a student s address, phone or folder', () => {
@@ -697,7 +753,7 @@ describe('a semester with three students', () => {
     expect(store.courseSubmissions().length).toBe(0);
     // Last year is untouched.
     store.selectCourse(courseId);
-    expect(store.courseSubmissions().length).toBe(5);
+    expect(store.courseSubmissions().length).toBe(6);
   });
 
   it('24. removes a paper, a stage and a student, and leaves nothing of theirs behind', async () => {

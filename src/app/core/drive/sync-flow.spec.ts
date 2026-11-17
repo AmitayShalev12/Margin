@@ -310,7 +310,7 @@ describe('SyncService', () => {
       const paper = store.submissionByDriveFile('own-1');
       expect(paper?.student_id).toBe(shiraId);
       expect(paper?.assignment_id).toBe(proposal.id);
-      expect(report(outcome)).toEqual([{ name: 'גרסה סופית', result: 'created', task: 'הצעת מחקר' }]);
+      expect(report(outcome)).toEqual([{ name: 'גרסה סופית', result: 'created', task: 'הצעת מחקר', by: 'order' }]);
     });
 
     it('fills open tasks oldest file first', async () => {

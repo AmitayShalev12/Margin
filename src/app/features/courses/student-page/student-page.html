@@ -101,6 +101,11 @@
                   @if (file.task && file.result !== 'skipped') {
                     · {{ file.task }}
                   }
+                  @if (file.by === 'content') {
+                    · לפי מה שכתוב בראש הקובץ
+                  } @else if (file.by === 'order') {
+                    · לפי הסדר, כי השם והקובץ לא אומרים איזו משימה
+                  }
                 </span>
                 @if (file.result === 'skipped') {
                   <span class="found-why">{{ skipReason(file.reason, file.task) }}</span>
@@ -110,8 +115,9 @@
           </ul>
         }
         <p class="hint-line">
-          כל קובץ בתיקייה שלה משויך אליה. קובץ ששמו כולל שם של משימה נכנס אליה, וקובץ אחר נכנס למשימה
-          הבאה שעוד לא הגישה, מהקובץ הישן לחדש.
+          כל קובץ בתיקייה שלה משויך אליה. קובץ ששמו כולל שם של משימה נכנס אליה. אם השם לא אומר, נבדק
+          מה כתוב בראש הקובץ, ואם גם שם אין שם של משימה, הקובץ נכנס למשימה הבאה שעוד לא הגישה. עבודה
+          שעוד לא נבדקה אפשר להעביר למשימה אחרת ברשימה למטה.
         </p>
       } @else {
         <button type="button" class="btn btn-ghost btn-sm" (click)="startFolder()">
@@ -223,6 +229,18 @@
             <span class="paper-late">{{ paper.late }}</span>
           }
         </a>
+        @if (!paper.comments && openTasks().length && processingId() !== paper.id) {
+          <select
+            class="control move"
+            [attr.aria-label]="'העברת ' + paper.file + ' למשימה אחרת'"
+            (change)="move(paper.id, $any($event.target))"
+          >
+            <option value="">העברה למשימה אחרת</option>
+            @for (task of openTasks(); track task.id) {
+              <option [value]="task.id">{{ task.title }}</option>
+            }
+          </select>
+        }
         @if (!paper.comments) {
           @if (processingId() === paper.id) {
             <app-working label="מעבדת" />

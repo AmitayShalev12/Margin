@@ -151,3 +151,61 @@ export function taskForFile<T extends { title: string }>(
   const tied = found.filter((t) => normaliseName(t.title).length === longest);
   return tied.length === 1 ? tied[0] : null;
 }
+
+/** A task title, loosened: no "the" on its words, so "הצעת מחקר" finds "הצעת המחקר". */
+function loose(text: string): string {
+  return normaliseName(text)
+    .replace(/[^\p{L}\p{N} ]/gu, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => (word.length > 3 && word.startsWith('ה') ? word.slice(1) : word))
+    .join(' ');
+}
+
+/** The ways a student might write a task's title at the top of her paper. */
+function titleForms(title: string): string[] {
+  // "פרק ג׳ עם פירוש" is also just "פרק ג׳" to her, the same as "פרק ג׳: תוצאות".
+  const chapter = /^פרק \S+/.exec(loose(title))?.[0] ?? '';
+  const forms = [title, chapter, ...title.split(':')]
+    .map((part) => loose(part).replace(/^כל /, ''))
+    .filter((form) => form.length > 3);
+  return [...new Set(forms)];
+}
+
+/** A line this short is a title or a heading, not a sentence of the paper. */
+const TITLE_LINE_WORDS = 12;
+/** The top of the paper, where she says what it is. */
+const OPENING_LINES = 12;
+
+/**
+ * Which task a paper is for, from what it says at its top.
+ *
+ * Used only when the file's name names no task. The opening lines are read in
+ * order and the first one that names exactly one task decides. A line that
+ * fits two tasks decides nothing, and a paper whose opening names none comes
+ * back null: a guess is offered to her, never invented.
+ */
+export function taskForContent<T extends { title: string }>(
+  lines: readonly string[],
+  tasks: readonly T[],
+): T | null {
+  for (const line of lines.slice(0, OPENING_LINES)) {
+    const text = loose(line);
+    if (!text || text.split(' ').length > TITLE_LINE_WORDS) continue;
+
+    let best: { task: T; length: number }[] = [];
+    for (const task of tasks) {
+      const length = Math.max(
+        0,
+        ...titleForms(task.title)
+          .filter((form) => ` ${text} `.includes(` ${form} `))
+          .map((form) => form.length),
+      );
+      if (!length) continue;
+      if (!best.length || length > best[0].length) best = [{ task, length }];
+      else if (length === best[0].length) best.push({ task, length });
+    }
+    if (best.length === 1) return best[0].task;
+  }
+  return null;
+}

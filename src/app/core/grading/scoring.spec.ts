@@ -350,6 +350,27 @@ describe('matching the model’s scores to her criteria', () => {
     expect(unmatched).toEqual(['2.11']);
   });
 
+  /**
+   * A stage rubric's lines have no number, so their key is their id, and two
+   * ids that begin with the same digit were both read as that number.
+   */
+  it('keeps unnumbered criteria apart when their ids begin with the same digit', () => {
+    const stage = [
+      category({ id: '3f2a1b0c-1111-4aaa-8aaa-000000000001', name: 'מיקוד הנושא', max_points: 30 }),
+      category({ id: '3b91d2e4-2222-4bbb-8bbb-000000000002', name: 'בהירות הניסוח', max_points: 20 }),
+    ];
+    const { matched, unmatched } = resolveScores(stage, [
+      { key: '3f2a1b0c-1111-4aaa-8aaa-000000000001', points: 24, note: '' },
+      { key: '[3b91d2e4-2222-4bbb-8bbb-000000000002]', points: 16, note: '' },
+    ]);
+
+    expect(matched.map((m) => [m.category.name, m.points])).toEqual([
+      ['מיקוד הנושא', 24],
+      ['בהירות הניסוח', 16],
+    ]);
+    expect(unmatched).toEqual([]);
+  });
+
   /** Reported rather than dropped, so the screen can say what it saw. */
   it('hands back the keys that answered to nothing', () => {
     const { matched, unmatched } = resolveScores(rubric, [

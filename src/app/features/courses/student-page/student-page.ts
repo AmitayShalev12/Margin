@@ -195,6 +195,12 @@ export class StudentPage {
     return this.data.tasks().filter((t) => !handed.has(t.id));
   });
 
+  /** She says the paper belongs to another task. */
+  protected move(paperId: UUID, select: HTMLSelectElement) {
+    if (select.value) this.data.moveSubmission(paperId, select.value);
+    select.value = '';
+  }
+
   private statusOf(id: UUID): string {
     return this.papers().find((p) => p.id === id)?.status ?? '';
   }

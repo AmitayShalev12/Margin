@@ -1,5 +1,6 @@
 import { Student } from '../models';
-import { normaliseName, parseSubmissionName, searchPrefixes } from './file-name';
+import { SEMINAR_STAGES } from '../tasks/seminar-map';
+import { normaliseName, parseSubmissionName, searchPrefixes, taskForContent } from './file-name';
 
 /**
  * `שם התלמידה - שם העבודה`, and nothing looser.
@@ -154,5 +155,34 @@ describe('normaliseName', () => {
 
   it('collapses whitespace and drops apostrophes', () => {
     expect(normaliseName('  נועה   ברקוביץ׳ ')).toBe('נועה ברקוביץ');
+  });
+});
+
+describe('taskForContent', () => {
+  const tasks = SEMINAR_STAGES.map((title) => ({ title }));
+  const long = 'זו פסקה רגילה מתוך העבודה שמזכירה בדרך אגב את הצעת המחקר ואת שיטת המחקר וגם את הדיון.';
+
+  it('finds the task the paper names at its top', () => {
+    expect(taskForContent(['נועה כהן', 'הצעת המחקר', long], tasks)?.title).toBe('הצעת המחקר');
+  });
+
+  it('reads past a missing "the" and past her punctuation', () => {
+    expect(taskForContent(['הצעת מחקר:'], tasks)?.title).toBe('הצעת המחקר');
+    expect(taskForContent(['רקע תיאורטי'], tasks)?.title).toBe('פרק א׳: כל הרקע התיאורטי');
+    expect(taskForContent(['פרק ב - שיטת המחקר'], tasks)?.title).toBe('פרק ב׳: שיטת המחקר');
+  });
+
+  it('does not take a task from a sentence that only mentions it', () => {
+    expect(taskForContent([long, long], tasks)).toBeNull();
+  });
+
+  it('decides nothing from a line that fits two tasks', () => {
+    // Two stages are called "פרק ג׳".
+    expect(taskForContent(['פרק ג'], tasks)).toBeNull();
+  });
+
+  it('comes back empty when the paper does not say', () => {
+    expect(taskForContent(['מכתב למנחה', 'שלום רב'], tasks)).toBeNull();
+    expect(taskForContent([], tasks)).toBeNull();
   });
 });

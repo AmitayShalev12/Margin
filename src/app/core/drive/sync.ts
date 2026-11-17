@@ -13,7 +13,7 @@ import {
   SubmissionStatus,
 } from '../models';
 import { blocksToText, countWords, extractDocumentBlocks } from './docs-extract';
-import { parseSubmissionName, searchPrefixes, taskForFile } from './file-name';
+import { parseSubmissionName, searchPrefixes, taskForContent, taskForFile } from './file-name';
 import { DOCX_MIME, DriveApi, DriveError } from './drive-api';
 import {
   DriveFile,
@@ -95,7 +95,14 @@ export interface OwnFolderReport {
   studentId: string;
   /** False when Drive refused to list the folder at all. */
   readable: boolean;
-  files: { name: string; result: OwnFileResult; reason?: OwnFileSkip; task?: string }[];
+  files: {
+    name: string;
+    result: OwnFileResult;
+    reason?: OwnFileSkip;
+    task?: string;
+    /** How a new paper found its task: its name, what it says at its top, or the next one open. */
+    by?: 'name' | 'content' | 'order';
+  }[];
 }
 
 /**
@@ -720,9 +727,21 @@ export class SyncService {
       }
       // Every task handed in: the paper still comes in, under a task of its own
       // named after the file, the same as a file she adds by hand.
+      /**
+       * A name that names no task: the paper itself is asked.
+       *
+       * Its opening lines usually say what it is. Only a task she has not
+       * handed in yet is taken from there, and when the paper does not say,
+       * it goes to the next open task as before. Either way the list shows
+       * how it was decided, and she can move it.
+       */
+      const open = tasks.filter((t) => !this.store.submissionFor(t.id, studentId));
+      const read = named ? undefined : await this.readDocument(file);
+      const told = read ? taskForContent(read.blocks.map((b) => b.text), open) : null;
       const target =
         named ??
-        tasks.find((t) => !this.store.submissionFor(t.id, studentId)) ??
+        told ??
+        open[0] ??
         this.store.createAssignment(
           extraTaskTitle(
             name,
@@ -731,11 +750,16 @@ export class SyncService {
         );
       if (!target) continue;
 
-      await this.create(file, studentId, target);
+      await this.create(file, studentId, target, read);
       const created = this.store.submissionByDriveFile(file.id);
       if (created) claimed.add(created.id);
       outcome.created++;
-      report.files.push({ name, result: 'created', task: target.title });
+      report.files.push({
+        name,
+        result: 'created',
+        task: target.title,
+        ...(named ? { by: 'name' as const } : told ? { by: 'content' as const } : open.length ? { by: 'order' as const } : {}),
+      });
     }
   }
 
@@ -869,7 +893,13 @@ export class SyncService {
     return 'updated';
   }
 
-  private async create(file: DriveFile, studentId: string, assignment: Assignment) {
+  private async create(
+    file: DriveFile,
+    studentId: string,
+    assignment: Assignment,
+    /** The document, when it was already read to decide the task. */
+    read?: ExtractedDocument | null,
+  ) {
     const { revisions, truncated } = await this.api.listRevisions(file.id);
     const now = new Date().toISOString();
     // A UUID, because `submissions.id` is one. It used to be `sub-<fileId>`,
@@ -877,7 +907,7 @@ export class SyncService {
     // fire-and-forget, the record sat on screen looking saved.
     const submissionId = derivedId('submission', file.id);
 
-    const document = await this.readDocument(file);
+    const document = read === undefined ? await this.readDocument(file) : read;
 
     const submission: Submission = {
       id: submissionId,

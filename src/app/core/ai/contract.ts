@@ -93,6 +93,16 @@ export interface AnnotateRequest {
   }[];
   style_accepted: { ai_text: string; context_excerpt: string | null }[];
   style_dismissed: { ai_text: string; context_excerpt: string | null }[];
+  /**
+   * Set when `blocks` is one part of a longer paper. A long paper is read in
+   * parts so that no single request is too big to finish.
+   */
+  part?: { index: number; total: number };
+  /**
+   * False asks for the scores alone, with the whole paper in view. It follows
+   * the parts of a long paper, whose comments were already written.
+   */
+  comments?: boolean;
 }
 
 /** One drafted comment, before its quote has been located in the document. */

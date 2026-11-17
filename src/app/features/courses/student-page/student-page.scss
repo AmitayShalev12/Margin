@@ -242,3 +242,10 @@
   text-align: start;
   overflow-wrap: anywhere;
 }
+
+// Moving a paper to another task: small, beside the paper, never the main thing.
+.move {
+  inline-size: auto;
+  max-inline-size: 14rem;
+  font-size: var(--fs-sm);
+}

@@ -3011,6 +3011,25 @@ export class DataStore {
     this.persist(() => this.repository.saveSubmission(submission));
   }
 
+  /**
+   * Moves a paper to another task, when it was filed under the wrong one.
+   *
+   * Only before it is checked: notes and scores belong to the task's own
+   * rubric and would not mean the same thing under another. And never onto a
+   * task she already has a paper for. Returns whether it moved.
+   */
+  moveSubmission(id: UUID, assignmentId: UUID): boolean {
+    const paper = this._submissions().find((s) => s.id === id);
+    if (!paper || paper.assignment_id === assignmentId) return false;
+    if (!this.assignmentById(assignmentId)) return false;
+    if (this.submissionFor(assignmentId, paper.student_id)) return false;
+    if (this._annotations().some((a) => a.submission_id === id)) return false;
+    if (this._criterionScores().some((c) => c.submission_id === id)) return false;
+
+    this.updateSubmission(id, { assignment_id: assignmentId });
+    return true;
+  }
+
   /** Applies whatever the sync learned about an existing submission. */
   updateSubmission(id: UUID, patch: Partial<Submission>) {
     let written: Submission | undefined;

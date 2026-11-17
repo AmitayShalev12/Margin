@@ -106,6 +106,10 @@ interface AnnotateRequest {
   }[];
   style_accepted: { ai_text: string; context_excerpt: string | null }[];
   style_dismissed: { ai_text: string; context_excerpt: string | null }[];
+  /** Set when `blocks` is one part of a longer paper, which is read in parts. */
+  part?: { index: number; total: number };
+  /** False asks for the scores alone: the comments were written part by part. */
+  comments?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +396,29 @@ function documentMessage(body: AnnotateRequest): string {
     })
     .join('\n\n');
 
-  return `Student: ${body.student_name}. Revision round ${body.round_number}.\n\nThe paper:\n\n${blocks}`;
+  /**
+   * A long paper arrives in parts, because one request for all of it was too
+   * much to answer in the time and room a single answer gets.
+   */
+  const notes: string[] = [];
+  if (body.part && body.part.total > 1) {
+    notes.push(
+      `This is part ${body.part.index} of ${body.part.total} of a longer paper. ` +
+        `Comment on what is in this part with the same full coverage, and do not ` +
+        `remark that the paper is incomplete: the rest is being read separately. ` +
+        `Keep the paragraph for the teacher to one sentence about this part.`,
+    );
+  }
+  if (body.comments === false) {
+    notes.push(
+      `The comments on this paper are already written. This request is for the ` +
+        `scores only: return an empty "annotations" array, and make the paragraph ` +
+        `for the teacher one sentence.`,
+    );
+  }
+  const preface = notes.length ? `${notes.join('\n')}\n\n` : '';
+
+  return `${preface}Student: ${body.student_name}. Revision round ${body.round_number}.\n\nThe paper:\n\n${blocks}`;
 }
 
 // ---------------------------------------------------------------------------

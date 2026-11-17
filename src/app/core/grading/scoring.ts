@@ -227,6 +227,10 @@ function keyOf(raw: string): string {
     .trim()
     .replace(/^[[(]|[\])]$/g, '')
     .trim();
+  // An unnumbered criterion's key is its id, and an id may begin with digits:
+  // read as a number, "3f2a…" and "3b91…" both became criterion 3 and one of
+  // the two scores was lost.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(trimmed)) return trimmed.toLowerCase();
   const numbered = /^(\d+(?:\.\d+)*)/.exec(trimmed);
   return numbered ? numbered[1] : trimmed;
 }

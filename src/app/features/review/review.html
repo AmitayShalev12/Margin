@@ -372,10 +372,18 @@
             and the honest response to a frozen page is to reload — which
             throws the run away.
           -->
-          <app-working
-            label="קוראת את העבודה ומנסחת הערות"
-            longRunNote="ריצה כזאת לוקחת בדרך כלל דקה עד שתיים."
-          />
+          @if (generator.state().progress; as progress) {
+            <!-- A long paper is read in parts, and she sees which one. -->
+            <app-working
+              [label]="'קוראת את העבודה: חלק ' + progress.part + ' מתוך ' + progress.total"
+              longRunNote="עבודה ארוכה נקראת בחלקים, כדקה לכל חלק."
+            />
+          } @else {
+            <app-working
+              label="קוראת את העבודה ומנסחת הערות"
+              longRunNote="ריצה כזאת לוקחת בדרך כלל דקה עד שתיים."
+            />
+          }
         } @else {
           <p class="hint">
             אין עדיין הערות על העבודה הזו. אנסח טיוטה ראשונה בסגנון שלך, ואת תעברי עליה.

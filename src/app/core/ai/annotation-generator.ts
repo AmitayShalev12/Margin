@@ -14,7 +14,13 @@ import {
 import { FunctionError, TRANSPORT_MESSAGES, callFunction } from '../supabase/function-call';
 import { SupabaseService } from '../supabase/supabase';
 import { resolveAnnotations } from './anchor-resolver';
-import { AnnotateRequest, AnnotateResponse, GENERATED_KINDS } from './contract';
+import {
+  AnnotateRequest,
+  AnnotateResponse,
+  DraftAnnotation,
+  DraftScore,
+  GENERATED_KINDS,
+} from './contract';
 
 export type GenerationPhase = 'idle' | 'generating' | 'error';
 
@@ -37,6 +43,8 @@ export interface GenerationState {
    * she can only read as the button not working.
    */
   scoring: { returned: number; kept: number; unmatched: string[] } | null;
+  /** Which part of a long paper is being read now. Absent for a short one. */
+  progress?: { part: number; total: number } | null;
 }
 
 const IDLE: GenerationState = {
@@ -85,6 +93,56 @@ export const FAILURE_MESSAGES: Record<string, string> = {
 };
 
 const FALLBACK_MESSAGE = FAILURE_MESSAGES['generation_failed'];
+
+/**
+ * How much of a paper goes to the model in one request.
+ *
+ * Her final papers run 25 to 40 pages, and one request for all of it is the
+ * one that failed: too much to read and too many comments to write back inside
+ * the time and room a single answer gets. So a long paper is read in parts of
+ * about this many words and the comments are put together here.
+ *
+ * A paper up to `SINGLE_REQUEST_WORDS` still goes whole, exactly as before.
+ */
+export const PART_WORDS = 2500;
+export const SINGLE_REQUEST_WORDS = 3500;
+
+const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
+
+/** Cuts a paper into consecutive parts, never inside a paragraph. */
+export function splitIntoParts<T extends { type: string; text: string }>(
+  blocks: readonly T[],
+  partWords = PART_WORDS,
+  singleWords = SINGLE_REQUEST_WORDS,
+): T[][] {
+  const total = blocks.reduce((sum, b) => sum + words(b.text), 0);
+  if (total <= singleWords) return [[...blocks]];
+
+  const parts: T[][] = [];
+  let current: T[] = [];
+  let count = 0;
+
+  for (const block of blocks) {
+    const size = words(block.text);
+    if (current.length && count + size > partWords) {
+      // A heading belongs with the text under it, not at the foot of a part.
+      const trailing: T[] = [];
+      while (current.length > 1 && current[current.length - 1].type === 'heading') {
+        trailing.unshift(current.pop() as T);
+      }
+      parts.push(current);
+      current = trailing;
+      count = trailing.reduce((sum, b) => sum + words(b.text), 0);
+    }
+    current.push(block);
+    count += size;
+  }
+  if (current.length) parts.push(current);
+  return parts;
+}
+
+/** Failures a second attempt at the same part can get past. */
+const WORTH_ANOTHER_TRY = new Set(['bad_response', 'generation_failed', 'timed_out', 'rate_limited']);
 
 /** Style examples and past decisions are the voice signal; more is better, but not unbounded. */
 const MAX_STYLE_EXAMPLES = 40;
@@ -172,17 +230,71 @@ export class AnnotationGenerator {
       return this.fail('צריך קורס ועבודה לפני שאפשר לנסח הערות.');
     }
 
-    let response: AnnotateResponse;
-    try {
-      response = await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
-    } catch (error) {
-      return this.fail(
-        failureMessage(error),
-        error instanceof FunctionError ? error.detail : String(error),
-      );
+    const parts = splitIntoParts(request.blocks);
+    let drafts: DraftAnnotation[] = [];
+    let summary = '';
+    let scores: DraftScore[] | undefined;
+
+    if (parts.length === 1) {
+      try {
+        const response = await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
+        drafts = response.annotations ?? [];
+        summary = response.summary ?? '';
+        scores = response.scores;
+      } catch (error) {
+        return this.fail(
+          failureMessage(error),
+          error instanceof FunctionError ? error.detail : String(error),
+        );
+      }
+    } else {
+      /**
+       * A long paper, one part at a time.
+       *
+       * The parts carry no rubric: a score is a judgement about the whole
+       * paper, and it is asked for once, afterwards, with all of it in view.
+       */
+      const summaries: string[] = [];
+      for (let index = 0; index < parts.length; index++) {
+        const part = { index: index + 1, total: parts.length };
+        this._state.update((s) => ({ ...s, progress: { part: part.index, total: part.total } }));
+        const partRequest: AnnotateRequest = {
+          ...request,
+          blocks: parts[index],
+          scoring: 'comments_only',
+          rubric: [],
+          previous_scores: [],
+          part,
+        };
+        try {
+          const response = await this.callPart(partRequest);
+          drafts = drafts.concat(response.annotations ?? []);
+          if (response.summary?.trim()) summaries.push(response.summary.trim());
+        } catch (error) {
+          // Nothing is written for a paper that was only partly read: half a
+          // review with no sign of which half would be worse than none.
+          return this.fail(
+            `${failureMessage(error)} (חלק ${part.index} מתוך ${part.total} של העבודה)`,
+            error instanceof FunctionError ? error.detail : String(error),
+          );
+        }
+      }
+      summary = summaries.join(' ');
+
+      if (request.scoring === 'scored') {
+        this._state.update((s) => ({ ...s, progress: null }));
+        try {
+          const response = await this.callPart({ ...request, comments: false });
+          scores = response.scores;
+        } catch {
+          // The comments are all here and are kept. The form says that no
+          // scores came back, and she can ask for them again from there.
+          scores = undefined;
+        }
+      }
     }
 
-    const { resolved, rejected } = resolveAnnotations(response.annotations ?? [], blocks);
+    const { resolved, rejected } = resolveAnnotations(drafts, blocks);
 
     /**
      * The rubric scores, when the round carried any.
@@ -196,12 +308,12 @@ export class AnnotationGenerator {
      * nothing" and "the model returned eleven scores and none of them matched
      * your rubric" are different problems with the same appearance on screen.
      */
-    const returned = response.scores?.length ?? 0;
+    const returned = scores?.length ?? 0;
     let kept = 0;
     let unmatched: string[] = [];
 
-    if (response.scores?.length) {
-      const scored = resolveScores(this.store.rubricFor(submission.assignment_id), response.scores);
+    if (scores?.length) {
+      const scored = resolveScores(this.store.rubricFor(submission.assignment_id), scores);
       kept = scored.matched.length;
       unmatched = scored.unmatched;
 
@@ -261,7 +373,7 @@ export class AnnotationGenerator {
 
     this.store.replaceDraftedAnnotations(round.id, annotations);
     this.store.replaceRoundDocument(round.id, {
-      ai_summary: response.summary?.trim() || null,
+      ai_summary: summary.trim() || null,
       ai_summary_confirmed_at: null,
     });
     this.store.setSubmissionStatus(submission.id, 'in_review');
@@ -276,6 +388,17 @@ export class AnnotationGenerator {
       scoring: request.scoring === 'scored' ? { returned, kept, unmatched } : null,
     });
     return { created: annotations.length, discarded: rejected.length };
+  }
+
+  /** One request for one part, tried a second time when a second try can help. */
+  private async callPart(request: AnnotateRequest): Promise<AnnotateResponse> {
+    try {
+      return await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
+    } catch (error) {
+      const code = error instanceof FunctionError ? error.code : '';
+      if (!WORTH_ANOTHER_TRY.has(code)) throw error;
+      return await callFunction<AnnotateResponse>(this.supabase, 'annotate', request);
+    }
   }
 
   /** The teacher has read the restatement; the batch becomes hers to work through. */
