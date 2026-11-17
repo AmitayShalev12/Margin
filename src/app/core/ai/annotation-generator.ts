@@ -201,10 +201,7 @@ export class AnnotationGenerator {
     let unmatched: string[] = [];
 
     if (response.scores?.length) {
-      const scored = resolveScores(
-        this.store.gradingCategories().filter((c) => c.active),
-        response.scores,
-      );
+      const scored = resolveScores(this.store.rubricFor(submission.assignment_id), response.scores);
       kept = scored.matched.length;
       unmatched = scored.unmatched;
 
@@ -358,8 +355,8 @@ export class AnnotationGenerator {
       rubric:
         mode === 'scored'
           ? this.store
-              .gradingCategories()
-              .filter((c) => c.active && !c.manual_only)
+              .rubricFor(submission.assignment_id)
+              .filter((c) => !c.manual_only)
               .map((c) => ({
                 key: criterionKey(c),
                 name: c.name,
@@ -373,7 +370,7 @@ export class AnnotationGenerator {
               .criterionScores(submission.id)
               .map((score) => {
                 const category = this.store
-                  .gradingCategories()
+                  .rubricFor(submission.assignment_id)
                   .find((c) => c.id === score.category_id);
                 return category ? { key: criterionKey(category), points: score.points } : null;
               })

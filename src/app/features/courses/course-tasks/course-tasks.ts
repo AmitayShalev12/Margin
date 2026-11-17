@@ -1,3 +1,5 @@
+import { proposedRubricFor } from '../../../core/grading/stage-rubrics';
+import { TaskRubric } from '../task-rubric/task-rubric';
 import { SEMINAR_STAGES } from '../../../core/tasks/seminar-map';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
@@ -43,7 +45,7 @@ function previewOf(task: ImportedTask): PreviewRow {
 @Component({
   selector: 'app-course-tasks',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DualDate],
+  imports: [DualDate, TaskRubric],
   template: `
     <section class="card tasks" aria-labelledby="tasks-title">
       <h2 id="tasks-title" class="sub-title">משימות ומועדים</h2>
@@ -67,7 +69,18 @@ function previewOf(task: ImportedTask): PreviewRow {
               (change)="setDate(task.id, $any($event.target).value)"
             />
             <app-dual-date class="task-dual" [date]="task.due_at" />
+            <button
+              type="button"
+              class="btn btn-plain btn-sm"
+              [attr.aria-expanded]="openRubric() === task.id"
+              (click)="toggleRubric(task.id)"
+            >
+              {{ rubricLabel(task.id) }}
+            </button>
             <button type="button" class="btn btn-plain btn-sm" (click)="remove(task.id)">הסרה</button>
+            @if (openRubric() === task.id) {
+              <app-task-rubric class="task-rubric anim-unfold" [taskId]="task.id" />
+            }
           </li>
         } @empty {
           <li class="hint">עוד אין משימות. אפשר להשאיר ריק.</li>
@@ -143,6 +156,37 @@ function previewOf(task: ImportedTask): PreviewRow {
             <input class="sr-only" type="file" accept=".xlsx" (change)="pick($event)" />
           </label>
         </div>
+
+        @if (tasks().length) {
+          <div class="rubrics">
+            <h3 class="sub-title">מחוון ציונים לכל שלב</h3>
+            <p class="hint">
+              לכל משימה אפשר לקבוע מחוון משלה: מה נבדק ובכמה נקודות. עבודה שמוגשת למשימה מנוקדת לפי
+              המחוון שלה. לוחצים על "מחוון" ליד המשימה כדי לראות ולשנות.
+            </p>
+            <div class="task-actions">
+              @if (canPropose()) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="propose()">
+                  טעינת המחוון המוצע לשלבי הסמינריון
+                </button>
+              }
+              @if (data.coursesWithStageRubrics().length) {
+                <label class="copy">
+                  <span class="sr-only">העתקת מחוונים מקורס אחר</span>
+                  <select class="control" (change)="copyFrom($any($event.target))">
+                    <option value="">העתקת מחוונים מקורס אחר…</option>
+                    @for (course of data.coursesWithStageRubrics(); track course.id) {
+                      <option [value]="course.id">{{ course.name }} · {{ course.year }}</option>
+                    }
+                  </select>
+                </label>
+              }
+            </div>
+            @if (rubricNote(); as note) {
+              <p class="hint" role="status">{{ note }}</p>
+            }
+          </div>
+        }
       }
     </section>
   `,
@@ -195,6 +239,21 @@ function previewOf(task: ImportedTask): PreviewRow {
     .task-file {
       cursor: pointer;
     }
+    .task-rubric {
+      flex: 1 0 100%;
+    }
+    .rubrics {
+      margin-block-start: var(--s-4);
+      padding-block-start: var(--s-3);
+      border-block-start: 1px solid var(--c-line);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s-2);
+    }
+    .rubrics .sub-title,
+    .rubrics .hint {
+      margin: 0;
+    }
     .task-warn {
       color: var(--c-attention);
       font-size: var(--fs-sm);
@@ -210,9 +269,54 @@ function previewOf(task: ImportedTask): PreviewRow {
   `,
 })
 export class CourseTasks {
-  private readonly data = inject(DataStore);
+  protected readonly data = inject(DataStore);
 
   protected readonly max = MAX_TASKS;
+
+  // -- the rubric of each task ----------------------------------------------
+
+  protected readonly openRubric = signal<string | null>(null);
+  protected readonly rubricNote = signal<string | null>(null);
+
+  protected toggleRubric(taskId: string) {
+    this.openRubric.update((open) => (open === taskId ? null : taskId));
+  }
+
+  protected rubricLabel(taskId: string): string {
+    const lines = this.data.stageRubric(taskId);
+    if (!lines.length) return 'מחוון';
+    return `מחוון · ${lines.reduce((sum, l) => sum + (l.max_points ?? 0), 0)} נק׳`;
+  }
+
+  /** Some task is a stage of the map and has no rubric yet. */
+  protected readonly canPropose = computed(() =>
+    this.tasks().some(
+      (task) => proposedRubricFor(task.title).length && !this.data.stageRubric(task.id).length,
+    ),
+  );
+
+  protected propose() {
+    const filled = this.data.applyProposedRubrics();
+    this.rubricNote.set(
+      filled === 1
+        ? 'נטען מחוון למשימה אחת. זו הצעה: אפשר לשנות כל שורה.'
+        : `נטענו מחוונים ל־${filled} משימות. זו הצעה: אפשר לשנות כל שורה.`,
+    );
+  }
+
+  protected copyFrom(select: HTMLSelectElement) {
+    const courseId = select.value;
+    select.value = '';
+    if (!courseId) return;
+    const copied = this.data.copyStageRubrics(courseId);
+    this.rubricNote.set(
+      copied
+        ? copied === 1
+          ? 'הועתק מחוון למשימה אחת.'
+          : `הועתקו מחוונים ל־${copied} משימות.`
+        : 'לא מצאתי מה להעתיק: למשימות כאן כבר יש מחוון, או שאין משימות תואמות.',
+    );
+  }
   protected readonly tasks = this.data.tasks;
   protected readonly error = signal<string | null>(null);
   protected readonly preview = signal<PreviewRow[]>([]);

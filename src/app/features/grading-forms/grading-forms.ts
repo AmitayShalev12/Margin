@@ -249,9 +249,12 @@ export class GradingForms {
   });
 
   /** Her rubric criteria in her own order, section by section. */
-  private readonly scored = computed(() =>
-    this.data.gradingCategories().filter((c) => c.max_points !== null),
-  );
+  private readonly scored = computed(() => {
+    // A paper of a task with its own rubric is scored against that one.
+    const id = this.submissionId();
+    const paper = id ? this.data.submission(id) : null;
+    return this.data.rubricFor(paper?.assignment_id).filter((c) => c.max_points !== null);
+  });
 
   protected readonly totals = computed(() => scoreTotals(this.scored(), this.scores()));
 
@@ -491,7 +494,7 @@ export class GradingForms {
    */
   protected async askModel(categoryId: UUID) {
     const id = this.submissionId();
-    const category = this.data.gradingCategories().find((c) => c.id === categoryId);
+    const category = this.scored().find((c) => c.id === categoryId);
     if (!id || !category) return;
 
     await this.replies.ask(id, category);

@@ -232,3 +232,13 @@
   flex: 1 0 100%;
   color: var(--c-attention);
 }
+
+// The server's own words under the Hebrew: small, and only there to be read out.
+.error-detail {
+  margin: 0;
+  color: var(--c-ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-align: start;
+  overflow-wrap: anywhere;
+}

@@ -63,3 +63,9 @@ margin-students-*.xlsx
 
 # Synthetic papers for trying the app by hand. Not part of the code.
 test-papers/
+
+# WhatsApp inbox skill: the login session, messages, and phone numbers stay off GitHub
+.whatsapp-inbox/
+.claude/skills/whatsapp-inbox/
+.wwebjs_cache/
+.agents/

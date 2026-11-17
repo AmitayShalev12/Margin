@@ -1,0 +1,160 @@
+@use '../../../../styles/tokens' as *;
+
+.card-dialog {
+  inline-size: min(52rem, calc(100vw - 2rem));
+  max-block-size: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  box-shadow: var(--sh-3);
+
+  &::backdrop {
+    background: rgb(20 26 28 / 40%);
+  }
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-5);
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.card-name {
+  margin: 0;
+  font-size: var(--fs-xl);
+}
+
+.card-sub {
+  margin: var(--s-1) 0 0;
+  color: var(--c-ink-3);
+}
+
+.facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+
+  li {
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-md);
+    background: var(--c-paper);
+  }
+
+  strong {
+    font-size: var(--fs-lg);
+  }
+}
+
+.wrap {
+  overflow-x: auto;
+}
+
+table {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: var(--s-2) var(--s-3);
+  border-block-end: 1px solid var(--c-line-soft);
+  text-align: start;
+  vertical-align: baseline;
+}
+
+thead th {
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+tbody th {
+  font-weight: 600;
+}
+
+.is-missing {
+  th,
+  td {
+    color: var(--c-ink-3);
+    font-weight: 400;
+  }
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--c-accent-soft);
+
+  .sub-title,
+  .hint {
+    margin: 0;
+  }
+}
+
+.sheet-actions,
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+}
+
+.sheet-text {
+  inline-size: 100%;
+  font-size: var(--fs-sm);
+  line-height: 1.7;
+}
+
+// On a phone a four-column table has no room: each stage becomes a block with
+// its name on one line and the hand-in, score and link beneath it.
+@media (max-width: #{$bp-md - 0.0625rem}) {
+  .card-body {
+    padding: var(--s-4);
+  }
+
+  thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--s-3);
+    padding-block: var(--s-2);
+    border-block-end: 1px solid var(--c-line-soft);
+  }
+
+  tbody th,
+  tbody td {
+    padding: 0;
+    border: 0;
+  }
+
+  tbody th {
+    flex: 1 0 100%;
+  }
+
+  tbody td:empty {
+    display: none;
+  }
+}

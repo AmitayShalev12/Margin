@@ -170,6 +170,9 @@
 
       @if (processError(); as message) {
         <p class="error" role="alert">{{ message }}</p>
+        @if (processDetail(); as detail) {
+          <p class="error-detail" dir="ltr">{{ detail }}</p>
+        }
       }
 
       <h4 class="group-title">ממתינות לך</h4>

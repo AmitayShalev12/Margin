@@ -415,6 +415,33 @@
 
 .take-rules {
   margin-block: var(--s-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+// Renaming a group, or naming a new one: one field and its two buttons.
+.group-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1 1 16rem;
+}
+
+.group-form .control {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.group-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin-inline-start: calc(-1 * var(--s-2));
+  padding-block-end: var(--s-1);
 }
 
 .take-rules-card {

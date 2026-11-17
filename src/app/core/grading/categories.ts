@@ -108,7 +108,8 @@ export function buildCategories(
   courseId: UUID,
   history: readonly GradingFormCategory[],
 ): GradingFormCategory[] {
-  const existing = history.filter((c) => c.course_id === courseId && c.active);
+  // A task's own criteria are a different rubric; see `rubricFor` in the store.
+  const existing = history.filter((c) => c.course_id === courseId && c.active && !c.assignment_id);
   if (existing.length) return [...existing].sort((a, b) => a.sort_order - b.sort_order);
 
   const now = new Date().toISOString();

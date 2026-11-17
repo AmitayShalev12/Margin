@@ -340,13 +340,54 @@ describe('SyncService', () => {
       ]);
     });
 
-    it('skips a file when every task is handed in, and says why', async () => {
-      own([shiraFile({ id: 'extra', name: 'עוד משהו' })]);
+    it('takes a file in under a task of its own when every task is handed in', async () => {
+      own([shiraFile({ id: 'extra', name: 'עוד משהו.docx' })]);
 
       const outcome = await sync.syncNow();
 
-      expect(store.submissionByDriveFile('extra')).toBeUndefined();
-      expect(report(outcome)).toEqual([{ name: 'עוד משהו', result: 'skipped', reason: 'no_open_task' }]);
+      const paper = store.submissionByDriveFile('extra');
+      expect(paper?.student_id).toBe(shiraId);
+      expect(store.assignmentById(paper!.assignment_id)?.title).toBe('עוד משהו');
+      expect(report(outcome)).toEqual([{ name: 'עוד משהו.docx', result: 'created', task: 'עוד משהו' }]);
+    });
+
+    it('treats the same paper in three formats as one', async () => {
+      own([
+        shiraFile({ id: 'doc', name: 'רקע תיאורטי', createdTime: '2026-09-01T08:00:00.000Z' }),
+        shiraFile({ id: 'pdf', name: 'רקע תיאורטי.pdf', createdTime: '2026-09-02T08:00:00.000Z' }),
+        shiraFile({ id: 'word', name: 'רקע תיאורטי.docx', createdTime: '2026-09-03T08:00:00.000Z' }),
+      ]);
+
+      const outcome = await sync.syncNow();
+
+      expect(store.submissionByDriveFile('doc')?.student_id).toBe(shiraId);
+      expect(store.submissionByDriveFile('pdf')).toBeUndefined();
+      expect(store.submissionByDriveFile('word')).toBeUndefined();
+      expect(report(outcome)).toEqual([
+        { name: 'רקע תיאורטי', result: 'created', task: 'רקע תיאורטי' },
+        { name: 'רקע תיאורטי.pdf', result: 'have', reason: 'same_paper', task: 'רקע תיאורטי' },
+        { name: 'רקע תיאורטי.docx', result: 'have', reason: 'same_paper', task: 'רקע תיאורטי' },
+      ]);
+    });
+
+    it('recognises a paper she already added by hand', async () => {
+      const task = store.createAssignment('הצעת מחקר')!;
+      store.addUploadedSubmission({
+        studentId: shiraId,
+        assignmentId: task.id,
+        title: null,
+        blocks: [{ id: 'b1', index: 0, type: 'paragraph', text: 'פסקה' }],
+        text: 'פסקה',
+        fileName: 'רקע תיאורטי.docx',
+      });
+      own([shiraFile({ id: 'pdf', name: 'רקע תיאורטי.pdf' })]);
+
+      const outcome = await sync.syncNow();
+
+      expect(store.submissionByDriveFile('pdf')).toBeUndefined();
+      expect(report(outcome)).toEqual([
+        { name: 'רקע תיאורטי.pdf', result: 'have', reason: 'same_paper', task: 'הצעת מחקר' },
+      ]);
     });
 
     it('reports an empty folder as readable with nothing in it', async () => {

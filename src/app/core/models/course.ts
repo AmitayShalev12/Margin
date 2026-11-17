@@ -17,6 +17,8 @@ export type CommentTone = 'gentle' | 'balanced' | 'direct';
 
 export interface Course extends Timestamped, OwnedByTeacher {
   is_seminar?: boolean;
+  /** Her rule groups, in order. Absent means the three built-in ones. */
+  rule_groups?: RuleGroupInfo[] | null;
   /** A seminar that records each student's research question. */
   asks_research_question?: boolean;
   id: UUID;
@@ -75,8 +77,24 @@ export type CourseRuleKind =
  */
 export type CourseRuleOrigin = 'teacher' | 'web';
 
-/** The three groups her rules appear in. No group means one of hers. */
-export type RuleGroup = 'work' | 'ministry' | 'own';
+/**
+ * The key of the group a rule appears in. Three are built in ('work',
+ * 'ministry', 'own'); any other key is a group she made. No group means 'own'.
+ */
+export type RuleGroup = string;
+
+/** A group of rules as it is listed on a course: its key and the name she gave it. */
+export interface RuleGroupInfo {
+  key: RuleGroup;
+  title: string;
+}
+
+/** The groups a course starts with, until she renames, adds or removes one. */
+export const DEFAULT_RULE_GROUPS: readonly RuleGroupInfo[] = [
+  { key: 'work', title: 'כללי העבודה' },
+  { key: 'ministry', title: 'כללי משרד החינוך' },
+  { key: 'own', title: 'הכללים שלי' },
+];
 
 export interface CourseRule extends Timestamped {
   id: UUID;

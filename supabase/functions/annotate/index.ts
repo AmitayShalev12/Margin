@@ -446,12 +446,20 @@ function affordable(waitMs: number, remainingMs: number): boolean {
   return waitMs + MODEL_CONFIG.minAttemptMs <= remainingMs;
 }
 
+/** The provider's status and message for a refused call: about the request, never its content. */
+function describeModelError(status: number, body: string): string {
+  const code = /"status"\s*:\s*"([A-Z_]{1,40})"/.exec(body)?.[1];
+  const message = /"message"\s*:\s*"((?:[^"\\]|\\.){1,200})/.exec(body)?.[1];
+  return [`model HTTP ${status}`, code, message].filter(Boolean).join(' · ');
+}
+
 async function generate(
   apiKey: string,
   body: AnnotateRequest,
   config: ModelConfig,
 ): Promise<
-  { ok: true; text: string } | { ok: false; code: AnnotateErrorCode; quota?: string | null }
+  | { ok: true; text: string }
+  | { ok: false; code: AnnotateErrorCode; quota?: string | null; reason?: string }
 > {
   const requestBody = buildRequestBody({
     config,
@@ -472,6 +480,8 @@ async function generate(
    * to tell "too slow" from "broken".
    */
   let lastQuota: string | null = null;
+  // Why, in the model provider's own words. Never anything from the paper.
+  let lastReason: string | undefined;
   const startedAt = Date.now();
   const remaining = () => MODEL_CONFIG.budgetMs - (Date.now() - startedAt);
 
@@ -501,19 +511,24 @@ async function generate(
       }
       console.error('annotate: network failure', error);
       lastCode = 'generation_failed';
+      lastReason = 'could not reach the model';
       const wait = MODEL_CONFIG.backoffBaseMs * 2 ** attempt;
       if (attempt < MODEL_CONFIG.maxAttempts - 1 && affordable(wait, remaining())) {
         await sleep(wait);
         continue;
       }
-      return { ok: false, code: lastCode, quota: lastQuota };
+      return { ok: false, code: lastCode, quota: lastQuota, reason: lastReason };
     } finally {
       clearTimeout(guard);
     }
 
     if (response.ok) {
-      const outcome = classifyInteraction((await response.json()) as Interaction);
-      return outcome.ok ? { ok: true, text: outcome.text } : { ok: false, code: outcome.code };
+      const interaction = (await response.json()) as Interaction;
+      const interactionStatus = String(interaction.status ?? 'unknown').slice(0, 40);
+      const outcome = classifyInteraction(interaction);
+      return outcome.ok
+        ? { ok: true, text: outcome.text }
+        : { ok: false, code: outcome.code, reason: `model answered with status "${interactionStatus}"` };
     }
 
     const errorBody = await response.text();
@@ -521,6 +536,7 @@ async function generate(
     lastCode = rateCode ?? 'generation_failed';
     // Kept for the answer: which ceiling, on which model, and how big it is.
     lastQuota = describeQuota(errorBody);
+    lastReason = describeModelError(response.status, errorBody);
 
     const wait = retryDelayMs(errorBody, attempt, MODEL_CONFIG.backoffBaseMs);
 
@@ -541,13 +557,13 @@ async function generate(
       if (lastCode !== 'daily_cap') {
         console.error('annotate: model call failed', response.status, errorBody.slice(0, 400));
       }
-      return { ok: false, code: lastCode, quota: lastQuota };
+      return { ok: false, code: lastCode, quota: lastQuota, reason: lastReason };
     }
 
     await sleep(wait);
   }
 
-  return { ok: false, code: lastCode, quota: lastQuota };
+  return { ok: false, code: lastCode, quota: lastQuota, reason: lastReason };
 }
 
 /**
@@ -662,7 +678,13 @@ Deno.serve(async (request: Request) => {
       // The rate-limit case above all: "too many requests" means one thing on
       // her own quota and another entirely on a key shared with everyone.
       return json(
-        { error: generated.code, key_source: keySource, quota: generated.quota ?? null },
+        {
+          error: generated.code,
+          key_source: keySource,
+          quota: generated.quota ?? null,
+          reason: generated.reason ?? null,
+          model: config.model,
+        },
         statusFor(generated.code),
         headers,
       );
@@ -688,6 +710,14 @@ Deno.serve(async (request: Request) => {
     );
   } catch (error) {
     console.error('annotate failed', error);
-    return json({ error: 'generation_failed', key_source: keySource }, 502, headers);
+    return json(
+      {
+        error: 'generation_failed',
+        key_source: keySource,
+        reason: `the function threw: ${String(error).slice(0, 160)}`,
+      },
+      502,
+      headers,
+    );
   }
 });

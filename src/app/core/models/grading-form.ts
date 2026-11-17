@@ -45,6 +45,11 @@ export interface GradingFormCategory extends Timestamped {
   manual_only: boolean;
   sort_order: number;
   active: boolean;
+  /**
+   * The task this criterion belongs to, when it is part of that task's own
+   * rubric. Absent on the course's general rubric.
+   */
+  assignment_id?: UUID | null;
 }
 
 /**

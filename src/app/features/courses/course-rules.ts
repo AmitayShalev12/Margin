@@ -39,6 +39,8 @@ interface KbSection {
   title: string;
   meta: string;
   addLabel: string;
+  /** Set on a group of rules: its key, so it can be renamed or removed. */
+  groupKey?: string;
   /** Category class, so each section carries a consistent hue. */
   hue: string;
   add: KbAdd;
@@ -87,24 +89,31 @@ export class CourseRules {
     const materials = this.data.courseMaterials();
 
     const myRules = rules.filter((r) => r.origin === 'teacher');
+    const groups = this.data.ruleGroups();
+    // A rule whose group is not on this course (a rule for every course, made
+    // under a group of another course) is shown with her own rules.
+    const fallback = groups.some((g) => g.key === 'own') ? 'own' : groups[0].key;
+    const groupOf = (key: string | null | undefined) =>
+      groups.some((g) => g.key === key) ? (key as string) : fallback;
     const webRules = rules.filter((r) => r.origin === 'web');
     const syllabus = materials.filter((m) => m.kind === 'syllabus');
     const models = materials.filter((m) => m.kind === 'model_assignment');
     const corrections = materials.filter((m) => m.kind === 'example_correction');
 
     return [
-      ...RULE_GROUPS.map(({ id, group, title, addLabel }) => {
-        const inGroup = myRules.filter((r) => (r.rule_group ?? 'own') === group);
+      ...groups.map(({ key, title }) => {
+        const inGroup = myRules.filter((r) => groupOf(r.rule_group) === key);
         return {
-          id,
-          add: { of: 'rule' as const, origin: 'teacher' as const, group },
+          id: `rules-${key}`,
+          groupKey: key,
+          add: { of: 'rule' as const, origin: 'teacher' as const, group: key },
           title,
           meta: count(inGroup.filter((r) => r.active).length, {
             one: 'כלל פעיל אחד',
             two: 'שני כללים פעילים',
             many: '# כללים פעילים',
           }),
-          addLabel,
+          addLabel: 'הוספת כלל',
           hue: 'kind-language',
           items: inGroup.map((r) => ({
             of: 'rule' as const,
@@ -197,6 +206,54 @@ export class CourseRules {
   // Every one of these buttons used to do nothing at all: the markup had no
   // click handler, so the whole knowledge base was a display of records that
   // could only arrive from somewhere else.
+
+  // -- her own groups of rules -----------------------------------------------
+
+  protected readonly renamingGroup = signal<string | null>(null);
+  protected readonly groupDraft = signal('');
+  protected readonly newGroupOpen = signal(false);
+  protected readonly groupError = signal<string | null>(null);
+
+  protected startRenameGroup(key: string, title: string) {
+    this.renamingGroup.set(key);
+    this.groupDraft.set(title);
+    this.groupError.set(null);
+  }
+
+  protected saveGroupName(key: string) {
+    if (!this.data.renameRuleGroup(key, this.groupDraft())) {
+      this.groupError.set('צריך שם שאינו ריק ושאין לקבוצה אחרת.');
+      return;
+    }
+    this.renamingGroup.set(null);
+    this.groupError.set(null);
+  }
+
+  protected openNewGroup() {
+    this.newGroupOpen.set(true);
+    this.groupDraft.set('');
+    this.groupError.set(null);
+  }
+
+  protected createGroup() {
+    const group = this.data.addRuleGroup(this.groupDraft());
+    if (!group) {
+      this.groupError.set('צריך שם שאינו ריק ושאין לקבוצה אחרת.');
+      return;
+    }
+    this.newGroupOpen.set(false);
+    this.groupError.set(null);
+    this.sectionsOpen.update((open) => ({ ...open, [`rules-${group.key}`]: true }));
+  }
+
+  /** Only an empty group, and never the last one. */
+  protected canRemoveGroup(section: KbSection): boolean {
+    return !!section.groupKey && !section.items.length && this.data.ruleGroups().length > 1;
+  }
+
+  protected removeGroup(key: string) {
+    this.data.removeRuleGroup(key);
+  }
 
   /** Which section's form is open. One at a time; they are all short. */
   protected readonly adding = signal<string | null>(null);
@@ -437,12 +494,6 @@ export class CourseRules {
  * particular thing, and filing them under a specific kind would put them in
  * the prompt under a heading she never chose.
  */
-const RULE_GROUPS: { id: string; group: RuleGroup; title: string; addLabel: string }[] = [
-  { id: 'rules-work', group: 'work', title: 'כללי העבודה', addLabel: 'הוספת כלל' },
-  { id: 'rules-ministry', group: 'ministry', title: 'כללי משרד החינוך', addLabel: 'הוספת כלל' },
-  { id: 'rules-own', group: 'own', title: 'הכללים שלי', addLabel: 'הוספת כלל' },
-];
-
 function sectionRuleKind(sectionId: string): 'language' | 'other' {
   return sectionId.startsWith('rules') ? 'language' : 'other';
 }

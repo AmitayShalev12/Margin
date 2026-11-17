@@ -1,0 +1,123 @@
+@use '../../../../styles/tokens' as *;
+
+.chart {
+  padding: var(--s-4);
+  margin-block-end: var(--s-4);
+}
+
+// On a phone the flow runs down the page; from tablet width it wraps like the
+// map she drew, each box pointing at the next.
+.flow {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+
+  @media (min-width: $bp-md) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: var(--s-5) var(--s-6);
+  }
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--c-accent-line);
+  border-radius: var(--r-md);
+  background: var(--c-accent-soft);
+
+  &.is-empty {
+    border-color: var(--c-line);
+    background: var(--c-paper);
+  }
+
+  &.is-start {
+    border-style: dashed;
+    border-color: var(--c-line-strong);
+    background: var(--c-surface);
+  }
+
+  // The arrow to the next stage: below the box on a phone, beside it on a
+  // wider screen (to the left, since the page reads right to left).
+  &:not(:last-child)::after {
+    content: '↓';
+    position: absolute;
+    inset-block-end: calc(-1 * var(--s-5));
+    inset-inline-start: 50%;
+    translate: 50% 0;
+    color: var(--c-ink-3);
+    line-height: var(--s-5);
+
+    @media (min-width: $bp-md) {
+      content: '←';
+      inset-block-end: auto;
+      inset-block-start: var(--s-3);
+      inset-inline-start: auto;
+      inset-inline-end: calc(-1 * var(--s-6));
+      inline-size: var(--s-6);
+      translate: none;
+      text-align: center;
+    }
+  }
+}
+
+.stage-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.stage-number {
+  flex: 0 0 auto;
+  min-inline-size: 1.5rem;
+  border-radius: var(--r-full);
+  background: var(--c-accent);
+  color: var(--c-on-accent);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.5rem;
+  text-align: center;
+}
+
+.is-empty .stage-number {
+  background: var(--c-line-strong);
+  color: var(--c-ink);
+}
+
+.stage-title {
+  flex: 1;
+  min-inline-size: 0;
+  font-weight: 600;
+}
+
+.stage-count {
+  color: var(--c-ink-3);
+  font-size: var(--fs-sm);
+}
+
+.names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  display: block;
+  padding: var(--s-1) var(--s-2);
+  margin-inline: calc(-1 * var(--s-2));
+  border-radius: var(--r-sm);
+  color: var(--c-ink);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--c-surface);
+  }
+}

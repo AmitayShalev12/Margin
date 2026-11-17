@@ -1,3 +1,4 @@
+import { StudentCard } from '../student-card/student-card';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
@@ -13,10 +14,11 @@ type ColumnFilter = '' | 'yes' | 'no';
 @Component({
   selector: 'app-process-table',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, StudentCard],
   template: `
     <section class="card summary" aria-labelledby="summary-title">
       <h2 id="summary-title" class="sub-title">איפה כל תלמידה אוחזת</h2>
+      <p class="hint">לחיצה על שם פותחת את הכרטיס של התלמידה: מה הגישה, מה חסר והציון בכל שלב.</p>
 
       @if (tasks().length) {
         <div class="wrap" tabindex="0" role="region" aria-label="סיכום משימות">
@@ -53,13 +55,20 @@ type ColumnFilter = '' | 'yes' | 'no';
             <tbody>
               @for (row of rows(); track row.id) {
                 <tr>
-                  <th scope="row" class="name">{{ row.name }}</th>
+                  <th scope="row" class="name">
+                    <button type="button" class="name-open" (click)="cardFor.set(row.id)">
+                      {{ row.name }}
+                    </button>
+                  </th>
                   @for (cell of row.cells; track $index) {
                     <td>
                       @if (cell.paperId; as id) {
                         <a [routerLink]="['/review', id]" [title]="cell.note ?? 'לעבודה'">
                           {{ cell.note ? 'באיחור' : 'הוגש' }}
                         </a>
+                        @if (cell.score; as score) {
+                          <span class="score">{{ score.points }}/{{ score.outOf }}</span>
+                        }
                       } @else {
                         <span class="missing">חסר</span>
                       }
@@ -78,6 +87,10 @@ type ColumnFilter = '' | 'yes' | 'no';
         <p class="hint">עוד אין משימות. מוסיפים אותן כאן למטה.</p>
       }
     </section>
+
+    @if (cardFor(); as studentId) {
+      <app-student-card [studentId]="studentId" (closed)="cardFor.set(null)" />
+    }
   `,
   styles: `
     .summary {
@@ -123,6 +136,26 @@ type ColumnFilter = '' | 'yes' | 'no';
       min-inline-size: 5.5rem;
       font-size: var(--fs-xs);
     }
+    .name-open {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--c-accent-strong);
+      font: inherit;
+      font-weight: 600;
+      text-align: start;
+      text-decoration: underline;
+      text-decoration-color: var(--c-accent-line);
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .name-open:hover {
+      text-decoration-color: currentColor;
+    }
+    .score {
+      margin-inline-start: var(--s-2);
+      color: var(--c-ink-3);
+    }
     .missing {
       color: var(--c-ink-3);
     }
@@ -138,6 +171,9 @@ export class ProcessTable {
   protected setFilter(taskId: UUID, value: ColumnFilter) {
     this.filters.update((all) => ({ ...all, [taskId]: value }));
   }
+
+  /** The student whose card is open over the table. */
+  protected readonly cardFor = signal<UUID | null>(null);
 
   private readonly allRows = computed(() => {
     const course = this.data.course();
@@ -160,6 +196,7 @@ export class ProcessTable {
             return {
               taskId: task.id,
               paperId: paper?.id ?? null,
+              score: paper ? this.data.paperScore(paper.id) : null,
               note: lateOne ? lateNote(task.title, lateOne.checked) : null,
             };
           }),

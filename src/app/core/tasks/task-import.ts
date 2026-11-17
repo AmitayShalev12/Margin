@@ -99,3 +99,20 @@ export function tasksFromSheet(rows: readonly (readonly SheetCell[])[]): {
 export async function readTaskFile(data: ArrayBuffer) {
   return tasksFromSheet(await readSheet(data));
 }
+
+/** A file's name without its extension, for telling "the same paper in another format". */
+export function fileBaseName(fileName: string): string {
+  return fileName
+    .replace(/[.][A-Za-z0-9]{1,5}$/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/** A name for the task a paper beyond the course's tasks gets: the file's own, kept unique. */
+export function extraTaskTitle(fileName: string, taken: readonly string[]): string {
+  const base = fileName.replace(/[.][A-Za-z0-9]{1,5}$/, '').trim().slice(0, 60) || 'עבודה נוספת';
+  let title = base;
+  for (let n = 2; taken.includes(title); n++) title = `${base} (${n})`;
+  return title;
+}

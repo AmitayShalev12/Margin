@@ -102,7 +102,13 @@ export async function callFunction<T>(
   if (response.ok) return (await response.json()) as T;
 
   const text = await response.text().catch(() => '');
-  let served: { error?: string; message?: string; key_source?: string; quota?: string } = {};
+  let served: {
+    error?: string;
+    message?: string;
+    key_source?: string;
+    quota?: string;
+    reason?: string;
+  } = {};
   try {
     served = JSON.parse(text) as typeof served;
   } catch {
@@ -121,7 +127,8 @@ export async function callFunction<T>(
     (served.key_source ? ` [key: ${served.key_source}]` : '') +
     // Which ceiling, on which model, and how big it is. `limit=0` is the one
     // that matters: not an allowance used up, an allowance never granted.
-    (served.quota ? ` [quota: ${served.quota}]` : '');
+    (served.quota ? ` [quota: ${served.quota}]` : '') +
+    (served.reason ? ` [reason: ${served.reason}]` : '');
 
   const detail = `${name} ${response.status}: ${(served.error ?? served.message ?? text ?? '').slice(0, 200)}${context}`;
 

@@ -1,3 +1,4 @@
+import { extraTaskTitle } from '../../../core/tasks/task-import';
 import { DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
@@ -62,6 +63,7 @@ export class StudentPage {
     created: 'נוספה',
     updated: 'עודכנה',
     unchanged: 'ללא שינוי',
+    have: 'כבר אצלך',
     skipped: 'דולגה',
   };
 
@@ -69,8 +71,8 @@ export class StudentPage {
     switch (reason) {
       case 'task_taken':
         return `כבר יש לה עבודה במשימה "${task ?? ''}" מקובץ אחר, ולא החלפתי אותה.`;
-      case 'no_open_task':
-        return 'לכל המשימות בקורס כבר יש לה עבודה. אפשר להוסיף משימה בסיכום משימות ותהליך.';
+      case 'same_paper':
+        return 'זו אותה עבודה שכבר נמצאת אצלך, בקובץ אחר באותו שם.';
       case 'other_student':
         return 'הקובץ הזה כבר שייך לתלמידה אחרת.';
       case 'shortcut_unreadable':
@@ -283,15 +285,19 @@ export class StudentPage {
 
   protected readonly processingId = signal<UUID | null>(null);
   protected readonly processError = signal<string | null>(null);
+  /** What the server actually said, in small print, so a failure can be traced. */
+  protected readonly processDetail = signal<string | null>(null);
 
   /** Drafts the comments, then opens them, since a draft she cannot see is lost. */
   protected async process(id: UUID) {
     this.processError.set(null);
+    this.processDetail.set(null);
     this.processingId.set(id);
     try {
       const result = await this.generator.generate(id);
       if (!result) {
         this.processError.set(this.generator.state().message ?? 'העיבוד לא הצליח.');
+        this.processDetail.set(this.generator.state().detail ?? null);
         return;
       }
       await this.router.navigate(['/review', id]);
@@ -322,10 +328,4 @@ export class StudentPage {
   }
 }
 
-/** A name for the task a paper beyond the course's tasks gets: the file's own, kept unique. */
-export function extraTaskTitle(fileName: string, taken: readonly string[]): string {
-  const base = fileName.replace(/[.][A-Za-z0-9]{1,5}$/, '').trim().slice(0, 60) || 'עבודה נוספת';
-  let title = base;
-  for (let n = 2; taken.includes(title); n++) title = `${base} (${n})`;
-  return title;
-}
+export { extraTaskTitle };

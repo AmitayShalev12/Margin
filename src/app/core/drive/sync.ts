@@ -1,3 +1,4 @@
+import { extraTaskTitle, fileBaseName } from '../tasks/task-import';
 import { readDocxBlocks } from '../import/docx-blocks';
 import { Injectable, inject } from '@angular/core';
 
@@ -78,13 +79,13 @@ export interface SyncOutcome {
   error: string | null;
 }
 
-export type OwnFileResult = 'created' | 'updated' | 'unchanged' | 'skipped';
+export type OwnFileResult = 'created' | 'updated' | 'unchanged' | 'have' | 'skipped';
 
 export type OwnFileSkip =
   /** Its name names a task she already has a different paper for. */
   | 'task_taken'
   /** She has a paper for every task, and nothing was replaced. */
-  | 'no_open_task'
+  | 'same_paper'
   /** The same file is already another student's paper. */
   | 'other_student'
   /** A shortcut whose document is not shared with her. */
@@ -691,17 +692,44 @@ export class SyncService {
         continue;
       }
 
+      // The same paper again: uploaded by hand already, or saved in the folder
+      // as Word, PDF and a Google Doc. One of them is enough.
+      const base = fileBaseName(name);
+      const twin = this.store
+        .submissions()
+        .find(
+          (p) =>
+            p.student_id === studentId && !!base && fileBaseName(p.drive_file_name ?? '') === base,
+        );
+      if (twin) {
+        outcome.unchanged++;
+        report.files.push({
+          name,
+          result: 'have',
+          reason: 'same_paper',
+          task: this.store.assignmentById(twin.assignment_id)?.title,
+        });
+        continue;
+      }
+
       const tasks = this.store.tasks();
       const named = taskForFile(file.name, tasks);
       if (named && this.store.submissionFor(named.id, studentId)) {
         report.files.push({ name, result: 'skipped', reason: 'task_taken', task: named.title });
         continue;
       }
-      const target = named ?? tasks.find((t) => !this.store.submissionFor(t.id, studentId));
-      if (!target) {
-        report.files.push({ name, result: 'skipped', reason: 'no_open_task' });
-        continue;
-      }
+      // Every task handed in: the paper still comes in, under a task of its own
+      // named after the file, the same as a file she adds by hand.
+      const target =
+        named ??
+        tasks.find((t) => !this.store.submissionFor(t.id, studentId)) ??
+        this.store.createAssignment(
+          extraTaskTitle(
+            name,
+            tasks.map((t) => t.title),
+          ),
+        );
+      if (!target) continue;
 
       await this.create(file, studentId, target);
       const created = this.store.submissionByDriveFile(file.id);

@@ -6,6 +6,7 @@ import { ContactField, RosterPlan } from '../roster/roster';
 import { Injectable, computed, inject, signal } from '@angular/core';
 
 import { buildCategories } from '../grading/categories';
+import { proposedRubricFor } from '../grading/stage-rubrics';
 import { buildEntries } from '../grading/entries';
 import { normaliseName } from '../drive/file-name';
 import { newId, derivedId } from '../ids';
@@ -25,6 +26,8 @@ import {
   CourseMaterialKind,
   CourseRuleOrigin,
   RuleGroup,
+  RuleGroupInfo,
+  DEFAULT_RULE_GROUPS,
   CourseRuleKind,
   CourseRule,
   CourseStudent,
@@ -187,6 +190,8 @@ export class DataStore {
   private readonly _gradingCategories = signal<GradingFormCategory[]>([]);
   /** Headings of every course: the signal above holds the current course's only. */
   private categoryHistory: GradingFormCategory[] = [];
+  /** Criteria that belong to one task, across her courses: each task's own rubric. */
+  private readonly _stageCriteria = signal<GradingFormCategory[]>([]);
   private readonly _gradingEntries = signal<GradingFormEntry[]>([]);
   private readonly _criterionScores = signal<GradingCriterionScore[]>([]);
   private readonly _studentForms = signal<StudentGradingForm[]>([]);
@@ -777,6 +782,231 @@ export class DataStore {
     this.persist(() => this.repository.saveCriterionScore(written));
   }
 
+  // -- rule groups -----------------------------------------------------------
+
+  /** The current course's rule groups, in her order. */
+  readonly ruleGroups = computed<RuleGroupInfo[]>(() => {
+    const own = this._course()?.rule_groups;
+    return own?.length ? own : [...DEFAULT_RULE_GROUPS];
+  });
+
+  private writeRuleGroups(groups: RuleGroupInfo[]) {
+    const course = this._course();
+    if (!course) return;
+    const written: Course = { ...course, rule_groups: groups, updated_at: new Date().toISOString() };
+    this._courses.update((list) => list.map((c) => (c.id === written.id ? written : c)));
+    this.persist(() => this.repository.saveCourse(written));
+  }
+
+  /** False when the name is empty or another group already has it. */
+  renameRuleGroup(key: RuleGroup, title: string): boolean {
+    const name = title.trim();
+    const groups = this.ruleGroups();
+    if (!name || groups.some((g) => g.key !== key && g.title === name)) return false;
+    this.writeRuleGroups(groups.map((g) => (g.key === key ? { ...g, title: name } : g)));
+    return true;
+  }
+
+  /** A new, empty group at the end. Null when the name is empty or taken. */
+  addRuleGroup(title: string): RuleGroupInfo | null {
+    const name = title.trim();
+    const groups = this.ruleGroups();
+    if (!this._course() || !name || groups.some((g) => g.title === name)) return null;
+    const group = { key: newId(), title: name };
+    this.writeRuleGroups([...groups, group]);
+    return group;
+  }
+
+  /** Removes a group that holds no rules. The last group always stays. */
+  removeRuleGroup(key: RuleGroup): boolean {
+    const groups = this.ruleGroups();
+    const inUse = this.courseRules().some(
+      (r) => r.origin === 'teacher' && (r.rule_group ?? 'own') === key,
+    );
+    if (inUse || groups.length < 2 || !groups.some((g) => g.key === key)) return false;
+    this.writeRuleGroups(groups.filter((g) => g.key !== key));
+    return true;
+  }
+
+  // -- a rubric per task -----------------------------------------------------
+
+  /** The task's own rubric, in her order. Empty when it has none. */
+  stageRubric(assignmentId: UUID): GradingFormCategory[] {
+    return this._stageCriteria()
+      .filter((c) => c.assignment_id === assignmentId && c.active)
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }
+
+  /**
+   * What a paper of this task is scored against: the task's own rubric when it
+   * has one, and the course's general rubric otherwise.
+   */
+  rubricFor(assignmentId: UUID | null | undefined): GradingFormCategory[] {
+    const own = assignmentId ? this.stageRubric(assignmentId) : [];
+    return own.length ? own : this._gradingCategories().filter((c) => c.active);
+  }
+
+  /** The points a paper has so far against its rubric, or null before any score. */
+  paperScore(submissionId: UUID): { points: number; outOf: number } | null {
+    const paper = this._submissions().find((p) => p.id === submissionId);
+    if (!paper) return null;
+    const scores = new Map(
+      this._criterionScores()
+        .filter((s) => s.submission_id === submissionId && s.points !== null)
+        .map((s) => [s.category_id, s.points as number]),
+    );
+    let points = 0;
+    let outOf = 0;
+    for (const criterion of this.rubricFor(paper.assignment_id)) {
+      const got = scores.get(criterion.id);
+      if (got === undefined || criterion.max_points === null) continue;
+      points += got;
+      outOf += criterion.max_points;
+    }
+    return outOf ? { points, outOf } : null;
+  }
+
+  private writeStageCriterion(criterion: GradingFormCategory) {
+    this._stageCriteria.update((list) => [
+      ...list.filter((c) => c.id !== criterion.id),
+      criterion,
+    ]);
+    this.categoryHistory = [
+      ...this.categoryHistory.filter((c) => c.id !== criterion.id),
+      criterion,
+    ];
+    this.persist(() => this.repository.saveGradingCategory(criterion));
+  }
+
+  /** Adds a line to a task's rubric. Null when the name is empty or the task is unknown. */
+  addStageCriterion(assignmentId: UUID, name: string, points: number): GradingFormCategory | null {
+    const task = this.assignmentById(assignmentId);
+    const title = name.trim();
+    if (!task || !title) return null;
+    const now = new Date().toISOString();
+    const criterion: GradingFormCategory = {
+      id: newId(),
+      course_id: task.course_id,
+      assignment_id: assignmentId,
+      name: title,
+      description: null,
+      origin: 'teacher',
+      section: task.title,
+      max_points: clampPoints(points),
+      manual_only: false,
+      sort_order: this.stageRubric(assignmentId).length,
+      active: true,
+      created_at: now,
+      updated_at: now,
+    };
+    this.writeStageCriterion(criterion);
+    return criterion;
+  }
+
+  /** Changes a line's wording or its points. False when the name would be left empty. */
+  editStageCriterion(id: UUID, change: { name?: string; points?: number }): boolean {
+    const before = this._stageCriteria().find((c) => c.id === id);
+    if (!before) return false;
+    const name = change.name === undefined ? before.name : change.name.trim();
+    if (!name) return false;
+    this.writeStageCriterion({
+      ...before,
+      name,
+      max_points: change.points === undefined ? before.max_points : clampPoints(change.points),
+      updated_at: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  /** Takes a line off the rubric. Kept on record, so scores already given are not lost. */
+  removeStageCriterion(id: UUID) {
+    const before = this._stageCriteria().find((c) => c.id === id);
+    if (!before) return;
+    this.writeStageCriterion({ ...before, active: false, updated_at: new Date().toISOString() });
+  }
+
+  /**
+   * Loads the proposed rubric into every task of the current course that is a
+   * stage of the seminar map and has no rubric of its own yet. Returns how
+   * many tasks got one. Tasks she already wrote a rubric for are left alone.
+   */
+  applyProposedRubrics(): number {
+    const course = this._course();
+    if (!course) return 0;
+    const now = new Date().toISOString();
+    let filled = 0;
+    for (const task of this.assignmentsOf(course.id)) {
+      const lines = proposedRubricFor(task.title);
+      if (!lines.length || this.stageRubric(task.id).length) continue;
+      lines.forEach((line, index) =>
+        this.writeStageCriterion({
+          id: derivedId('grading-category', `${task.id}:proposed:${index}`),
+          course_id: course.id,
+          assignment_id: task.id,
+          name: line.name,
+          // Where the line comes from in the supervisor's rubric, for her to see.
+          description: line.source,
+          origin: 'imported',
+          section: task.title,
+          max_points: line.points,
+          manual_only: false,
+          sort_order: index,
+          active: true,
+          created_at: now,
+          updated_at: now,
+        }),
+      );
+      filled += 1;
+    }
+    return filled;
+  }
+
+  /** Courses, other than the current one, that have at least one task rubric to copy from. */
+  readonly coursesWithStageRubrics = computed(() => {
+    const current = this._course()?.id;
+    const has = new Set(
+      this._stageCriteria()
+        .filter((c) => c.active)
+        .map((c) => c.course_id),
+    );
+    return this._courses().filter((c) => c.id !== current && has.has(c.id));
+  });
+
+  /**
+   * Copies another course's task rubrics into the current course, task by
+   * task. Tasks are paired by name, and by position when the names differ. A
+   * task here that already has a rubric keeps it. Returns how many were copied.
+   */
+  copyStageRubrics(fromCourseId: UUID): number {
+    const course = this._course();
+    if (!course || course.id === fromCourseId) return 0;
+    const from = this.assignmentsOf(fromCourseId);
+    const to = this.assignmentsOf(course.id);
+    const now = new Date().toISOString();
+    let copied = 0;
+
+    to.forEach((task, index) => {
+      if (this.stageRubric(task.id).length) return;
+      const source =
+        from.find((t) => normaliseName(t.title) === normaliseName(task.title)) ?? from[index];
+      const lines = source ? this.stageRubric(source.id) : [];
+      if (!lines.length) return;
+      for (const line of lines) {
+        this.writeStageCriterion({
+          ...line,
+          id: derivedId('grading-category', `${task.id}:${line.id}`),
+          course_id: course.id,
+          assignment_id: task.id,
+          section: task.title,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+      copied += 1;
+    });
+    return copied;
+  }
+
   /**
    * Marks a criterion as one only she may score.
    *
@@ -935,6 +1165,7 @@ export class DataStore {
     // with no history at all.
     const courseId = this._course()?.id;
     this.categoryHistory = snapshot.gradingCategories;
+    this._stageCriteria.set(snapshot.gradingCategories.filter((c) => !!c.assignment_id));
     this._gradingCategories.set(
       courseId ? buildCategories(courseId, snapshot.gradingCategories) : [],
     );
@@ -1072,7 +1303,7 @@ export class DataStore {
       this.persist(() => this.repository.saveCourse(written));
 
       const headings = (await this.repository.load()).gradingCategories.filter(
-        (c) => c.course_id === fromId && c.active,
+        (c) => c.course_id === fromId && c.active && !c.assignment_id,
       );
       if (headings.length) {
         const copied = headings.map((c) => ({
@@ -1813,6 +2044,7 @@ export class DataStore {
     this._courseRules.set([]);
     this._courseMaterials.set([]);
     this._gradingCategories.set([]);
+    this._stageCriteria.set([]);
     this.categoryHistory = [];
     this._gradingEntries.set([]);
     this._criterionScores.set([]);
@@ -3031,4 +3263,9 @@ function errorText(error: unknown): string {
   return typeof hebrew === 'string' && hebrew.trim()
     ? `${hebrew} — ${error.message}`
     : error.message;
+}
+
+/** A rubric line is worth a whole number of points, from 0 to 100. */
+function clampPoints(points: number): number {
+  return Number.isFinite(points) ? Math.min(100, Math.max(0, Math.round(points))) : 0;
 }

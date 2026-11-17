@@ -10,6 +10,27 @@
       <button type="button" class="btn btn-plain btn-sm" (click)="takingRules.set(true)">
         לקחת כללים מקורס אחר
       </button>
+      @if (newGroupOpen()) {
+        <form class="group-form" (submit)="$event.preventDefault(); createGroup()">
+          <input
+            class="control"
+            type="text"
+            placeholder="שם הקבוצה החדשה"
+            aria-label="שם הקבוצה החדשה"
+            [value]="groupDraft()"
+            (input)="groupDraft.set($any($event.target).value)"
+          />
+          <button type="submit" class="btn btn-primary btn-sm">יצירה</button>
+          <button type="button" class="btn btn-plain btn-sm" (click)="newGroupOpen.set(false)">ביטול</button>
+        </form>
+      } @else {
+        <button type="button" class="btn btn-plain btn-sm" (click)="openNewGroup()">
+          + קבוצת כללים חדשה
+        </button>
+      }
+      @if (groupError() && newGroupOpen()) {
+        <p class="kb-error" role="alert">{{ groupError() }}</p>
+      }
     }
   </div>
 
@@ -44,6 +65,37 @@
 
         @if (isOpen(s.id)) {
           <div class="kb-body anim-unfold">
+            @if (s.groupKey; as key) {
+              <div class="group-tools">
+                @if (renamingGroup() === key) {
+                  <form class="group-form" (submit)="$event.preventDefault(); saveGroupName(key)">
+                    <input
+                      class="control"
+                      type="text"
+                      aria-label="שם הקבוצה"
+                      [value]="groupDraft()"
+                      (input)="groupDraft.set($any($event.target).value)"
+                    />
+                    <button type="submit" class="btn btn-primary btn-sm">שמירה</button>
+                    <button type="button" class="btn btn-plain btn-sm" (click)="renamingGroup.set(null)">
+                      ביטול
+                    </button>
+                  </form>
+                  @if (groupError(); as message) {
+                    <p class="kb-error" role="alert">{{ message }}</p>
+                  }
+                } @else {
+                  <button type="button" class="btn btn-plain btn-sm" (click)="startRenameGroup(key, s.title)">
+                    שינוי שם הקבוצה
+                  </button>
+                  @if (canRemoveGroup(s)) {
+                    <button type="button" class="btn btn-plain btn-sm" (click)="removeGroup(key)">
+                      מחיקת הקבוצה
+                    </button>
+                  }
+                }
+              </div>
+            }
             <ul class="kb-items">
               @for (item of s.items; track item.id) {
                 <li class="kb-item" [class.muted]="item.muted">
