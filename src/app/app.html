@@ -80,6 +80,14 @@
               <span>הגדרות</span>
             </a>
           </li>
+          @if (god.allowed()) {
+            <li class="sheet-row">
+              <a class="sheet-link" routerLink="/god" (click)="closeMore()">
+                <app-icon name="more" [size]="20" />
+                <span>מצב ניסוי</span>
+              </a>
+            </li>
+          }
           @if (signedInAs(); as email) {
             <li class="sheet-account">
               <span class="sheet-email" dir="ltr">{{ email }}</span>

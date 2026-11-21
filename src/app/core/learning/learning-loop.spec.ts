@@ -250,13 +250,13 @@ describe('the learning loop', () => {
       annotations: [
         {
           block_id: 'b-intro',
-          quote: 'מחקרים רבים הוכיחו',
+          quote: 'בעשור האחרון',
           kind: 'language',
           body: '״הוכיחו״ חזק מדי למחקר מתאמי.',
         },
         {
           block_id: 'b-intro',
-          quote: 'שאלת המחקר שלי היא האם',
+          quote: 'בקרב מתבגרים',
           kind: 'praise',
           body: 'שאלה ממוקדת וניתנת לבדיקה.',
         },

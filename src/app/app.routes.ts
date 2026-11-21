@@ -92,5 +92,11 @@ export const routes: Routes = [
       import('./features/communication/communication').then((m) => m.Communication),
   },
   { path: 'communication', redirectTo: 'courses/current/messages' },
+  {
+    // The owner's test screen: invented students and papers. Closed to every other account.
+    path: 'god',
+    title: 'מצב ניסוי · Margin',
+    loadComponent: () => import('./features/god/god').then((m) => m.God),
+  },
   { path: '**', redirectTo: 'courses' },
 ];

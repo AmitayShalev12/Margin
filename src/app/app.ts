@@ -8,6 +8,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 
 import { Assistant } from './core/assistant/assistant';
+import { GodMode } from './core/god/god-mode';
 import { MOBILE_NAV } from './core/navigation';
 import { SupabaseService } from './core/supabase/supabase';
 import { Tabs } from './core/tabs';
@@ -41,6 +42,7 @@ import { TabStrip } from './shared/ui/tab-strip/tab-strip';
 export class App {
   private readonly supabase = inject(SupabaseService);
   protected readonly assistant = inject(Assistant);
+  protected readonly god = inject(GodMode);
 
   protected readonly primaryNav = MOBILE_NAV;
 

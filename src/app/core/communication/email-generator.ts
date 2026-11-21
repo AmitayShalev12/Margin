@@ -120,7 +120,7 @@ export class EmailGenerator {
       return this.failFrom(error);
     }
 
-    const variants = this.toVariants(response);
+    const variants = this.toVariants(response, this.taskTitle(submissionId));
     if (!variants.length) return this.fail(FAILURE_MESSAGES['bad_response']);
 
     // Her rewrite survives a re-draft; an untouched draft adopts the first
@@ -165,7 +165,7 @@ export class EmailGenerator {
       student_name: name,
       first_name: name.split(' ')[0],
       course_name: this.store.course()?.name ?? '',
-      assignment_title: this.store.assignment()?.title ?? '',
+      assignment_title: this.taskTitle(submissionId),
       round_number: round?.round_number ?? submission.current_round,
       // Only a restatement she confirmed. An unconfirmed one is the model's
       // account of the batch, not hers, and would be laundered into her voice.
@@ -217,7 +217,14 @@ export class EmailGenerator {
    * on the chip is always ours — so a model that renames "קצר" cannot rename
    * what she is choosing between.
    */
-  private toVariants(response: EmailResponse): StudentEmailVariant[] {
+  /** The title of the paper's own stage, not of whichever one was opened last. */
+  private taskTitle(submissionId: UUID): string {
+    const paper = this.store.submission(submissionId);
+    const task = paper && this.store.assignmentById(paper.assignment_id);
+    return (task ?? this.store.assignment())?.title ?? '';
+  }
+
+  private toVariants(response: EmailResponse, taskTitle: string): StudentEmailVariant[] {
     const seen = new Set<string>();
 
     return (response.variants ?? [])
@@ -230,7 +237,7 @@ export class EmailGenerator {
           {
             key: brief.key,
             label: brief.label,
-            subject: v.subject?.trim() || (this.store.assignment()?.title ?? ''),
+            subject: v.subject?.trim() || taskTitle,
             body: v.body.trim(),
           },
         ];

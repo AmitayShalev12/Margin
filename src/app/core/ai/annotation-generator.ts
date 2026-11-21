@@ -329,8 +329,27 @@ export class AnnotationGenerator {
       );
     }
 
+    /**
+     * A note on a sentence she has already decided about is not drafted again.
+     *
+     * Asking for a score after working through the notes reads the paper a
+     * second time, and the same sentences come back. Without this, every note
+     * she approved, rewrote or removed returned as a new one waiting for her.
+     * Only an exact repeat is dropped: the same paragraph and the same words.
+     */
+    const place = (anchor: { block_id: string; quote: string }) =>
+      `${anchor.block_id}\n${anchor.quote}`;
+    const settled = new Set(
+      this.store
+        .annotations()
+        .filter((a) => a.round_id === round.id && a.status !== 'pending')
+        .map((a) => place(a.anchor)),
+    );
+    const fresh = resolved.filter((item) => !settled.has(place(item.anchor)));
+    const repeated = resolved.length - fresh.length;
+
     const now = new Date().toISOString();
-    const annotations: Annotation[] = resolved.map((item, index) => ({
+    const annotations: Annotation[] = fresh.map((item, index) => ({
       id: newId(),
       submission_id: submission.id,
       round_id: round.id,
@@ -363,7 +382,7 @@ export class AnnotationGenerator {
      * arrive. The screen would come back emptier with no error to explain it,
      * because nothing failed: a delete succeeded.
      */
-    if (!annotations.length) {
+    if (!annotations.length && !repeated) {
       return this.fail(
         rejected.length
           ? `אף אחת מ־${rejected.length} ההערות שנוסחו לא נקשרה למקום מדויק בטקסט. מה שהיה כאן נשאר.`
@@ -371,11 +390,15 @@ export class AnnotationGenerator {
       );
     }
 
-    this.store.replaceDraftedAnnotations(round.id, annotations);
-    this.store.replaceRoundDocument(round.id, {
-      ai_summary: summary.trim() || null,
-      ai_summary_confirmed_at: null,
-    });
+    // When everything that came back was a repeat, there is no new batch for
+    // her to read: what is on the screen stays exactly as she left it.
+    if (annotations.length) {
+      this.store.replaceDraftedAnnotations(round.id, annotations);
+      this.store.replaceRoundDocument(round.id, {
+        ai_summary: summary.trim() || null,
+        ai_summary_confirmed_at: null,
+      });
+    }
     this.store.setSubmissionStatus(submission.id, 'in_review');
 
     this._state.set({

@@ -41,6 +41,7 @@ const SECTIONS: Record<string, { title: string; icon: IconName }> = {
   students: { title: 'התלמידות שלי', icon: 'users' },
   courses: { title: 'בית', icon: 'home' },
   settings: { title: 'הגדרות', icon: 'more' },
+  god: { title: 'מצב ניסוי', icon: 'more' },
   approve: { title: 'אישור ושליחה', icon: 'mail' },
   review: { title: 'בדיקה', icon: 'docs' },
 };

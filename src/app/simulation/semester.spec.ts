@@ -680,7 +680,8 @@ describe('a semester with three students', () => {
     await generator.generate(paper.id);
 
     expect(store.annotation(kept.id)?.status).toBe('accepted');
-    expect(notesOn(paper).filter((a) => a.status === 'pending').length).toBe(DANA_PARTS * 3);
+    // The same note on the same sentence does not come back as a new one.
+    expect(notesOn(paper).filter((a) => a.status === 'pending').length).toBe(DANA_PARTS * 3 - 1);
   });
 
   it('20. never tells the AI a student s address, phone or folder', () => {

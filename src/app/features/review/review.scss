@@ -321,7 +321,7 @@
 }
 
 .act {
-  min-height: 2rem;
+  min-height: 2.5rem;
   padding-inline: 12px;
   border: 0;
   border-radius: var(--r-sm);
@@ -526,6 +526,16 @@
   color: var(--c-ink-3);
 }
 
+// On a phone the button keeps to one line, and the hint takes what is left.
+@media (max-width: 30rem) {
+  .action-inner .btn {
+    flex: 0 0 auto;
+    padding-inline: var(--s-3);
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+  }
+}
+
 // -- the way back to a comment ----------------------------------------------
 //
 // "Jumping to a comment's place in the paper was half a journey." The markup
@@ -656,6 +666,10 @@
     inset-block-end: calc(var(--action-bar-h) + var(--s-3));
   }
 
+  .own-comment {
+    inset-block-end: calc(2 * 12px + 2.75rem + var(--s-3));
+  }
+
   .doc-title {
     font-size: 22px;
   }
@@ -712,12 +726,23 @@
   color: var(--c-danger);
 }
 
+// Floats over the page, just above the bottom bar. It used to sit at the end
+// of the paper, so on a long one she marked a sentence and nothing appeared:
+// the box had opened thirty pages further down.
 .own-comment {
-  margin-block-start: var(--s-4);
+  position: fixed;
+  z-index: 27;
+  inset-inline: 0;
+  inset-block-end: calc(2 * 12px + 2.75rem + var(--s-3) + var(--bottom-nav-h) + var(--safe-bottom));
+  inline-size: min(42rem, calc(100% - 2 * var(--s-4)));
+  max-block-size: 60vh;
+  margin-inline: auto;
+  overflow-y: auto;
   padding: var(--s-4);
-  border: 1px solid var(--c-line);
+  border: 1px solid var(--c-accent-line);
   border-radius: var(--r-md);
   background: var(--c-surface);
+  box-shadow: var(--sh-3);
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -808,4 +833,119 @@
     margin: var(--s-2) 0 0;
     padding-inline-start: var(--s-4);
   }
+}
+
+// -- the papers on either side ----------------------------------------------
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-block-end: var(--s-3);
+
+  .is-off {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+.pager-place {
+  color: var(--c-ink-2);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+// -- what the corrected version changed -------------------------------------
+
+.earlier {
+  margin-block-end: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+  }
+}
+
+.earlier-lead {
+  margin-block-start: var(--s-2);
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.earlier-list {
+  display: grid;
+  gap: var(--s-2);
+  margin-block-start: var(--s-3);
+  padding: 0;
+  list-style: none;
+}
+
+.earlier-note {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line);
+  border-inline-start: 4px solid var(--k-ink, var(--c-line));
+  border-radius: var(--r-md);
+}
+
+.earlier-state {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  color: var(--c-accent);
+
+  &.is-same {
+    color: var(--c-danger);
+  }
+}
+
+.earlier-quote {
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.doc-para.is-changed {
+  padding-inline-start: var(--s-3);
+  border-inline-start: 4px solid var(--c-accent);
+}
+
+// -- her own earlier notes --------------------------------------------------
+
+.saved {
+  display: grid;
+  gap: var(--s-1);
+}
+
+.saved-label {
+  color: var(--c-ink-2);
+  font-size: var(--fs-sm);
+}
+
+.saved-item {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-line);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: start;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--c-accent);
+  }
+}
+
+// -- approving what is left -------------------------------------------------
+
+.rest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-end: var(--s-3);
+  font-size: var(--fs-sm);
 }

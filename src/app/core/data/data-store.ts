@@ -2549,8 +2549,17 @@ export class DataStore {
   // -- the message to the student -------------------------------------------
 
   /** The drafted message for a submission, if one has been written. */
+  /**
+   * The message for the round she is on.
+   *
+   * By round and not by paper: once the first round's message was sent, a
+   * corrected version needs a message of its own, and finding the old one
+   * first meant the second could never be written.
+   */
   studentEmail(submissionId: UUID): StudentEmail | undefined {
-    return this._studentEmails().find((e) => e.submission_id === submissionId);
+    const roundId = this.roundFor(submissionId)?.id ?? null;
+    const all = this._studentEmails().filter((e) => e.submission_id === submissionId);
+    return all.find((e) => e.round_id === roundId) ?? all.find((e) => e.round_id === null);
   }
 
   /** A freshly drafted message, replacing any earlier draft for the round. */
@@ -2658,7 +2667,10 @@ export class DataStore {
     const next: StudentEmail = existing
       ? { ...existing, status: 'skipped', error_message: null, updated_at: now }
       : {
-          id: derivedId('student-email', submissionId),
+          id: derivedId(
+            'student-email',
+            `${submissionId}:${this.roundFor(submissionId)?.id ?? 'no-round'}`,
+          ),
           submission_id: submissionId,
           student_id: submission.student_id,
           round_id: this.roundFor(submissionId)?.id ?? null,

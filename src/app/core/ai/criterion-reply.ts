@@ -79,7 +79,10 @@ export class CriterionReply {
 
     const round = this.data.roundFor(submissionId);
     const course = this.data.course();
-    const assignment = this.data.assignment();
+    // The paper's own stage, not whichever one was opened last.
+    const paper = this.data.submission(submissionId);
+    const assignment =
+      (paper && this.data.assignmentById(paper.assignment_id)) ?? this.data.assignment();
     if (!course || !assignment) return false;
 
     this._pending.set(category.id);

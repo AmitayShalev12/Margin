@@ -229,20 +229,21 @@ function columnName(index: number): string {
   return String.fromCharCode(65 + index);
 }
 
-function textCell(column: number, row: number, value: string | null | undefined): string {
-  if (!value) return '';
+function textCell(column: number, row: number, value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  // A number stays a number, so the sheet can add a column up.
+  if (typeof value === 'number') return `<c r="${columnName(column)}${row}"><v>${value}</v></c>`;
   const text = escapeXml(value);
   return `<c r="${columnName(column)}${row}" t="inlineStr"><is><t xml:space="preserve">${text}</t></is></c>`;
 }
 
 /** The roster as an Excel file, in the columns it arrived in. */
 export function writeRoster(students: readonly Student[], at: Date): Uint8Array {
-  const header = ROSTER_HEADERS.map((title, column) => textCell(column, 1, title)).join('');
-
-  const rows = students.map((student, index) => {
-    const row = index + 2;
-    const details = student.roster_details;
-    const values = [
+  return writeSheet(
+    [...ROSTER_HEADERS],
+    students.map((student) => {
+      const details = student.roster_details;
+      return [
       student.full_name,
       student.id_number,
       student.address,
@@ -254,8 +255,23 @@ export function writeRoster(students: readonly Student[], at: Date): Uint8Array 
       details?.pedagogic_year,
       details?.track,
       details?.department,
-      student.class_name,
-    ];
+        student.class_name,
+      ];
+    }),
+    at,
+  );
+}
+
+/** Any table as a right-to-left Excel file: one header row, then the rows. */
+export function writeSheet(
+  headers: readonly string[],
+  table: readonly (readonly (string | number | null | undefined)[])[],
+  at: Date,
+): Uint8Array {
+  const header = headers.map((title, column) => textCell(column, 1, title)).join('');
+
+  const rows = table.map((values, index) => {
+    const row = index + 2;
     return `<row r="${row}">${values.map((value, column) => textCell(column, row, value)).join('')}</row>`;
   });
 

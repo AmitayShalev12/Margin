@@ -8,6 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 
 import { AnnotationGenerator } from '../../core/ai/annotation-generator';
@@ -27,6 +28,8 @@ import {
   kindClass,
 } from '../../core/presentation/annotation-kind';
 import { renderBlock, sectionsOf } from '../../core/presentation/document-render';
+import { savedComments } from '../../core/presentation/saved-comments';
+import { roundChanges } from '../../core/rounds/round-changes';
 import { SELECTION_REFUSAL, anchorFromSelection } from '../../core/presentation/selection-anchor';
 import { submittedAt } from '../../core/presentation/submission-status';
 import { Viewport } from '../../core/viewport';
@@ -51,6 +54,8 @@ interface ViewBlock {
   isTitle: boolean;
   text: string;
   runs: ViewRun[];
+  /** New or rewritten since the version before this one. */
+  isChanged: boolean;
 }
 
 interface ViewComment {
@@ -102,7 +107,7 @@ function commentCount(n: number): string {
 @Component({
   selector: 'app-review',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CountPipe, RouterLink, BidiText, ReliabilityPanel, Working],
+  imports: [CountPipe, NgTemplateOutlet, RouterLink, BidiText, ReliabilityPanel, Working],
   templateUrl: './review.html',
   styleUrl: './review.scss',
 })
@@ -143,7 +148,7 @@ export class Review {
     const earlier = this.data
       .rounds()
       .filter((r) => r.id !== round.id && hers.some((p) => p.id === r.submission_id));
-    return runChecks({
+    const flags = runChecks({
       paper,
       round,
       earlierRounds: earlier,
@@ -151,6 +156,60 @@ export class Review {
       tasks: courseTasks,
       handedIn: new Set(hers.map((s) => s.assignment_id)),
     });
+    // The list of earlier notes says the same thing, note by note.
+    return this.changes() ? flags.filter((f) => !f.id.startsWith('same-sentence:')) : flags;
+  });
+
+  // -- the papers on either side of this one ---------------------------------
+
+  /** Every paper handed in for the same task, in the order of the class list. */
+  private readonly siblings = computed(() => {
+    const paper = this.submission();
+    if (!paper) return [];
+    return this.data
+      .submissions()
+      .filter((p) => p.assignment_id === paper.assignment_id)
+      .sort((a, b) =>
+        this.data.studentName(a.student_id).localeCompare(this.data.studentName(b.student_id), 'he'),
+      );
+  });
+
+  /** "2 מתוך 5", and the papers before and after. Null when this is the only one. */
+  protected readonly place = computed(() => {
+    const all = this.siblings();
+    const at = all.findIndex((p) => p.id === this.submission()?.id);
+    if (at < 0 || all.length < 2) return null;
+    return {
+      text: `עבודה ${at + 1} מתוך ${all.length}`,
+      previous: all[at - 1]?.id ?? null,
+      next: all[at + 1]?.id ?? null,
+    };
+  });
+
+  // -- what the corrected version changed -------------------------------------
+
+  /** Against the round before this one. Null on a first round. */
+  protected readonly changes = computed(() => {
+    const paper = this.submission();
+    const round = paper && this.data.roundFor(paper.id);
+    if (!paper || !round || round.round_number < 2) return null;
+    const result = roundChanges(
+      this.data.round(paper.id, round.round_number - 1),
+      round,
+      this.data.annotations(),
+    );
+    if (!result) return null;
+    return {
+      ...result,
+      notes: result.notes.map((n) => ({
+        ...n,
+        kindLabel: KIND_LABEL[n.kind],
+        kindClass: kindClass(n.kind),
+      })),
+      title: !result.notes.length
+        ? 'גרסה מתוקנת: מה השתנה'
+        : `מהסבב הקודם: ${result.handled} מתוך ${result.notes.length} המשפטים שהערת עליהם שונו. לחיצה לפירוט`,
+    };
   });
 
   /** First name only — the send button reads better as "לנועה" than in full. */
@@ -180,6 +239,8 @@ export class Review {
   /** Each paper opens at the top, not wherever the last one was scrolled to. */
   private readonly toTop = effect(() => {
     this.submissionId();
+    this.removed.set(null);
+    this.approvingRest.set(false);
     queueMicrotask(() => {
       window.scrollTo({ top: 0 });
       document.getElementById('main')?.scrollTo({ top: 0 });
@@ -197,7 +258,11 @@ export class Review {
   protected readonly roundNumber = computed(() => this.submission().current_round);
 
   protected readonly context = computed(() => {
-    const where = [this.data.course()?.name, this.data.assignment()?.title]
+    // This paper's own task and course, not whichever one was last opened:
+    // with sixteen stages the two are usually different.
+    const task = this.data.assignmentById(this.submission().assignment_id);
+    const course = this.data.courses().find((c) => c.id === task?.course_id);
+    const where = [course?.name ?? this.data.course()?.name, task?.title]
       .filter(Boolean)
       .join(', ');
     return where ? `סבב ${this.roundNumber()} · ${where}` : `סבב ${this.roundNumber()}`;
@@ -263,11 +328,13 @@ export class Review {
 
   protected readonly viewBlocks = computed<ViewBlock[]>(() => {
     const annotations = this.live();
+    const changed = this.changes()?.changedBlockIds;
     return this.blocks().map((block) => ({
       id: block.id,
       isHeading: block.type === 'heading',
       isTitle: block.type === 'heading' && (block.level ?? 1) === 1,
       text: block.text,
+      isChanged: changed?.has(block.id) ?? false,
       runs:
         block.type === 'heading'
           ? []
@@ -296,7 +363,12 @@ export class Review {
     const blocks = this.blocks();
 
     const all = sectionsOf(blocks);
-    const firstId = all[0]?.id;
+    // The first section that has a note in it. The paper's opening section
+    // often has none, and then every group arrived closed and the notes she
+    // was told about were nowhere to be seen.
+    const firstId = all.find((section) =>
+      section.block_indexes.some((i) => annotations.some((a) => a.anchor.block_id === blocks[i]?.id)),
+    )?.id;
 
     return all
       .map((section) => {
@@ -334,7 +406,7 @@ export class Review {
     return `${commentCount(total)} · ${resolved === 1 ? 'אחת טופלה' : `${resolved} טופלו`}`;
   });
 
-  private readonly pendingCount = computed(
+  protected readonly pendingCount = computed(
     () => this.live().filter((a) => a.status === 'pending').length,
   );
 
@@ -455,6 +527,11 @@ export class Review {
   protected readonly ownKind = signal<AnnotationKind>('language');
   protected readonly selectionError = signal<string | null>(null);
 
+  /** Notes she wrote before, to use again with one press. */
+  protected readonly saved = computed(() =>
+    this.composing() ? savedComments(this.data.annotations(), this.ownBody(), this.ownKind()) : [],
+  );
+
   /**
    * Reads what she selected in the paper.
    *
@@ -560,6 +637,30 @@ export class Review {
     this.data.setAnnotationStatus(id, status);
     this.sheetId.set(null);
     if (this.editingId() === id) this.editingId.set(null);
+    // A removed note leaves the screen, so the way back has to stay behind.
+    this.removed.set(status === 'dismissed' ? id : null);
+  }
+
+  /** The note she just removed, until she brings it back or moves on. */
+  protected readonly removed = signal<UUID | null>(null);
+
+  protected bringBack() {
+    const id = this.removed();
+    if (!id) return;
+    this.removed.set(null);
+    this.undo(id);
+  }
+
+  /** Asked once before approving many notes at a time. */
+  protected readonly approvingRest = signal(false);
+
+  /** Approves every note still waiting, as worded. Each can still be taken back. */
+  protected approveRest() {
+    for (const a of this.live().filter((x) => x.status === 'pending')) {
+      this.data.setAnnotationStatus(a.id, 'accepted');
+    }
+    this.approvingRest.set(false);
+    this.removed.set(null);
   }
 
   protected startEdit(id: UUID) {

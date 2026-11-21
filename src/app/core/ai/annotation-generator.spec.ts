@@ -343,7 +343,7 @@ describe('AnnotationGenerator', () => {
       annotations: [
         {
           block_id: 'b-intro',
-          quote: 'מחקרים רבים הוכיחו',
+          quote: 'בעשור האחרון',
           kind: 'language',
           body: '״הוכיחו״ חזק מדי למחקר מתאמי.',
         },
@@ -383,7 +383,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'ראשון',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'א' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'א' },
       ],
     });
     const { store, generator } = boot();
@@ -393,7 +393,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'שני',
       annotations: [
-        { block_id: 'b-intro', quote: 'שאלת המחקר שלי היא האם', kind: 'praise', body: 'ב' },
+        { block_id: 'b-intro', quote: 'בקרב מתבגרים', kind: 'praise', body: 'ב' },
       ],
     });
     await generator.generate(NOA);
@@ -428,7 +428,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'חדש' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'חדש' },
       ],
     });
     await generator.generate(NOA);
@@ -456,7 +456,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'חדש' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'חדש' },
       ],
     });
     await first.generator.generate(NOA);
@@ -485,7 +485,7 @@ describe('AnnotationGenerator', () => {
       summary: 'סיכום',
       annotations: [
         { block_id: 'b-intro', quote: 'ציטוט שלא קיים בטקסט', kind: 'content', body: 'א' },
-        { block_id: 'b-nope', quote: 'מחקרים רבים הוכיחו', kind: 'content', body: 'ב' },
+        { block_id: 'b-nope', quote: 'בעשור האחרון', kind: 'content', body: 'ב' },
       ],
     });
 
@@ -515,9 +515,9 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'טוב' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'טוב' },
         { block_id: 'b-intro', quote: 'ציטוט שלא קיים בטקסט', kind: 'content', body: 'רע' },
-        { block_id: 'b-nope', quote: 'מחקרים רבים הוכיחו', kind: 'content', body: 'רע' },
+        { block_id: 'b-nope', quote: 'בעשור האחרון', kind: 'content', body: 'רע' },
       ],
     });
 
@@ -534,7 +534,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סימנתי בעיקר ניסוחים חזקים מדי.',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'הערה' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'הערה' },
       ],
     });
 
@@ -550,8 +550,8 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'א' },
-        { block_id: 'b-intro', quote: 'שאלת המחקר שלי היא האם', kind: 'praise', body: 'ב' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'א' },
+        { block_id: 'b-intro', quote: 'בקרב מתבגרים', kind: 'praise', body: 'ב' },
       ],
     });
 
@@ -568,7 +568,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'א' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'א' },
       ],
     });
 
@@ -591,7 +591,7 @@ describe('AnnotationGenerator', () => {
     respondWith({
       summary: 'סיכום שנשמר',
       annotations: [
-        { block_id: 'b-intro', quote: 'מחקרים רבים הוכיחו', kind: 'language', body: 'הערה' },
+        { block_id: 'b-intro', quote: 'בעשור האחרון', kind: 'language', body: 'הערה' },
       ],
     });
 

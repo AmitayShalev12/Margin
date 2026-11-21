@@ -58,7 +58,7 @@ export function waitingFor(
         kind: 'send',
         text: `${name}: ההערות מוכנות. אפשר לאשר ולשלוח לה`,
         short: 'מוכנה לשליחה',
-        link: `/approve/${paper.id}`,
+        link: `/communication/${paper.id}`,
       });
     } else if (!comments.length) {
       newWork.push({

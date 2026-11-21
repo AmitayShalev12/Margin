@@ -75,7 +75,7 @@ describe('what is waiting for her', () => {
       name,
     );
 
-    expect(items.map((i) => i.link)).toEqual(['/approve/ready', '/review/decide', '/review/new']);
+    expect(items.map((i) => i.link)).toEqual(['/communication/ready', '/review/decide', '/review/new']);
   });
 
   it('leaves out what has already gone back to the student', () => {

@@ -7,6 +7,7 @@ import { dayOf } from '../../../core/dates/hebrew-date';
 import { normaliseName } from '../../../core/drive/file-name';
 import { UUID } from '../../../core/models';
 import { lateNote, latePapers } from '../../../core/progress/traffic-light';
+import { writeSheet } from '../../../core/roster/roster';
 
 type ColumnFilter = '' | 'yes' | 'no';
 
@@ -83,6 +84,9 @@ type ColumnFilter = '' | 'yes' | 'no';
             </tbody>
           </table>
         </div>
+        <button type="button" class="btn btn-ghost btn-sm download" (click)="downloadGrades()">
+          הורדת הטבלה והציונים ל־Excel
+        </button>
       } @else {
         <p class="hint">עוד אין משימות. מוסיפים אותן כאן למטה.</p>
       }
@@ -130,8 +134,8 @@ type ColumnFilter = '' | 'yes' | 'no';
       margin-block-end: var(--s-1);
     }
     .filter {
-      min-height: 2rem;
-      block-size: 2rem;
+      min-height: 2.5rem;
+      block-size: 2.5rem;
       padding-block: 0;
       min-inline-size: 5.5rem;
       font-size: var(--fs-xs);
@@ -158,6 +162,9 @@ type ColumnFilter = '' | 'yes' | 'no';
     }
     .missing {
       color: var(--c-ink-3);
+    }
+    .download {
+      margin-block-start: var(--s-3);
     }
   `,
 })
@@ -203,6 +210,37 @@ export class ProcessTable {
         };
       });
   });
+
+  /**
+   * The whole table as an Excel file: a row per student, a column per task.
+   *
+   * A scored paper is its number, so the columns can be added up; a paper with
+   * no score yet says so, and a missing one is left empty.
+   */
+  protected downloadGrades() {
+    const now = new Date();
+    const tasks = this.tasks();
+    const bytes = writeSheet(
+      ['שם', ...tasks.map((task, i) => `${i + 1}. ${task.title}`)],
+      this.allRows().map((row) => [
+        row.name,
+        ...row.cells.map((cell) =>
+          cell.score ? cell.score.points : cell.paperId ? 'הוגש, בלי ציון' : null,
+        ),
+      ]),
+      now,
+    );
+    const url = URL.createObjectURL(
+      new Blob([bytes as BlobPart], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `margin-grades-${now.toISOString().slice(0, 10)}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   protected readonly rows = computed(() => {
     const name = normaliseName(this.nameFilter());

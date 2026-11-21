@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { GodMode } from '../../../core/god/god-mode';
 import { SupabaseService } from '../../../core/supabase/supabase';
 import { Icon } from '../icon/icon';
 
@@ -33,6 +34,9 @@ import { Icon } from '../icon/icon';
           <div class="menu">
             <p class="menu-head" dir="ltr">{{ email() }}</p>
             <a class="menu-item" routerLink="/settings" (click)="open.set(false)">הגדרות</a>
+            @if (god.allowed()) {
+              <a class="menu-item" routerLink="/god" (click)="open.set(false)">מצב ניסוי</a>
+            }
             <button type="button" class="menu-item" (click)="signOut()">התנתקות</button>
           </div>
         }
@@ -115,6 +119,7 @@ import { Icon } from '../icon/icon';
 export class AccountCorner {
   private readonly supabase = inject(SupabaseService);
 
+  protected readonly god = inject(GodMode);
   protected readonly open = signal(false);
   protected readonly email = computed(() => this.supabase.user()?.email ?? null);
 

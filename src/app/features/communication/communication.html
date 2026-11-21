@@ -94,6 +94,10 @@
         >
           {{ generator.isGenerating() ? 'מנסחת…' : 'ניסוח המייל' }}
         </button>
+        <!-- The other way to write it: her own words, from a template of hers. -->
+        <a class="btn btn-plain btn-sm" [routerLink]="['/approve', submission()!.id]">
+          לכתוב בעצמי, מתבנית שלי
+        </a>
       </div>
     } @else {
       @if (variants().length > 1 && !isSent()) {

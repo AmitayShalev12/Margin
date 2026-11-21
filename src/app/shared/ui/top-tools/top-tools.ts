@@ -99,7 +99,9 @@ import { Icon } from '../icon/icon';
       flex: 0 1 22rem;
       min-width: 0;
     }
-    .search-toggle {
+    /* Named through .search so the later .bell rule cannot switch it back on:
+       on a phone the icon showed beside the box it is meant to replace. */
+    .search .search-toggle {
       display: none;
     }
     /* From tablet up the box folds into an icon until it is wanted. */
@@ -112,7 +114,7 @@ import { Icon } from '../icon/icon';
         align-items: center;
         flex: 0 0 auto;
       }
-      .search-toggle {
+      .search .search-toggle {
         display: inline-flex;
       }
       .search .control {

@@ -1,3 +1,24 @@
+<!-- Approving what is left in one press: beside the paper on a wide screen, above the list on a phone. -->
+<ng-template #rest>
+  @if (pendingCount() > 1) {
+    <div class="rest">
+      @if (approvingRest()) {
+        <span>לאשר את {{ pendingCount() }} ההערות שמחכות, כמו שהן?</span>
+        <button type="button" class="btn btn-primary btn-sm" (click)="approveRest()">
+          כן, לאשר
+        </button>
+        <button type="button" class="btn btn-plain btn-sm" (click)="approvingRest.set(false)">
+          ביטול
+        </button>
+      } @else {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="approvingRest.set(true)">
+          לאשר את כל ההערות שמחכות ({{ pendingCount() }})
+        </button>
+      }
+    </div>
+  }
+</ng-template>
+
 <div class="page review-page">
   <div class="wrap">
     <a class="back" routerLink="/courses/current/students">
@@ -16,6 +37,23 @@
       </svg>
       <span>לרשימת העבודות</span>
     </a>
+
+    <!-- The papers on either side, so she never has to go back to the list between two. -->
+    @if (place(); as place) {
+      <nav class="pager" aria-label="מעבר בין עבודות">
+        @if (place.previous) {
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/review', place.previous]">העבודה הקודמת</a>
+        } @else {
+          <span class="btn btn-ghost btn-sm is-off" aria-hidden="true">העבודה הקודמת</span>
+        }
+        <span class="pager-place">{{ place.text }}</span>
+        @if (place.next) {
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/review', place.next]">העבודה הבאה</a>
+        } @else {
+          <span class="btn btn-ghost btn-sm is-off" aria-hidden="true">העבודה הבאה</span>
+        }
+      </nav>
+    }
 
     <header class="head">
       <h1>{{ student() }}</h1>
@@ -96,6 +134,42 @@
       </details>
     }
 
+    <!--
+      A corrected version, read against the one before it: which of her notes
+      had their sentence changed, and which paragraphs are new.
+    -->
+    @if (changes(); as changes) {
+      <details class="card earlier">
+        <summary>{{ changes.title }}</summary>
+        @if (changes.changedBlockIds.size) {
+          <p class="earlier-lead">
+            {{
+              changes.changedBlockIds.size
+                | count
+                  : 'פסקה אחת חדשה או שונה, והיא מסומנת בפס בצד העבודה.'
+                  : '# פסקאות חדשות או שונות, והן מסומנות בפס בצד העבודה.'
+                  : 'שתי פסקאות חדשות או שונות, והן מסומנות בפס בצד העבודה.'
+            }}
+          </p>
+        } @else {
+          <p class="earlier-lead">לא מצאתי פסקה שהשתנתה מאז הגרסה הקודמת.</p>
+        }
+        @if (changes.notes.length) {
+          <ul class="earlier-list">
+            @for (note of changes.notes; track note.id) {
+              <li class="earlier-note" [class]="note.kindClass">
+                <span class="earlier-state" [class.is-same]="note.state === 'same'">
+                  {{ note.state === 'same' ? 'המשפט נשאר כמו שהיה' : 'המשפט שונה' }}
+                </span>
+                <span class="earlier-body"><app-bidi-text [value]="note.body" /></span>
+                <span class="earlier-quote">״<app-bidi-text [value]="note.quote" />״</span>
+              </li>
+            }
+          </ul>
+        }
+      </details>
+    }
+
     <div class="layout">
       <!-- The document itself. Comments live on the text, not beside a copy of it. -->
       <!--
@@ -112,7 +186,7 @@
               <h3 class="doc-section" [attr.data-block]="b.id">{{ b.text }}</h3>
             }
           } @else {
-            <p class="doc-para" [attr.data-block]="b.id">
+            <p class="doc-para" [class.is-changed]="b.isChanged" [attr.data-block]="b.id">
               @for (run of b.runs; track $index) {
                 @if (run.annotationId) {
                   <span
@@ -154,47 +228,12 @@
           <p class="selection-error" role="alert">{{ message }}</p>
         }
 
-        @if (composing(); as anchor) {
-          <div class="own-comment">
-            <div class="own-quote">״<app-bidi-text [value]="anchor.quote" />״</div>
-
-            <div class="own-kinds" role="group" aria-label="סוג ההערה">
-              @for (k of legend; track k.kind) {
-                <button
-                  type="button"
-                  class="own-kind"
-                  [class]="k.class"
-                  [class.is-active]="ownKind() === k.kind"
-                  (click)="ownKind.set(k.kind)"
-                >
-                  {{ k.label }}
-                </button>
-              }
-            </div>
-
-            <textarea
-              class="own-body"
-              rows="3"
-              placeholder="ההערה שלך על המשפט הזה"
-              [value]="ownBody()"
-              (input)="ownBody.set($any($event.target).value)"
-            ></textarea>
-
-            <div class="own-actions">
-              <button type="button" class="btn btn-primary btn-sm" (click)="saveOwnComment()">
-                הוספת ההערה
-              </button>
-              <button type="button" class="btn btn-plain btn-sm" (click)="cancelOwnComment()">
-                ביטול
-              </button>
-            </div>
-          </div>
-        }
       </article>
 
       <!-- Desktop: the margin. -->
       @if (viewport.isDesktop() && hasComments() && !pendingSummary()) {
         <aside class="margin" aria-label="הערות">
+          <ng-container [ngTemplateOutlet]="rest" />
           @for (s of sections(); track s.id) {
             <div class="group">
               <button
@@ -320,6 +359,7 @@
     @if (!viewport.isDesktop() && hasComments() && !pendingSummary()) {
       <div class="mobile-groups">
         <div class="section-label">{{ counterText() }}</div>
+        <ng-container [ngTemplateOutlet]="rest" />
         @for (s of sections(); track s.id) {
           <div class="m-group">
             <button
@@ -433,7 +473,6 @@
         it marked the submission as sent and went back to the list, so a review
         that never reached the student looked exactly like one that had.
       -->
-      <a class="btn btn-ghost" [routerLink]="['/approve', submission().id]">אישור ושליחה</a>
       <button type="button" class="btn btn-primary" (click)="send()">
         {{ mailing ? 'כתיבת המייל ל' + firstName() : 'הוספת ההערות למסמך של ' + firstName() }}
       </button>
@@ -505,7 +544,66 @@
 
   At the top level and fixed, so it survives the scroll it exists to undo.
 -->
-@if (cameFrom()) {
+<!--
+  Her own note. At the top level and fixed, so it opens where she is reading
+  and not at the end of the paper.
+-->
+@if (composing(); as anchor) {
+  <div class="own-comment">
+    <div class="own-quote">״<app-bidi-text [value]="anchor.quote" />״</div>
+
+    <div class="own-kinds" role="group" aria-label="סוג ההערה">
+      @for (k of legend; track k.kind) {
+        <button
+          type="button"
+          class="own-kind"
+          [class]="k.class"
+          [class.is-active]="ownKind() === k.kind"
+          (click)="ownKind.set(k.kind)"
+        >
+          {{ k.label }}
+        </button>
+      }
+    </div>
+
+    <textarea
+      class="own-body"
+      rows="3"
+      placeholder="ההערה שלך על המשפט הזה"
+      [value]="ownBody()"
+      (input)="ownBody.set($any($event.target).value)"
+    ></textarea>
+
+    <!-- Her own earlier notes, to use again. Typing narrows them. -->
+    @if (saved().length) {
+      <div class="saved">
+        <span class="saved-label">הערות שכתבת בעבר, ללחיצה:</span>
+        @for (text of saved(); track text) {
+          <button type="button" class="saved-item" (click)="ownBody.set(text)">
+            <app-bidi-text [value]="text" />
+          </button>
+        }
+      </div>
+    }
+
+    <div class="own-actions">
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveOwnComment()">
+        הוספת ההערה
+      </button>
+      <button type="button" class="btn btn-plain btn-sm" (click)="cancelOwnComment()">
+        ביטול
+      </button>
+    </div>
+  </div>
+}
+
+@if (removed()) {
+  <div class="back-bar anim-rise" role="status">
+    <span>ההערה הוסרה.</span>
+    <button type="button" class="btn btn-primary btn-sm" (click)="bringBack()">להחזיר אותה</button>
+    <button type="button" class="btn btn-plain btn-sm" (click)="removed.set(null)">סגירה</button>
+  </div>
+} @else if (cameFrom()) {
   <div class="back-bar anim-rise" role="region" aria-label="חזרה להערה">
     <button type="button" class="btn btn-primary btn-sm" (click)="backToComment()">
       חזרה להערה

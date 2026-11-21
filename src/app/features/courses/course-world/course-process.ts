@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 
+import { CommonNotes } from '../common-notes/common-notes';
 import { CourseTasks } from '../course-tasks/course-tasks';
 import { ProcessTable } from '../process-table/process-table';
 import { StageChart } from '../stage-chart/stage-chart';
@@ -19,7 +20,7 @@ function savedView(): View {
 @Component({
   selector: 'app-course-process',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CourseTasks, ProcessTable, StageChart],
+  imports: [CommonNotes, CourseTasks, ProcessTable, StageChart],
   template: `
     <div class="views" role="group" aria-label="תצוגה">
       <button type="button" class="view" [attr.aria-pressed]="view() === 'table'" (click)="show('table')">
@@ -35,6 +36,7 @@ function savedView(): View {
     } @else {
       <app-stage-chart />
     }
+    <app-common-notes />
     <app-course-tasks />
   `,
   styles: `
