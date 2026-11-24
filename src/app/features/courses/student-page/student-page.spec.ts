@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 
 import { AnnotationGenerator } from '../../../core/ai/annotation-generator';
 import { DataStore } from '../../../core/data/data-store';
+import { GoogleDriveAuth } from '../../../core/drive/google-auth';
 import { LocalRepository } from '../../../core/data/local-repository';
 import { Repository } from '../../../core/data/repository';
 import { tabKey } from '../../../core/tabs';
@@ -206,5 +207,43 @@ describe('a paper beyond the course tasks', () => {
     expect(extraTaskTitle('פרק דיון.docx', ['נושא'])).toBe('פרק דיון');
     expect(extraTaskTitle('נושא.docx', ['נושא', 'נושא (2)'])).toBe('נושא (3)');
     expect(extraTaskTitle('.docx', [])).toBe('עבודה נוספת');
+  });
+});
+
+describe('her folder before Drive is connected', () => {
+  it('offers to connect right there, instead of sending her to another screen', () => {
+    const { store, noa } = setup();
+    store.setStudentFolder(noa.id, 'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp');
+    const auth = TestBed.inject(GoogleDriveAuth);
+    let asked = 0;
+    auth.connect = async () => {
+      asked++;
+    };
+
+    const { host } = render(noa.id);
+    const button = [...host.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === 'חיבור לדרייב',
+    );
+    button?.click();
+
+    expect(button).toBeTruthy();
+    expect(asked).toBe(1);
+    expect(host.textContent).not.toContain('בהגדרות הקורס');
+  });
+});
+
+describe('opening a paper', () => {
+  it('has a plain button that opens it, and says what is waiting in her words', () => {
+    const { store, topic, noa } = setup();
+    const p = paper(store, noa.id, topic.id)!;
+
+    const { host } = render(noa.id);
+    const open = [...host.querySelectorAll('.paper a.btn')].find(
+      (a) => a.textContent?.trim() === 'פתיחת העבודה',
+    );
+
+    expect(open?.getAttribute('href')).toBe(`/review/${p.id}`);
+    expect(host.querySelector('.paper-status')?.textContent).toContain('עוד לא עברת עליה');
+    expect(host.textContent).not.toContain('טרם נפתחה');
   });
 });

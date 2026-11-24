@@ -43,7 +43,10 @@ const MAX_SHARED_PAGES = 5;
 /** A Word file, which Drive stores as bytes rather than as a Doc. */
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const DOCUMENT_MIMES = [GOOGLE_DOC_MIME, DOCX_MIME, 'application/msword'];
+/** A PDF: read for its text, which Word and Google Docs exports carry. */
+export const PDF_MIME = 'application/pdf';
+
+const DOCUMENT_MIMES = [GOOGLE_DOC_MIME, DOCX_MIME, PDF_MIME, 'application/msword'];
 
 /**
  * A string literal for a Drive query.

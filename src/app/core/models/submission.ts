@@ -9,7 +9,7 @@ import { ISODateTime, Json, Timestamped, UUID } from './common';
  * name the state of the *conversation*, not just "reviewed / not reviewed".
  */
 export type SubmissionStatus =
-  | 'new' // הגיעה, טרם נפתחה
+  | 'new' // חדשה, עוד לא עברה עליה
   | 'in_review' // בבדיקה אצל המורה
   | 'notes_sent' // ההערות נשלחו, ממתין לתלמידה
   | 'student_revised' // התלמידה ערכה את המסמך

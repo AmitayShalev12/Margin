@@ -1,3 +1,4 @@
+import { readPdfBlocks } from '../import/pdf-blocks';
 import { extraTaskTitle, fileBaseName } from '../tasks/task-import';
 import { readDocxBlocks } from '../import/docx-blocks';
 import { Injectable, inject } from '@angular/core';
@@ -14,7 +15,7 @@ import {
 } from '../models';
 import { blocksToText, countWords, extractDocumentBlocks } from './docs-extract';
 import { parseSubmissionName, searchPrefixes, taskForContent, taskForFile } from './file-name';
-import { DOCX_MIME, DriveApi, DriveError } from './drive-api';
+import { DOCX_MIME, DriveApi, DriveError, PDF_MIME } from './drive-api';
 import {
   DriveFile,
   DriveMetadataSnapshot,
@@ -687,7 +688,7 @@ export class SyncService {
         const unchanged =
           !!existing.drive_modified_at &&
           existing.drive_modified_at === file.modifiedTime &&
-          !!this.store.roundFor(existing.id);
+          hasText(this.store.roundFor(existing.id));
         if (unchanged) {
           outcome.unchanged++;
           report.files.push({ name, result: 'unchanged', task });
@@ -885,7 +886,8 @@ export class SyncService {
       !!existing.drive_modified_at &&
       !!file.modifiedTime &&
       existing.drive_modified_at === file.modifiedTime &&
-      !!this.store.roundFor(existing.id);
+      // Stored before its kind could be read (a PDF, until now): read it again.
+      hasText(this.store.roundFor(existing.id));
 
     if (unchanged) return 'unchanged';
 
@@ -1124,6 +1126,13 @@ export class SyncService {
       };
     }
 
+    // A PDF: its text, in reading order. A scanned one has none, and reads as null.
+    if (file.mimeType === PDF_MIME) {
+      const blocks = await readPdfBlocks(await this.api.downloadFile(file.id));
+      if (blocks.length === 0) return null;
+      return { blocks, text: blocksToText(blocks), wordCount: countWords(blocks), revisionId: null };
+    }
+
     // `.doc` reaches here. It is a different format entirely — not a zip, not
     // XML — and is left unread rather than half-read.
     return null;
@@ -1140,4 +1149,9 @@ interface ExtractedDocument {
   text: string;
   wordCount: number;
   revisionId: string | null;
+}
+
+/** A round that holds the paper's text. One without it is read again on the next sync. */
+function hasText(round: { document_blocks?: unknown[] | null } | null | undefined): boolean {
+  return !!round?.document_blocks?.length;
 }

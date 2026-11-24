@@ -26,7 +26,7 @@ export function statusClass(status: SubmissionStatus): string {
 export function statusLine(status: SubmissionStatus, pendingCount: number): string {
   switch (status) {
     case 'new':
-      return 'הגיעה חדשה, טרם נפתחה';
+      return 'חדשה, עוד לא עברת עליה';
     case 'in_review':
       return 'פתוחה אצלך באמצע בדיקה';
     case 'resubmitted':
@@ -49,7 +49,7 @@ export function statusLine(status: SubmissionStatus, pendingCount: number): stri
 export function statusSummary(status: SubmissionStatus, pendingCount: number): string {
   switch (status) {
     case 'new':
-      return 'הגיעה חדשה, טרם נפתחה.';
+      return 'חדשה, עוד לא עברת עליה.';
     case 'in_review':
       return 'התחלת לבדוק ועצרת באמצע.';
     case 'resubmitted':

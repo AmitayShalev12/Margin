@@ -1,3 +1,4 @@
+import { isPdf, readPdfBlocks } from '../../../core/import/pdf-blocks';
 import { extraTaskTitle } from '../../../core/tasks/task-import';
 import { DecimalPipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
@@ -32,6 +33,10 @@ interface PaperRow {
   decided: number;
   words: number | null;
   late: string | null;
+  /** Read into Margin, so the review screen has something to show. */
+  readable: boolean;
+  /** The file itself in Drive, for a paper Margin could not read. */
+  driveLink: string | null;
 }
 
 /**
@@ -85,7 +90,17 @@ export class StudentPage {
   constructor() {
     // Opened in a tab of its own, nothing else has asked Google yet, and the
     // sync button waits on the answer.
-    void this.auth.refreshStatus().catch(() => undefined);
+    // Also where Google sends her back after connecting: the status picks up
+    // the new connection, and the redirect's marks leave the address.
+    void this.auth
+      .refreshStatus()
+      .catch(() => undefined)
+      .then(() => clearDriveRedirect());
+  }
+
+  /** Off to Google's consent screen, and back to this same page afterwards. */
+  protected connectDrive() {
+    void this.auth.connect();
   }
 
   /** Brings in what is in her folder now. The whole course syncs with it. */
@@ -178,6 +193,8 @@ export class StudentPage {
         decided: mine.length - pending,
         words: paper.word_count,
         late: lateOne ? lateNote(task?.title ?? '', lateOne.checked) : null,
+        readable: !!this.data.roundFor(paper.id)?.document_blocks?.length,
+        driveLink: paper.drive_web_view_link ?? null,
       };
     });
   });
@@ -249,9 +266,15 @@ export class StudentPage {
     this.reading.set(true);
     this.uploadError.set(null);
     try {
-      const blocks = await readDocxBlocks(await file.arrayBuffer());
+      const pdf = isPdf(file.name, file.type);
+      const bytes = await file.arrayBuffer();
+      const blocks = pdf ? await readPdfBlocks(bytes) : await readDocxBlocks(bytes);
       if (!blocks.length) {
-        this.uploadError.set('הקובץ ריק, אז אין מה להוסיף.');
+        this.uploadError.set(
+          pdf
+            ? 'ה־PDF הזה סרוק כתמונה, ואין בו טקסט לקרוא. אפשר לבקש ממנה קובץ Word או PDF שנשמר מ־Word.'
+            : 'הקובץ ריק, אז אין מה להוסיף.',
+        );
         return;
       }
       // A task holds one paper per student. When she has handed in all of them,
@@ -335,3 +358,11 @@ export class StudentPage {
 }
 
 export { extraTaskTitle };
+
+function clearDriveRedirect() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('drive')) return;
+  url.searchParams.delete('drive');
+  url.searchParams.delete('drive_error');
+  window.history.replaceState({}, '', url.toString());
+}
